@@ -1,0 +1,28 @@
+name: Hammer
+options:
+  bundleIdPrefix: com.lyft
+targets:
+  Hammer:
+    type: framework
+    platform: iOS
+    deploymentTarget: "11.0"
+    sources: Sources/Hammer
+    scheme:
+      testTargets:
+        - HammerTests
+      coverageTargets: 
+        - Hammer
+      gatherCoverageData: true
+  HammerTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "11.0"
+    sources: Tests/HammerTests
+    dependencies:
+      - target: Hammer
+      - target: TestHost
+  TestHost:
+    type: application
+    platform: iOS
+    deploymentTarget: "11.0"
+    sources: TestHost

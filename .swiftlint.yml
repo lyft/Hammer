@@ -1,0 +1,9 @@
+line_length:
+  - 110
+disabled_rules:
+  - identifier_name
+  - nesting
+  - opening_brace
+  - file_length
+trailing_comma:
+  mandatory_comma: true
