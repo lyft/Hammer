@@ -58,7 +58,7 @@ final class WaitingTests: XCTestCase {
         let eventGenerator = try EventGenerator(view: scrollView)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
             scrollView.scrollRectToVisible(view.frame, animated: false)
         }
 
