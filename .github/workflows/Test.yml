@@ -1,0 +1,31 @@
+name: Test
+on: [push]
+jobs:
+  test_ipad:
+    name: Test-iPad
+    runs-on: macOS-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: List available Xcode versions
+        run: ls /Applications | grep Xcode
+      - name: Force Xcode 12.4
+        run: sudo xcode-select -switch /Applications/Xcode_12.4.app
+      - name: Make project
+        run: make generate
+      - name: Run tests
+        run: make test-iPad
+  test_iphone:
+    name: Test-iPhone
+    runs-on: macOS-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: List available Xcode versions
+        run: ls /Applications | grep Xcode
+      - name: Force Xcode 12.4
+        run: sudo xcode-select -switch /Applications/Xcode_12.4.app
+      - name: Make project
+        run: make generate
+      - name: Run tests
+        run: make test-iPhone
