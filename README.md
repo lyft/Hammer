@@ -38,7 +38,7 @@ Hammer is a touch and keyboard synthesis library for emulating user interaction 
 
 ## Setup
 
-Hammer unit tests need to run in a host application to be able to generate touches. To set configure this select your project in the sidebar, select your test target, and choose a host application in the general tab. The host application can be your main application or an empty wrapper like [TestHost](./TestHost).
+Hammer unit tests need to run in a host application to be able to generate touches. To configure this select your project in the sidebar, select your test target, and choose a host application in the general tab. The host application can be your main application or an empty wrapper like [TestHost](./TestHost).
 
 SwiftPM does not currently support creating applications. To use Hammer with SwiftPM frameworks you need to create an xcodeproj and setup a host application.
 
