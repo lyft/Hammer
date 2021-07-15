@@ -24,7 +24,7 @@ extension EventGenerator {
         let startTime = Date().timeIntervalSinceReferenceDate
         while try !condition() {
             if Date().timeIntervalSinceReferenceDate - startTime > timeout {
-                throw HammerError.waitConditionTimeout
+                throw HammerError.waitConditionTimeout(timeout)
             }
 
             try self.wait(checkInterval)
@@ -51,7 +51,7 @@ extension EventGenerator {
             }
 
             if Date().timeIntervalSinceReferenceDate - startTime > timeout {
-                throw HammerError.waitConditionTimeout
+                throw HammerError.waitConditionTimeout(timeout)
             }
 
             try self.wait(checkInterval)

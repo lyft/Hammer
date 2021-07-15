@@ -9,6 +9,7 @@
   <ol>
     <li><a href="#introduction">Introduction</a></li>
     <li><a href="#installation">Installation</a></li>
+    <li><a href="#setup">Setup</a></li>
     <li><a href="#usage">Usage</a><ul>
       <li><a href="#simulating-fingers">Simulating Fingers</a></li>
       <li><a href="#simulating-stylus">Simulating Stylus</a></li>
@@ -16,6 +17,7 @@
       <li><a href="#finding-a-subview">Finding a Subview</a></li>
       <li><a href="#waiting">Waiting</a></li>
     </ul></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
     <li><a href="#license">License</a></li>
   </ol>
 </details>
@@ -33,6 +35,12 @@ Hammer is a touch and keyboard synthesis library for emulating user interaction 
 ```swift
 .package(url: "https://github.com/lyft/Hammer.git", from: "0.9.0")
 ```
+
+## Setup
+
+Hammer unit tests need to run in a host application to be able to generate touches. To set configure this select your project in the sidebar, select your test target, and choose a host application in the general tab. The host application can be your main application or an empty wrapper like [TestHost](./TestHost).
+
+SwiftPM does not currently support creating applications. To use Hammer with SwiftPM frameworks you need to create an xcodeproj and setup a host application.
 
 ## Usage
 
@@ -52,6 +60,7 @@ let eventGenerator = EventGenerator(viewController: myViewController)
 ```
 
 When simulating finger or stylus touches, there are multiple ways of specifying a touch location:
+
 1. Default: If you don't specify a location it will use the center of the screen.
 2. Point: A CGPoint in screen coordinates.
 3. View: A reference to a UIView or UIViewController, the location will be the center of the visible part of the view.
@@ -158,6 +167,24 @@ You will often need to wait for the simulator to finish displaying something on 
 try eventGenerator.wait(untilVisible: "myLabel", timeout: 1)
 try eventGenerator.wait(untilHittable: "myButton", timeout: 1)
 ```
+
+## Troubleshooting
+
+- The app or window is not ready for interaction
+
+Make sure you are running your unit tests in a host application ([setup instructions](#setup)). To interact with a view, it must be visible on the screen and the application must have finished presenting. You can test this by adding a delay to your testing and verifying that your view is appearing on screen.
+
+- View is not in hirarchy / Unable to find view
+
+Make sure the view you specified is in the same hierarchy as the view that was used to create the `EventGenerator`. If you used an accessibility identifier, check that it was spelled correctly.
+
+- View is not visible
+
+This means that the view is in the hierarchy but is not currently visible on screen, so it's not possible to generate touches for it. Make sure that the view is within visible bounds, not covered by other views, not hidden, and with alpha greater than 0.01.
+
+- View is not hittable
+
+This means that the view is in the hierarchy and visible on screen but is not currently able to receive touches. Make sure that the view reponds to hit test in its center coordinate and user interaction is enabled.
 
 ## License
 
