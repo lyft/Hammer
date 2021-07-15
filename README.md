@@ -38,7 +38,7 @@ Hammer is a touch and keyboard synthesis library for emulating user interaction 
 
 ## Setup
 
-Hammer unit tests need to run in a host application to be able to generate touches. To set configure this select your project in the sidebar, select your test target, and choose a host application in the general tab. The host application can be your main application or an empty wrapper like [TestHost](./TestHost).
+Hammer unit tests need to run in a host application to be able to generate touches. To configure this select your project in the sidebar, select your test target, and choose a host application in the general tab. The host application can be your main application or an empty wrapper like [TestHost](./TestHost).
 
 SwiftPM does not currently support creating applications. To use Hammer with SwiftPM frameworks you need to create an xcodeproj and setup a host application.
 
@@ -103,7 +103,7 @@ try eventGenerator.fingerRotate(angle: .pi, duration: 0.5)
 
 ### Simulating Stylus
 
-Stylus is available when running on an iPad. It allows for additional properties like pressure, altitude and azimouth to be specified.
+Stylus is available when running on an iPad. It allows for additional properties like pressure, altitude and azimuth to be specified.
 
 Similar to fingers, primitive events are the basic building blocks of stylus interactions.
 
@@ -123,7 +123,7 @@ try eventGenerator.stylusLongPress()
 
 ### Simulating Keyboard
 
-Keyboard methods take an explicit `KeyboardKey` object or a `Character`. Characters will be mapped to their closest keybaord key, you must wrap them with a shift key modifier if needed. This means that specifying a lowercase "a" character is equivalent to speciifying an uppercase "A", this is also true for keys with symbols.
+Keyboard methods take an explicit `KeyboardKey` object or a `Character`. Characters will be mapped to their closest keyboard key, you must wrap them with a shift key modifier if needed. This means that specifying a lowercase "a" character is equivalent to specifying an uppercase "A", this is also true for keys with symbols.
 
 ```swift
 // Explicit `KeyboardKey`
