@@ -151,12 +151,22 @@ When running on a full screen app or testing navigation, specifying a CGPoint in
 
 ```swift
 let myButton = try eventGenerator.viewWithIdentifier("my_button", ofType: UIButton.self)
+try eventGenerator.fingerTap(at: myButton)
 ```
 
 This method will throw an error if the view was not found in the hierarchy. If you're testing navigation or screen changes and you need to wait until the view appears, you can add a timeout. This will wait until the hierarchy has updated and return the view.
 
 ```swift
 let myButton = try eventGenerator.viewWithIdentifier("my_button", ofType: UIButton.self, timeout: 1)
+try eventGenerator.fingerTap(at: myButton)
+```
+
+You can also pass accessibility identifiers directly to the event methods.
+
+```swift
+try eventGenerator.fingerDown(at: "my_draggable_object")
+try eventGenerator.fingerMove(to: "drop_target", duration: 0.5)
+try eventGenerator.fingerUp()
 ```
 
 ### Waiting

@@ -19,6 +19,69 @@ final class HandTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
     }
 
+    func testButtonTapOnHidden() throws {
+        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
+        view.setContentHuggingPriority(.required, for: .vertical)
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.backgroundColor = .green
+        view.isHidden = true
+
+        let expectation = XCTestExpectation(description: "View is not visible")
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.wait(0.5)
+
+        do {
+            try eventGenerator.fingerTap()
+        } catch HammerError.viewIsNotVisible {
+            expectation.fulfill()
+        }
+
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+    }
+
+    func testButtonTapOnMinimumAlpha() throws {
+        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
+        view.setContentHuggingPriority(.required, for: .vertical)
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.backgroundColor = .green
+        view.alpha = 0.0001
+
+        let expectation = XCTestExpectation(description: "View is not visible")
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.wait(0.5)
+
+        do {
+            try eventGenerator.fingerTap()
+        } catch HammerError.viewIsNotVisible {
+            expectation.fulfill()
+        }
+
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+    }
+
+    func testButtonTapOnNonInteractive() throws {
+        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
+        view.setContentHuggingPriority(.required, for: .vertical)
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.backgroundColor = .green
+        view.isUserInteractionEnabled = false
+
+        let expectation = XCTestExpectation(description: "View is not hittable")
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.wait(0.5)
+
+        do {
+            try eventGenerator.fingerTap()
+        } catch HammerError.viewIsNotHittable {
+            expectation.fulfill()
+        }
+
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+    }
+
     func testButtonHighlight() throws {
         let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
         view.setContentHuggingPriority(.required, for: .vertical)

@@ -154,6 +154,10 @@ extension EventGenerator {
     ///
     /// - returns: If the view is visible
     public func viewIsVisible(_ view: UIView, visibility: Visibility = .partial) -> Bool {
+        guard view.isDescendant(of: self.window) else {
+            return false
+        }
+
         // Recursive
         func viewIsVisible(_ view: UIView, currentView: UIView, visibility: Visibility) -> Bool {
             guard !currentView.isHidden && currentView.alpha >= 0.01 else {
@@ -215,11 +219,7 @@ extension EventGenerator {
     ///
     /// - returns: If the view is hittable
     public func viewIsHittable(_ view: UIView) -> Bool {
-        guard let hitPoint = try? self.hitPoint(forView: view) else {
-            return false
-        }
-
-        return self.window.hitTest(hitPoint, with: nil) == view
+        return (try? self.screenHitPoint(forView: view)) != nil
     }
 
     /// Returns if the specified point has a hittable view at that location.
@@ -251,21 +251,22 @@ extension EventGenerator {
     /// - throws: And error if the view is not in the same hierarchy, not visible or not hittable.
     ///
     /// - returns: If the view is hittable
-    public func hitPoint(forView view: UIView) throws -> CGPoint {
+    public func screenHitPoint(forView view: UIView) throws -> CGPoint {
         guard view.isDescendant(of: self.window) else {
             throw HammerError.viewIsNotInHierarchy(view)
         }
 
-        let viewFrame = view.convert(view.bounds, to: self.window)
-        guard self.rectIsVisible(viewFrame) else {
+        guard self.viewIsVisible(view) else {
             throw HammerError.viewIsNotVisible(view)
         }
 
-        let hitPoint = self.window.bounds.intersection(viewFrame).center
-        guard self.window.hitTest(hitPoint, with: nil) == view else {
+        let viewFrame = view.convert(view.bounds, to: self.window)
+        let screenHitPoint = self.window.bounds.intersection(viewFrame).center
+        let viewHitPoint = view.convert(screenHitPoint, from: self.window)
+        guard view.isUserInteractionEnabled && view.point(inside: viewHitPoint, with: nil) else {
             throw HammerError.viewIsNotHittable(view)
         }
 
-        return hitPoint
+        return screenHitPoint
     }
 }

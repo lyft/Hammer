@@ -1,35 +1,35 @@
 import UIKit
 
 public protocol HammerLocatable {
-    func hitPoint(for eventGenerator: EventGenerator) throws -> CGPoint
+    func screenHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint
 }
 
 extension CGPoint: HammerLocatable {
-    public func hitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
+    public func screenHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
         return self
     }
 }
 
 extension CGRect: HammerLocatable {
-    public func hitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
+    public func screenHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
         return self.center
     }
 }
 
 extension UIView: HammerLocatable {
-    public func hitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
-        return try eventGenerator.hitPoint(forView: self)
+    public func screenHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
+        return try eventGenerator.screenHitPoint(forView: self)
     }
 }
 
 extension UIViewController: HammerLocatable {
-    public func hitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
-        return try self.view.hitPoint(for: eventGenerator)
+    public func screenHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
+        return try self.view.screenHitPoint(for: eventGenerator)
     }
 }
 
 extension String: HammerLocatable {
-    public func hitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
-        return try eventGenerator.viewWithIdentifier(self).hitPoint(for: eventGenerator)
+    public func screenHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
+        return try eventGenerator.viewWithIdentifier(self).screenHitPoint(for: eventGenerator)
     }
 }

@@ -17,14 +17,14 @@ import UIKit
 extension UIApplication {
     typealias HIDEventCallback = (_ event: IOHIDEvent) -> Void
 
-    private static var hidEventCallbacks = [HIDEventCallback]()
+    private static var hidEventCallbacks = [ObjectIdentifier: HIDEventCallback]()
 
     @objc
     private func swizzledHandleHIDEvent(_ event: IOHIDEvent) {
         // Calling this really calls the original un-swizzled method
         self.swizzledHandleHIDEvent(event)
 
-        UIApplication.hidEventCallbacks.forEach { $0(event) }
+        UIApplication.hidEventCallbacks.values.forEach { $0(event) }
     }
 
     private static let runOnce: () = {
@@ -46,7 +46,11 @@ extension UIApplication {
         self.runOnce
     }
 
-    static func registerForHIDEvents(callback: @escaping HIDEventCallback) {
-        self.hidEventCallbacks.append(callback)
+    static func registerForHIDEvents(_ object: ObjectIdentifier, callback: @escaping HIDEventCallback) {
+        self.hidEventCallbacks.updateValue(callback, forKey: object)
+    }
+
+    static func unregisterForHIDEvents(_ object: ObjectIdentifier) {
+        self.hidEventCallbacks.removeValue(forKey: object)
     }
 }

@@ -13,6 +13,9 @@ public final class EventGenerator {
     /// The window for the events
     public let window: UIWindow
 
+    /// The view that was used to create the event generator
+    private(set) var mainView: UIView
+
     var activeTouches = TouchStorage()
     var debugWindow = DebugVisualizerWindow()
     var eventCallbacks = [UInt32: CompletionHandler]()
@@ -29,11 +32,6 @@ public final class EventGenerator {
         set { self.debugWindow.isHidden = !newValue }
     }
 
-    /// The default location for touches when it's not specified.
-    var defaultTouchLocation: CGPoint {
-        self.window.bounds.center
-    }
-
     /// Initialize an event generator for a specified UIWindow.
     ///
     /// - parameter window: The window to receive events.
@@ -41,9 +39,10 @@ public final class EventGenerator {
         self.window = window
         self.window.layoutIfNeeded()
         self.debugWindow.frame = self.window.frame
+        self.mainView = window
 
         UIApplication.swizzle()
-        UIApplication.registerForHIDEvents { [weak self] event in
+        UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
             self?.markerEventReceived(event)
         }
 
@@ -69,6 +68,7 @@ public final class EventGenerator {
 
         try self.init(window: window)
         self.isUsingCustomWindow = true
+        self.mainView = viewController.view
     }
 
     /// Initialize an event generator for a specified UIView.
@@ -78,9 +78,11 @@ public final class EventGenerator {
     /// - parameter view: The view to receive events.
     public convenience init(view: UIView) throws {
         try self.init(viewController: UIViewController(wrapping: view))
+        self.mainView = view
     }
 
     deinit {
+        UIApplication.unregisterForHIDEvents(ObjectIdentifier(self))
         if self.isUsingCustomWindow {
             self.window.isHidden = true
             self.window.rootViewController = nil
