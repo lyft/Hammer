@@ -59,10 +59,8 @@ final class WaitingTests: XCTestCase {
         let eventGenerator = try EventGenerator(view: scrollView)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: false) { _ in
-            try! eventGenerator.fingerDrag(from: scrollView.frame.center.offset(x: 0, y: 100),
-                                           to: scrollView.frame.center.offset(x: 0, y: -100),
-                                           duration: 0.2)
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { _ in
+            scrollView.scrollRectToVisible(view.frame, animated: false)
         }
 
         XCTAssertFalse(eventGenerator.viewIsVisible("my_button"))
