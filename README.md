@@ -164,8 +164,8 @@ let myButton = try eventGenerator.viewWithIdentifier("my_button", ofType: UIButt
 You will often need to wait for the simulator to finish displaying something on the screen or for an animation to end. Hammer provides multiple methods to wait until a view is visible on screen or if a control is hittable
 
 ```swift
-try eventGenerator.wait(untilVisible: "myLabel", timeout: 1)
-try eventGenerator.wait(untilHittable: "myButton", timeout: 1)
+try eventGenerator.waitUntilVisible("my_label", timeout: 1)
+try eventGenerator.waitUntilHittable("my_button", timeout: 1)
 ```
 
 ## Troubleshooting

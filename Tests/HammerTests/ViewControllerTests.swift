@@ -8,7 +8,7 @@ final class ViewControllerTests: XCTestCase {
         let viewController = TestSignInViewController()
         let navigationController = UINavigationController(rootViewController: viewController)
         let eventGenerator = try EventGenerator(viewController: navigationController)
-        try eventGenerator.wait(untilHittable: "username_field", timeout: 1)
+        try eventGenerator.waitUntilHittable("username_field", timeout: 1)
 
         let usernameTextField = try eventGenerator.viewWithIdentifier("username_field",
                                                                       ofType: UITextField.self)
@@ -29,7 +29,7 @@ final class ViewControllerTests: XCTestCase {
         XCTAssertTrue(signInButton.isEnabled)
         try eventGenerator.keyPress(.returnOrEnter)
 
-        try eventGenerator.wait(untilExists: "username_label", timeout: 1)
+        try eventGenerator.waitUntilExists("username_label", timeout: 1)
         let usernameLabel = try eventGenerator.viewWithIdentifier("username_label", ofType: UILabel.self)
 
         XCTAssertEqual(usernameLabel.text, "Hello GabrielUsername123")
