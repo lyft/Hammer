@@ -117,7 +117,7 @@ final class WaitingTests: XCTestCase {
         let expectation = XCTestExpectation(description: "View is not found")
 
         do {
-            let _ = try eventGenerator.viewWithIdentifier("my_other_button", ofType: UIButton.self)
+            _ = try eventGenerator.viewWithIdentifier("my_other_button", ofType: UIButton.self)
         } catch HammerError.unableToFindView(let identifier) {
             XCTAssertEqual(identifier, "my_other_button")
             expectation.fulfill()
