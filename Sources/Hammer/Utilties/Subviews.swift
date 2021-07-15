@@ -58,7 +58,9 @@ extension EventGenerator {
         if let typedView = view as? T {
             return typedView
         } else {
-            throw HammerError.invalidViewType(identifier: accessibilityIdentifier)
+            throw HammerError.invalidViewType(identifier: accessibilityIdentifier,
+                                              type: String(describing: Swift.type(of: view)),
+                                              expected: String(describing: type))
         }
     }
 
@@ -237,7 +239,7 @@ extension EventGenerator {
     func checkPointsAreHittable(_ points: [CGPoint]) throws {
         for point in points {
             if !self.pointIsHittable(point) {
-                throw HammerError.pointIsNotHittable(point: point)
+                throw HammerError.pointIsNotHittable(point)
             }
         }
     }
@@ -251,17 +253,17 @@ extension EventGenerator {
     /// - returns: If the view is hittable
     public func hitPoint(forView view: UIView) throws -> CGPoint {
         guard view.isDescendant(of: self.window) else {
-            throw HammerError.viewIsNotInHierarchy
+            throw HammerError.viewIsNotInHierarchy(view)
         }
 
         let viewFrame = view.convert(view.bounds, to: self.window)
         guard self.rectIsVisible(viewFrame) else {
-            throw HammerError.viewIsNotVisible
+            throw HammerError.viewIsNotVisible(view)
         }
 
         let hitPoint = self.window.bounds.intersection(viewFrame).center
         guard self.window.hitTest(hitPoint, with: nil) == view else {
-            throw HammerError.viewIsNotHittable
+            throw HammerError.viewIsNotHittable(view)
         }
 
         return hitPoint
