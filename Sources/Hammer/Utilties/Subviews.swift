@@ -81,7 +81,7 @@ extension EventGenerator {
                                    checkInterval: TimeInterval = 0.1) throws -> UIView
     {
         do {
-            return try self.wait(until: {
+            return try self.waitUntilExists({
                 do {
                     return try self.viewWithIdentifier(accessibilityIdentifier)
                 } catch HammerError.unableToFindView {
@@ -115,7 +115,7 @@ extension EventGenerator {
                                               checkInterval: TimeInterval = 0.1) throws -> T
     {
         do {
-            return try self.wait(until: {
+            return try self.waitUntilExists({
                 do {
                     return try self.viewWithIdentifier(accessibilityIdentifier, ofType: type)
                 } catch HammerError.unableToFindView {

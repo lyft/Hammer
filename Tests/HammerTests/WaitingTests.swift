@@ -1,5 +1,4 @@
 import CoreGraphics
-import Dispatch
 import Hammer
 import UIKit
 import XCTest
@@ -16,13 +15,14 @@ final class WaitingTests: XCTestCase {
         try eventGenerator.waitUntilHittable(timeout: 1)
 
         view.isHidden = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: false) { _ in
             view.isHidden = false
         }
 
         XCTAssertFalse(eventGenerator.viewIsVisible("my_button"))
-        try eventGenerator.wait(untilVisible: "my_button", timeout: 1)
+        try eventGenerator.waitUntilVisible("my_button", timeout: 1)
         XCTAssertTrue(eventGenerator.viewIsVisible("my_button"))
+        timer.invalidate()
     }
 
     func testWaitUntilVisible() throws {
@@ -36,13 +36,14 @@ final class WaitingTests: XCTestCase {
         try eventGenerator.waitUntilHittable(timeout: 1)
 
         view.isHidden = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: false) { _ in
             view.isHidden = false
         }
 
         XCTAssertFalse(eventGenerator.viewIsVisible(view))
-        try eventGenerator.wait(untilVisible: view, timeout: 1)
+        try eventGenerator.waitUntilVisible(view, timeout: 1)
         XCTAssertTrue(eventGenerator.viewIsVisible(view))
+        timer.invalidate()
     }
 
     func testWaitUntilVisibleMove() throws {
@@ -58,13 +59,14 @@ final class WaitingTests: XCTestCase {
         let eventGenerator = try EventGenerator(view: scrollView)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { _ in
             scrollView.scrollRectToVisible(view.frame, animated: false)
         }
 
         XCTAssertFalse(eventGenerator.viewIsVisible("my_button"))
-        try eventGenerator.wait(untilVisible: "my_button", timeout: 1)
+        try eventGenerator.waitUntilVisible("my_button", timeout: 1)
         XCTAssertTrue(eventGenerator.viewIsVisible("my_button"))
+        timer.invalidate()
     }
 
     func testWaitUntilHittableWithIdentifier() throws {
@@ -78,13 +80,14 @@ final class WaitingTests: XCTestCase {
         try eventGenerator.waitUntilHittable(timeout: 1)
 
         view.isUserInteractionEnabled = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: false) { _ in
             view.isUserInteractionEnabled = true
         }
 
         XCTAssertFalse(eventGenerator.viewIsHittable("my_button"))
-        try eventGenerator.wait(untilHittable: "my_button", timeout: 1)
+        try eventGenerator.waitUntilHittable("my_button", timeout: 1)
         XCTAssertTrue(eventGenerator.viewIsHittable("my_button"))
+        timer.invalidate()
     }
 
     func testViewForIdentifierWithTimeout() throws {

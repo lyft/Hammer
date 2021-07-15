@@ -18,8 +18,8 @@ extension EventGenerator {
     /// - parameter checkInterval: How often should the condition be checked.
     ///
     /// - throws: An error if the condition did not return true within the specified time.
-    public func wait(until condition: @autoclosure @escaping () throws -> Bool,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntil(_ condition: @autoclosure @escaping () throws -> Bool,
+                          timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
         let startTime = Date().timeIntervalSinceReferenceDate
         while try !condition() {
@@ -41,8 +41,8 @@ extension EventGenerator {
     ///
     /// - returns: The non-nil object.
     @discardableResult
-    public func wait<T>(until exists: @autoclosure @escaping () throws -> T?,
-                        timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws -> T
+    public func waitUntilExists<T>(_ exists: @autoclosure @escaping () throws -> T?,
+                                   timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws -> T
     {
         let startTime = Date().timeIntervalSinceReferenceDate
         while true {
@@ -65,10 +65,10 @@ extension EventGenerator {
     /// - parameter checkInterval:           How often should the view be checked.
     ///
     /// - throws: An error if the view does not exist after the specified time.
-    public func wait(untilExists accessibilityIdentifier: String,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntilExists(_ accessibilityIdentifier: String,
+                                timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
-        try self.wait(until: self.viewWithIdentifier(accessibilityIdentifier),
+        try self.waitUntilExists(self.viewWithIdentifier(accessibilityIdentifier),
                       timeout: timeout, checkInterval: checkInterval)
     }
 
@@ -80,11 +80,11 @@ extension EventGenerator {
     /// - parameter checkInterval:           How often should the view be checked.
     ///
     /// - throws: An error if the view does not exist after the specified time.
-    public func wait(untilVisible accessibilityIdentifier: String, visibility: Visibility = .partial,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntilVisible(_ accessibilityIdentifier: String, visibility: Visibility = .partial,
+                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
-        try self.wait(until: self.viewIsVisible(accessibilityIdentifier, visibility: visibility),
-                      timeout: timeout, checkInterval: checkInterval)
+        try self.waitUntil(self.viewIsVisible(accessibilityIdentifier, visibility: visibility),
+                           timeout: timeout, checkInterval: checkInterval)
     }
 
     /// Waits for a view with the specified identifier to be visible within the specified time.
@@ -95,11 +95,11 @@ extension EventGenerator {
     /// - parameter checkInterval: How often should the view be checked.
     ///
     /// - throws: An error if the view does not exist after the specified time.
-    public func wait(untilVisible view: UIView, visibility: Visibility = .partial,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntilVisible(_ view: UIView, visibility: Visibility = .partial,
+                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
-        try self.wait(until: self.viewIsVisible(view, visibility: visibility),
-                      timeout: timeout, checkInterval: checkInterval)
+        try self.waitUntil(self.viewIsVisible(view, visibility: visibility),
+                           timeout: timeout, checkInterval: checkInterval)
     }
 
     /// Waits for a rect to be visible on screen within the specified time.
@@ -110,11 +110,11 @@ extension EventGenerator {
     /// - parameter checkInterval: How often should the view be checked.
     ///
     /// - throws: An error if the rect is not visible within the specified time.
-    public func wait(untilVisible rect: CGRect, visibility: Visibility = .partial,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntilVisible(_ rect: CGRect, visibility: Visibility = .partial,
+                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
-        try self.wait(until: self.rectIsVisible(rect, visibility: visibility),
-                      timeout: timeout, checkInterval: checkInterval)
+        try self.waitUntil(self.rectIsVisible(rect, visibility: visibility),
+                           timeout: timeout, checkInterval: checkInterval)
     }
 
     /// Waits for a point to be visible on screen within the specified time.
@@ -124,11 +124,11 @@ extension EventGenerator {
     /// - parameter checkInterval: How often should the view be checked.
     ///
     /// - throws: An error if the point is not visible within the specified time.
-    public func wait(untilVisible point: CGPoint,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntilVisible(_ point: CGPoint,
+                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
-        try self.wait(until: self.pointIsVisible(point),
-                      timeout: timeout, checkInterval: checkInterval)
+        try self.waitUntil(self.pointIsVisible(point),
+                           timeout: timeout, checkInterval: checkInterval)
     }
 
     /// Waits for a view with the specified identifier to be hittable within the specified time.
@@ -138,11 +138,11 @@ extension EventGenerator {
     /// - parameter checkInterval:           How often should the view be checked.
     ///
     /// - throws: An error if the view does not exist after the specified time.
-    public func wait(untilHittable accessibilityIdentifier: String,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntilHittable(_ accessibilityIdentifier: String,
+                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
-        try self.wait(until: self.viewIsHittable(accessibilityIdentifier),
-                      timeout: timeout, checkInterval: checkInterval)
+        try self.waitUntil(self.viewIsHittable(accessibilityIdentifier),
+                           timeout: timeout, checkInterval: checkInterval)
     }
 
     /// Waits for a view with the specified identifier to be hittable within the specified time.
@@ -152,10 +152,11 @@ extension EventGenerator {
     /// - parameter checkInterval: How often should the view be checked.
     ///
     /// - throws: An error if the view does not exist after the specified time.
-    public func wait(untilHittable view: UIView,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntilHittable(_ view: UIView,
+                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
-        try self.wait(until: self.viewIsHittable(view), timeout: timeout, checkInterval: checkInterval)
+        try self.waitUntil(self.viewIsHittable(view),
+                           timeout: timeout, checkInterval: checkInterval)
     }
 
     /// Waits for a point to be visible and hittable on screen within the specified time.
@@ -165,10 +166,11 @@ extension EventGenerator {
     /// - parameter checkInterval: How often should the view be checked.
     ///
     /// - throws: An error if the point is not hittable within the specified time.
-    public func wait(untilHittable point: CGPoint,
-                     timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+    public func waitUntilHittable(_ point: CGPoint,
+                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
     {
-        try self.wait(until: self.pointIsHittable(point), timeout: timeout, checkInterval: checkInterval)
+        try self.waitUntil(self.pointIsHittable(point),
+                           timeout: timeout, checkInterval: checkInterval)
     }
 
     /// Waits for the default touch location to be visible and hittable on screen within the specified time.
@@ -178,6 +180,7 @@ extension EventGenerator {
     ///
     /// - throws: An error if the point is not hittable within the specified time.
     public func waitUntilHittable(timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws {
-        try self.wait(until: self.defaultTouchLocation, timeout: timeout, checkInterval: checkInterval)
+        try self.waitUntilExists(self.defaultTouchLocation,
+                                 timeout: timeout, checkInterval: checkInterval)
     }
 }

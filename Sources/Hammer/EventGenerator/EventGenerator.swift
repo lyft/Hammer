@@ -98,7 +98,7 @@ public final class EventGenerator {
     /// - parameter timeout: The maximum time to wait for the window to be ready.
     public func waitUntilWindowIsReady(timeout: TimeInterval = 2) throws {
         do {
-            try self.wait(until: self.isWindowReady, timeout: timeout)
+            try self.waitUntil(self.isWindowReady, timeout: timeout)
         } catch {
             throw HammerError.windowIsNotReadyForInteraction
         }
