@@ -42,7 +42,7 @@ Hammer requires Swift 5.3 and iOS 11.0 or later.
 
 #### With [CocoaPods](https://cocoapods.org/)
 
-```swift
+```ruby
 pod 'HammerTests', '~> 0.10.0'
 ```
 
