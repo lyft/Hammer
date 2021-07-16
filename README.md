@@ -24,7 +24,7 @@
 
 ## Introduction
 
-Hammer is a touch, stylus and keyboard synthesis library for emulating user interaction events. It enables better ways of triggering UI actions in unit tests, replicating a real world environment as much as possible. 
+Hammer is a touch, stylus and keyboard synthesis library for emulating user interaction events. It enables better ways of triggering UI actions in unit tests, replicating a real world environment as much as possible.
 
 ⚠️ IMPORTANT: This library makes extensive use of private APIs and should never be included in a production app.
 
