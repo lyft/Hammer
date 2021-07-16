@@ -4,9 +4,7 @@ import XCTest
 
 final class HandTests: XCTestCase {
     func testButtonTap() throws {
-        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIButton().size(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Tapped")
@@ -20,78 +18,65 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonTapOnHidden() throws {
-        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIButton().size(width: 100, height: 100)
         view.backgroundColor = .green
         view.isHidden = true
 
-        let expectation = XCTestExpectation(description: "View is not visible")
-
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.wait(0.5)
 
         do {
             try eventGenerator.fingerTap()
+            XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotVisible {
-            expectation.fulfill()
+            // Success
+        } catch {
+            throw error
         }
-
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
     }
 
     func testButtonTapOnMinimumAlpha() throws {
-        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIButton().size(width: 100, height: 100)
         view.backgroundColor = .green
         view.alpha = 0.0001
 
-        let expectation = XCTestExpectation(description: "View is not visible")
-
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.wait(0.5)
 
         do {
             try eventGenerator.fingerTap()
+            XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotVisible {
-            expectation.fulfill()
+            // Success
+        } catch {
+            throw error
         }
-
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
     }
 
     func testButtonTapOnNonInteractive() throws {
-        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIButton().size(width: 100, height: 100)
         view.backgroundColor = .green
         view.isUserInteractionEnabled = false
-
-        let expectation = XCTestExpectation(description: "View is not hittable")
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.wait(0.5)
 
         do {
             try eventGenerator.fingerTap()
+            XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotHittable {
-            expectation.fulfill()
+            // Success
+        } catch {
+            throw error
         }
-
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
     }
 
     func testButtonTapOnNonInteractiveSuperview() throws {
-        let view = UIButton(frame: CGRect(x: 10, y: 10, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIButton().size(width: 100, height: 100)
         view.accessibilityIdentifier = "my_button"
         view.backgroundColor = .green
 
-        let containerView = UIView(frame: CGRect(x: 0, y: 0, width: 70, height: 70))
-        containerView.setContentHuggingPriority(.required, for: .vertical)
-        containerView.setContentHuggingPriority(.required, for: .horizontal)
+        let containerView = UIView().size(width: 100, height: 100)
         containerView.backgroundColor = .blue
         containerView.isUserInteractionEnabled = false
         containerView.addSubview(view)
@@ -110,9 +95,7 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonHighlight() throws {
-        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIButton().size(width: 100, height: 100)
         view.backgroundColor = .green
 
         let touchDownExpectation = XCTestExpectation(description: "Button Touch Down")
@@ -135,9 +118,7 @@ final class HandTests: XCTestCase {
     }
 
     func testViewTapGesture() throws {
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIView().size(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Tapped")
@@ -153,9 +134,7 @@ final class HandTests: XCTestCase {
     }
 
     func testViewDoubleTapGesture() throws {
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIView().size(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Double Tapped")
@@ -172,9 +151,7 @@ final class HandTests: XCTestCase {
     }
 
     func testViewTwoFingerTapGesture() throws {
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIView().size(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Two Finger Tapped")
@@ -191,9 +168,7 @@ final class HandTests: XCTestCase {
     }
 
     func testViewLongPressGesture() throws {
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIView().size(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Long Pressed")
@@ -209,9 +184,7 @@ final class HandTests: XCTestCase {
     }
 
     func testViewRotationGesture() throws {
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentHuggingPriority(.required, for: .horizontal)
+        let view = UIView().size(width: 300, height: 300)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "View Rotated")
@@ -258,9 +231,7 @@ final class HandTests: XCTestCase {
     }
 
     func testScrollViewDrag() throws {
-        let view = PatternScrollView()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
-        view.heightAnchor.constraint(equalToConstant: 300).isActive = true
+        let view = PatternScrollView().size(width: 300, height: 300)
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -273,9 +244,7 @@ final class HandTests: XCTestCase {
     }
 
     func testScrollViewPinch() throws {
-        let view = PatternScrollView()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
-        view.heightAnchor.constraint(equalToConstant: 300).isActive = true
+        let view = PatternScrollView().size(width: 300, height: 300)
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -288,5 +257,13 @@ final class HandTests: XCTestCase {
         try eventGenerator.fingerPinchClose(duration: 1)
         try eventGenerator.wait(0.3)
         XCTAssertEqual(view.zoomScale, 1, accuracy: 0.1)
+    }
+}
+
+extension UIView {
+    fileprivate func size(width: CGFloat, height: CGFloat) -> Self {
+        self.widthAnchor.constraint(equalToConstant: width).isActive = true
+        self.heightAnchor.constraint(equalToConstant: height).isActive = true
+        return self
     }
 }
