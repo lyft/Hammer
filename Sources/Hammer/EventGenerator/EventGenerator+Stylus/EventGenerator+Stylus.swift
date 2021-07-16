@@ -16,7 +16,7 @@ extension EventGenerator {
     public func stylusDown(at location: HammerLocatable? = nil,
                            azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) throws
     {
-        let location = try (location ?? self.mainView).screenHitPoint(for: self)
+        let location = try (location ?? self.mainView).windowHitPoint(for: self)
         try self.checkPointsAreHittable([location])
         try self.sendEvent(stylus: StylusInfo(location: location, phase: .began,
                                               pressure: pressure, twist: 0,
@@ -110,7 +110,7 @@ extension EventGenerator {
     public func stylusMove(to location: HammerLocatable,
                            azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) throws
     {
-        let location = try location.screenHitPoint(for: self)
+        let location = try location.windowHitPoint(for: self)
         try self.sendEvent(stylus: StylusInfo(location: location, phase: .moved, pressure: pressure, twist: 0,
                                               altitude: altitude, azimuth: azimuth))
     }
@@ -130,7 +130,7 @@ extension EventGenerator {
             throw HammerError.touchForStylusDoesNotExist
         }
 
-        let location = try location.screenHitPoint(for: self)
+        let location = try location.windowHitPoint(for: self)
 
         let startLocation = existingStylus.location
         let startAzimuth = existingStylus.azimuth

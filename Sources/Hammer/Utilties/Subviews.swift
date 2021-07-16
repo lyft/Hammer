@@ -159,7 +159,7 @@ extension EventGenerator {
         }
 
         // Recursive
-        func viewIsVisible(_ view: UIView, currentView: UIView, visibility: Visibility) -> Bool {
+        func viewIsVisible(currentView: UIView) -> Bool {
             guard !currentView.isHidden && currentView.alpha >= 0.01 else {
                 return false
             }
@@ -168,20 +168,19 @@ extension EventGenerator {
                 return currentView == self.window
             }
 
-            let adjustedRect = view.convert(view.bounds, to: superview)
-            guard superview.bounds.isVisible(adjustedRect, visibility: visibility) else {
+            guard superview.bounds.isVisible(view.frame, visibility: visibility) else {
                 return false
             }
 
-            return viewIsVisible(view, currentView: superview, visibility: visibility)
+            return viewIsVisible(currentView: superview)
         }
 
-        return viewIsVisible(view, currentView: view, visibility: visibility)
+        return viewIsVisible(currentView: view)
     }
 
     /// Returns if the specified rect is visible.
     ///
-    /// - parameter rect:       The rect in screen coordinates
+    /// - parameter rect:       The rect in window coordinates
     /// - parameter visibility: How determine if the view is visible.
     ///
     /// - returns: If the rect is visible
@@ -191,7 +190,7 @@ extension EventGenerator {
 
     /// Returns if the specified point is visible.
     ///
-    /// - parameter point: The point in screen coordinates
+    /// - parameter point: The point in window coordinates
     ///
     /// - returns: If the point is visible
     public func pointIsVisible(_ point: CGPoint) -> Bool {
@@ -203,28 +202,70 @@ extension EventGenerator {
     /// NOTE: This will also return false if the view for the accessibility identifier is not found.
     ///
     /// - parameter accessibilityIdentifier: The identifier to check.
+    /// - parameter point:                   A point to check if hittable in the view's coordinate space. If
+    ///                                      nil, it will use the center of the view's visible area.
     ///
     /// - returns: If the view is hittable
-    public func viewIsHittable(_ accessibilityIdentifier: String) -> Bool {
+    public func viewIsHittable(_ accessibilityIdentifier: String, atPoint point: CGPoint? = nil) -> Bool {
         guard let view = try? self.viewWithIdentifier(accessibilityIdentifier) else {
             return false
         }
 
-        return self.viewIsHittable(view)
+        return self.viewIsHittable(view, atPoint: point)
     }
 
     /// Returns if the specified view is hittable.
     ///
-    /// - parameter view: The view to check.
+    /// - parameter view:  The view to check.
+    /// - parameter point: A point to check if hittable in the view's coordinate space. If nil, it will use
+    ///                    the center of the view's visible area.
     ///
     /// - returns: If the view is hittable
-    public func viewIsHittable(_ view: UIView) -> Bool {
-        return (try? self.screenHitPoint(forView: view)) != nil
+    public func viewIsHittable(_ view: UIView, atPoint point: CGPoint? = nil) -> Bool {
+        guard self.viewIsVisible(view) else {
+            return false
+        }
+
+        let point = point ?? {
+            let windowHitPoint = self.internalWindowHitPoint(forView: view)
+            return view.convert(windowHitPoint, from: self.window)
+        }()
+
+        // Check if hittable through standard piping
+        let windowHitPoint = view.convert(point, to: self.window)
+        let windowHitTest = self.window.hitTest(windowHitPoint, with: nil)
+        if windowHitTest == view {
+            // If the hit test returns the target view we know it is hittable
+            return true
+        } else if windowHitTest == nil {
+            // If the hit test returns nil there is no interactive view
+            return false
+        }
+
+        // Recursive
+        func viewIsHittable(currentView: UIView) -> Bool {
+            guard currentView.isUserInteractionEnabled else {
+                return false
+            }
+
+            let adjustedPoint = currentView.convert(point, from: view)
+            guard currentView.point(inside: adjustedPoint, with: nil) else {
+                return false
+            }
+
+            guard let superview = currentView.superview else {
+                return currentView == self.window
+            }
+
+            return viewIsHittable(currentView: superview)
+        }
+
+        return viewIsHittable(currentView: view)
     }
 
     /// Returns if the specified point has a hittable view at that location.
     ///
-    /// - parameter point: The point in screen coordinates
+    /// - parameter point: The point in window coordinates
     ///
     /// - returns: If the point is hittable
     public func pointIsHittable(_ point: CGPoint) -> Bool {
@@ -233,7 +274,7 @@ extension EventGenerator {
 
     /// Checks if the specified points have a hittable view at that location.
     ///
-    /// - parameter points: The points in screen coordinates
+    /// - parameter points: The points in window coordinates
     ///
     /// - throws: If one of the points is not hittable
     func checkPointsAreHittable(_ points: [CGPoint]) throws {
@@ -251,7 +292,7 @@ extension EventGenerator {
     /// - throws: And error if the view is not in the same hierarchy, not visible or not hittable.
     ///
     /// - returns: If the view is hittable
-    public func screenHitPoint(forView view: UIView) throws -> CGPoint {
+    public func windowHitPoint(forView view: UIView) throws -> CGPoint {
         guard view.isDescendant(of: self.window) else {
             throw HammerError.viewIsNotInHierarchy(view)
         }
@@ -260,13 +301,20 @@ extension EventGenerator {
             throw HammerError.viewIsNotVisible(view)
         }
 
-        let viewFrame = view.convert(view.bounds, to: self.window)
-        let screenHitPoint = self.window.bounds.intersection(viewFrame).center
-        let viewHitPoint = view.convert(screenHitPoint, from: self.window)
-        guard view.isUserInteractionEnabled && view.point(inside: viewHitPoint, with: nil) else {
+        guard self.viewIsHittable(view) else {
             throw HammerError.viewIsNotHittable(view)
         }
 
-        return screenHitPoint
+        return self.internalWindowHitPoint(forView: view)
+    }
+
+    /// Returns a possible hittable point in the specified view without any validation.
+    ///
+    /// - parameter view: The view to hit
+    ///
+    /// - returns: A possible hittable point
+    private func internalWindowHitPoint(forView view: UIView) -> CGPoint {
+        let viewBounds = view.convert(view.bounds, to: self.window)
+        return self.window.bounds.intersection(viewBounds).center
     }
 }

@@ -82,6 +82,33 @@ final class HandTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
     }
 
+    func testButtonTapOnNonInteractiveSuperview() throws {
+        let view = UIButton(frame: CGRect(x: 10, y: 10, width: 50, height: 50))
+        view.setContentHuggingPriority(.required, for: .vertical)
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.accessibilityIdentifier = "my_button"
+        view.backgroundColor = .green
+
+        let containerView = UIView(frame: CGRect(x: 0, y: 0, width: 70, height: 70))
+        containerView.setContentHuggingPriority(.required, for: .vertical)
+        containerView.setContentHuggingPriority(.required, for: .horizontal)
+        containerView.backgroundColor = .blue
+        containerView.isUserInteractionEnabled = false
+        containerView.addSubview(view)
+
+        let eventGenerator = try EventGenerator(view: containerView)
+        try eventGenerator.wait(0.5)
+
+        do {
+            try eventGenerator.fingerTap(at: "my_button")
+            XCTFail("Button should not be tappable")
+        } catch HammerError.viewIsNotHittable {
+            // Success
+        } catch {
+            throw error
+        }
+    }
+
     func testButtonHighlight() throws {
         let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
         view.setContentHuggingPriority(.required, for: .vertical)
@@ -258,8 +285,8 @@ final class HandTests: XCTestCase {
         try eventGenerator.fingerPinchOpen(duration: 1)
         try eventGenerator.wait(0.3)
         XCTAssertEqual(view.zoomScale, 6.9, accuracy: 1)
-        try eventGenerator.wait(0.3)
         try eventGenerator.fingerPinchClose(duration: 1)
+        try eventGenerator.wait(0.3)
         XCTAssertEqual(view.zoomScale, 1, accuracy: 0.1)
     }
 }

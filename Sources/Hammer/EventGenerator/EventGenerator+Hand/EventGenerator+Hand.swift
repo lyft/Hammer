@@ -24,7 +24,7 @@ extension EventGenerator {
     /// - parameter locations: The locations where to touch down.
     public func fingerDown(_ indices: [FingerIndex?] = .automatic, at locations: [HammerLocatable]) throws {
         let indices = try self.fillNextFingerIndices(indices, withExpected: locations.count)
-        let locations = try locations.map { try $0.screenHitPoint(for: self) }
+        let locations = try locations.map { try $0.windowHitPoint(for: self) }
         try self.checkPointsAreHittable(locations)
         try self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
             FingerInfo(fingerIndex: index, location: location, phase: .began,
@@ -119,7 +119,7 @@ extension EventGenerator {
     /// - parameter locations: The new locations of the fingers.
     public func fingerMove(_ indices: [FingerIndex?] = .automatic, to locations: [HammerLocatable]) throws {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: locations.count)
-        let locations = try locations.map { try $0.screenHitPoint(for: self) }
+        let locations = try locations.map { try $0.windowHitPoint(for: self) }
         let fingers = zip(locations, indices).map { location, index in
             FingerInfo(fingerIndex: index, location: location, phase: .moved,
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
@@ -154,7 +154,7 @@ extension EventGenerator {
         }
 
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: locations.count)
-        let locations = try locations.map { try $0.screenHitPoint(for: self) }
+        let locations = try locations.map { try $0.windowHitPoint(for: self) }
         let startLocations = self.activeTouches.fingers(forIndices: indices).map(\.location)
 
         let startTime = Date()
@@ -217,7 +217,7 @@ extension EventGenerator {
                               angle radians: CGFloat = 0) throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
-        let location = try (location ?? self.mainView).screenHitPoint(for: self)
+        let location = try (location ?? self.mainView).windowHitPoint(for: self)
         try self.fingerDown(indices, at: location.twoWayOffset(distance, angle: radians))
     }
 
@@ -245,7 +245,7 @@ extension EventGenerator {
                               angle radians: CGFloat = 0) throws
     {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: 2)
-        let location = try location.screenHitPoint(for: self)
+        let location = try location.windowHitPoint(for: self)
         try self.fingerMove(indices, to: location.twoWayOffset(distance, angle: radians))
     }
 
@@ -263,7 +263,7 @@ extension EventGenerator {
                               withDistance distance: CGFloat = EventGenerator.twoFingerDistance,
                               angle radians: CGFloat = 0, duration: TimeInterval) throws
     {
-        let location = try location.screenHitPoint(for: self)
+        let location = try location.windowHitPoint(for: self)
         try self.fingerMove(indices, to: location.twoWayOffset(distance, angle: radians), duration: duration)
     }
 
@@ -300,7 +300,7 @@ extension EventGenerator {
                             angle radians: CGFloat = 0, duration: TimeInterval) throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
-        let location = try (location ?? self.mainView).screenHitPoint(for: self)
+        let location = try (location ?? self.mainView).windowHitPoint(for: self)
         let startLocations = location.twoWayOffset(startDistance, angle: radians)
         let endLocations = location.twoWayOffset(endDistance, angle: radians)
         try self.fingerDown(indices, at: startLocations)
@@ -352,7 +352,7 @@ extension EventGenerator {
                             angle radians: CGFloat) throws
     {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: 1)
-        let anchor = try anchor.screenHitPoint(for: self)
+        let anchor = try anchor.windowHitPoint(for: self)
         let locations = self.activeTouches.fingers(forIndices: indices).map(\.location)
         try self.fingerMove(indices, to: locations.map { $0.pivot(anchor: anchor, angle: radians) })
     }
@@ -376,7 +376,7 @@ extension EventGenerator {
         }
 
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: 1)
-        let anchor = try anchor.screenHitPoint(for: self)
+        let anchor = try anchor.windowHitPoint(for: self)
         let startLocations = self.activeTouches.fingers(forIndices: indices).map(\.location)
 
         let startTime = Date()
@@ -413,7 +413,7 @@ extension EventGenerator {
                              duration: TimeInterval) throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
-        let location = try (location ?? self.mainView).screenHitPoint(for: self)
+        let location = try (location ?? self.mainView).windowHitPoint(for: self)
         try self.fingerDown(indices, at: location.twoWayOffset(distance, angle: startRadians))
         try self.fingerPivot(indices, aroundAnchor: location, byAngle: endRadians - startRadians,
                              duration: duration)
