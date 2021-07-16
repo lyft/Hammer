@@ -24,16 +24,26 @@
 
 ## Introduction
 
-Hammer is a touch and keyboard synthesis library for emulating user interaction events. It enables new ways of triggering UI actions in unit tests, replicating a real world environment as much as possible.
+Hammer is a touch, stylus and keyboard synthesis library for emulating user interaction events. It enables better ways of triggering UI actions in unit tests, replicating a real world environment as much as possible.
 
 ⚠️ IMPORTANT: This library makes extensive use of private APIs and should never be included in a production app.
 
 ## Installation
 
+#### Requirements
+
+Hammer requires Swift 5.3 and iOS 11.0 or later.
+
 #### With [SwiftPM](https://swift.org/package-manager)
 
 ```swift
-.package(url: "https://github.com/lyft/Hammer.git", from: "0.9.0")
+.package(url: "https://github.com/lyft/Hammer.git", from: "0.10.0")
+```
+
+#### With [CocoaPods](https://cocoapods.org/)
+
+```swift
+pod 'HammerTests', '~> 0.10.0'
 ```
 
 ## Setup
