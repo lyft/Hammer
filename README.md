@@ -33,7 +33,7 @@ Hammer is a touch and keyboard synthesis library for emulating user interaction 
 #### With [SwiftPM](https://swift.org/package-manager)
 
 ```swift
-.package(url: "https://github.com/lyft/Hammer.git", from: "0.9.0")
+.package(url: "https://github.com/lyft/Hammer.git", from: "0.10.0")
 ```
 
 ## Setup
