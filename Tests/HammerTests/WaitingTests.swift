@@ -103,4 +103,26 @@ final class WaitingTests: XCTestCase {
         let button = try eventGenerator.viewWithIdentifier("my_button", ofType: UIButton.self, timeout: 0.1)
         XCTAssertEqual(button, view)
     }
+
+    func testViewForIdentifierWithInvalidIdentifier() throws {
+        let view = UIButton(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
+        view.accessibilityIdentifier = "my_button"
+        view.setContentHuggingPriority(.required, for: .vertical)
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.backgroundColor = .green
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(timeout: 1)
+
+        let expectation = XCTestExpectation(description: "View is not found")
+
+        do {
+            _ = try eventGenerator.viewWithIdentifier("my_other_button", ofType: UIButton.self)
+        } catch HammerError.unableToFindView(let identifier) {
+            XCTAssertEqual(identifier, "my_other_button")
+            expectation.fulfill()
+        }
+
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+    }
 }
