@@ -108,8 +108,7 @@ public final class EventGenerator {
 
     /// Returns if the window is ready to receive user interaction events
     public var isWindowReady: Bool {
-        guard UIApplication.shared.keyWindow == self.window
-                && (self.window.isKeyWindow || String(describing: type(of: self.window)) == "UITextEffectsWindow")
+        guard (UIApplication.shared.keyWindow == self.window && self.window.isKeyWindow || self.window.isTextEffectsWindow)
                 && self.window.isHidden == false
                 && self.window.isUserInteractionEnabled
                 && self.window.rootViewController?.viewIfLoaded != nil
@@ -187,5 +186,11 @@ public final class EventGenerator {
         }
 
         CFRunLoopRunInMode(.defaultMode, duration, false)
+    }
+}
+
+private extension UIWindow {
+    var isTextEffectsWindow: Bool {
+        return String(describing: type(of: self)) == "UITextEffectsWindow"
     }
 }
