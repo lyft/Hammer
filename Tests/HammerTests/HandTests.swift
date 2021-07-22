@@ -259,11 +259,3 @@ final class HandTests: XCTestCase {
         XCTAssertEqual(view.zoomScale, 1, accuracy: 0.1)
     }
 }
-
-extension UIView {
-    fileprivate func size(width: CGFloat, height: CGFloat) -> Self {
-        self.widthAnchor.constraint(equalToConstant: width).isActive = true
-        self.heightAnchor.constraint(equalToConstant: height).isActive = true
-        return self
-    }
-}

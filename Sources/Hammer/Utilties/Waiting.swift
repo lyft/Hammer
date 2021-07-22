@@ -131,6 +131,17 @@ extension EventGenerator {
                            timeout: timeout, checkInterval: checkInterval)
     }
 
+    /// Waits for the root view to be visible on screen within the specified time.
+    ///
+    /// - parameter timeout:       The maximum time to wait for the point to be hittable.
+    /// - parameter checkInterval: How often should the view be checked.
+    ///
+    /// - throws: An error if the point is not hittable within the specified time.
+    public func waitUntilVisible(timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws {
+        try self.waitUntil(self.viewIsVisible(self.rootView()),
+                           timeout: timeout, checkInterval: checkInterval)
+    }
+
     /// Waits for a view with the specified identifier to be hittable within the specified time.
     ///
     /// - parameter accessibilityIdentifier: The identifier of the view to wait for.
