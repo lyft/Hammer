@@ -37,13 +37,13 @@ Hammer requires Swift 5.3 and iOS 11.0 or later.
 #### With [SwiftPM](https://swift.org/package-manager)
 
 ```swift
-.package(url: "https://github.com/lyft/Hammer.git", from: "0.10.0")
+.package(url: "https://github.com/lyft/Hammer.git", from: "0.11.0")
 ```
 
 #### With [CocoaPods](https://cocoapods.org/)
 
 ```ruby
-pod 'HammerTests', '~> 0.10.2'
+pod 'HammerTests', '~> 0.11.0'
 ```
 
 ## Setup
