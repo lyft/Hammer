@@ -42,33 +42,3 @@ extension UIDevice {
         return self.userInterfaceIdiom == .pad
     }
 }
-
-extension UIWindow {
-    convenience init(wrapping viewController: UIViewController) {
-        self.init(frame: UIScreen.main.bounds)
-        self.rootViewController = viewController
-    }
-}
-
-extension UIViewController {
-    convenience init(wrapping view: UIView) {
-        self.init(nibName: nil, bundle: nil)
-        view.translatesAutoresizingMaskIntoConstraints = false
-        self.view.addSubview(view)
-        NSLayoutConstraint.activate([
-            view.topAnchor.constraint(equalTo: self.view.topAnchor).priority(.defaultHigh),
-            view.bottomAnchor.constraint(equalTo: self.view.bottomAnchor).priority(.defaultHigh),
-            view.leadingAnchor.constraint(equalTo: self.view.leadingAnchor).priority(.defaultHigh),
-            view.trailingAnchor.constraint(equalTo: self.view.trailingAnchor).priority(.defaultHigh),
-            view.centerYAnchor.constraint(equalTo: self.view.centerYAnchor),
-            view.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-        ])
-    }
-}
-
-extension NSLayoutConstraint {
-    fileprivate func priority(_ priority: UILayoutPriority) -> NSLayoutConstraint {
-        self.priority = priority
-        return self
-    }
-}

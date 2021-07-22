@@ -20,6 +20,14 @@ extension CGPoint {
     }
 }
 
+extension UIView {
+    func size(width: CGFloat, height: CGFloat) -> Self {
+        self.widthAnchor.constraint(equalToConstant: width).isActive = true
+        self.heightAnchor.constraint(equalToConstant: height).isActive = true
+        return self
+    }
+}
+
 extension UITextField {
     /// Disables the predictive bar which causes autolayout issues
     func disablePredictiveBar() {
