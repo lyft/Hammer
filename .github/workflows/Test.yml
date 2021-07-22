@@ -37,7 +37,7 @@ jobs:
         run: make generate
       - name: Run tests
         run: make test-iPhone
-  test_iphone:
+  test_iphone_ios12:
     name: Test-iPhone-iOS12
     runs-on: macOS-latest
     steps:
