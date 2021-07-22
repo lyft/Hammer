@@ -3,6 +3,7 @@ import UIKit
 /// https://github.com/lyft/Hammer#troubleshooting.
 public enum HammerError: Error {
     case windowIsNotReadyForInteraction
+    case windowIsNotKey
 
     case deviceDoesNotSupportTouches
     case deviceDoesNotSupportStylus
@@ -40,6 +41,8 @@ extension HammerError: CustomStringConvertible {
                 host application and that you have given enough time for the view to present on screen. \
                 For more troubleshooting tips see: https://github.com/lyft/Hammer#troubleshooting.
                 """
+        case .windowIsNotKey:
+            return "The window must be the key window to receive keyboard events"
         case .deviceDoesNotSupportTouches:
             return "Device does not support touches"
         case .deviceDoesNotSupportStylus:

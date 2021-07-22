@@ -108,9 +108,7 @@ public final class EventGenerator {
 
     /// Returns if the window is ready to receive user interaction events
     public var isWindowReady: Bool {
-        guard UIApplication.shared.keyWindow == self.window
-                && self.window.isKeyWindow
-                && self.window.isHidden == false
+        guard self.window.isHidden == false
                 && self.window.isUserInteractionEnabled
                 && self.window.rootViewController?.viewIfLoaded != nil
                 && self.window.rootViewController?.isBeingPresented == false

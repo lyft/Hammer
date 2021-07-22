@@ -11,7 +11,7 @@ final class KeyboardTests: XCTestCase {
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
-        view.becomeFirstResponder()
+        try eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
@@ -162,5 +162,21 @@ final class KeyboardTests: XCTestCase {
         XCTAssertEqual(view.text, "")
         try eventGenerator.keyType(keys)
         XCTAssertEqual(view.text, result)
+    }
+
+    func testEnsureKeyWindowError() throws {
+        let view = UITextField()
+        view.disablePredictiveBar()
+        view.autocapitalizationType = .none
+        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(timeout: 1)
+
+        do {
+            try eventGenerator.keyType("a")
+            XCTFail("Expected error")
+        } catch HammerError.windowIsNotKey {
+            // Success
+        }
     }
 }
