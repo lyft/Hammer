@@ -45,8 +45,6 @@ public final class EventGenerator {
         UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
             self?.markerEventReceived(event)
         }
-
-        try self.waitUntilWindowIsReady()
     }
 
     /// Initialize an event generator for a specified UIViewController.
@@ -98,7 +96,7 @@ public final class EventGenerator {
     /// Waits until the window is ready to receive user interaction events.
     ///
     /// - parameter timeout: The maximum time to wait for the window to be ready.
-    public func waitUntilWindowIsReady(timeout: TimeInterval = 2) throws {
+    public func waitUntilWindowIsReady(timeout: TimeInterval = 3) throws {
         do {
             try self.waitUntil(self.isWindowReady, timeout: timeout)
         } catch {
@@ -108,9 +106,7 @@ public final class EventGenerator {
 
     /// Returns if the window is ready to receive user interaction events
     public var isWindowReady: Bool {
-        guard UIApplication.shared.keyWindow == self.window
-                && self.window.isKeyWindow
-                && self.window.isHidden == false
+        guard self.window.isHidden == false
                 && self.window.isUserInteractionEnabled
                 && self.window.rootViewController?.viewIfLoaded != nil
                 && self.window.rootViewController?.isBeingPresented == false

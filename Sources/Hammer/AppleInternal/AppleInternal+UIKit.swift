@@ -4,9 +4,6 @@ import UIKit
 @objc protocol UIApplicationPrivate: NSObjectProtocol {
     @objc(_enqueueHIDEvent:)
     func enqueue(_ event: IOHIDEvent)
-
-    @objc(_touchesEvent)
-    var touchesEvent: UIEvent { get }
 }
 
 @objc protocol UIWindowPrivate: NSObjectProtocol {
