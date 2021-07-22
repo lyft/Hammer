@@ -77,10 +77,10 @@ extension EventGenerator {
     {
         for i in 0..<tapCount {
             try self.fingerDown(index, at: location)
-            self.sleep(EventGenerator.fingerLiftDelay)
+            try self.wait(EventGenerator.fingerLiftDelay)
             try self.fingerUp(index)
             if i < tapCount - 1 {
-                self.sleep(interval)
+                try self.wait(interval)
             }
         }
     }
@@ -105,7 +105,7 @@ extension EventGenerator {
                                 duration: TimeInterval = EventGenerator.longPressHoldDelay) throws
     {
         try self.fingerDown(index, at: location)
-        self.sleep(duration)
+        try self.wait(duration)
         try self.fingerUp(index)
     }
 
@@ -169,7 +169,7 @@ extension EventGenerator {
             }
 
             try self.fingerMove(indices, to: nextLocations)
-            self.sleep(EventGenerator.fingerMoveInterval)
+            try self.wait(EventGenerator.fingerMoveInterval)
         }
 
         try self.fingerMove(indices, to: locations)
@@ -280,7 +280,7 @@ extension EventGenerator {
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
         try self.twoFingerDown(indices, at: location, withDistance: distance, angle: radians)
-        self.sleep(EventGenerator.fingerLiftDelay)
+        try self.wait(EventGenerator.fingerLiftDelay)
         try self.twoFingerUp(indices)
     }
 
@@ -390,7 +390,7 @@ extension EventGenerator {
             let nextLocations = startLocations.map { $0.pivot(anchor: anchor, angle: radians) }
 
             try self.fingerMove(indices, to: nextLocations)
-            self.sleep(EventGenerator.fingerMoveInterval)
+            try self.wait(EventGenerator.fingerMoveInterval)
         }
 
         try self.fingerMove(indices, to: startLocations.map { $0.pivot(anchor: anchor, angle: radians) })

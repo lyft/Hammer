@@ -86,7 +86,7 @@ extension EventGenerator {
         for i in 0..<numberOfTimes {
             try self.keyPress(key)
             if i < numberOfTimes - 1 {
-                self.sleep(interval)
+                try self.wait(interval)
             }
         }
     }
@@ -118,7 +118,7 @@ extension EventGenerator {
         for (index, character) in text.enumerated() {
             try self.keyType(character)
             if index < text.count - 1 {
-                self.sleep(interval)
+                try self.wait(interval)
             }
         }
     }
@@ -147,6 +147,6 @@ extension EventGenerator {
         try self.sendEvent(event, wait: true)
 
         // Key events seem to be processed a little later, so we wait for one frame
-        self.sleep(1 / 60)
+        try self.wait(0.02)
     }
 }

@@ -173,15 +173,4 @@ public final class EventGenerator {
         try self.sendMarkerEvent { CFRunLoopStop(runLoop) }
         CFRunLoopRun()
     }
-
-    /// Sleeps the current thread for the specified duration.
-    ///
-    /// - parameter duration: The duration to sleep.
-    func sleep(_ duration: TimeInterval) {
-        guard duration > 0 else {
-            return
-        }
-
-        CFRunLoopRunInMode(.defaultMode, duration, false)
-    }
 }
