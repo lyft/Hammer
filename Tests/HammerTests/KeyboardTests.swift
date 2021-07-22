@@ -169,6 +169,16 @@ final class KeyboardTests: XCTestCase {
         view.disablePredictiveBar()
         view.autocapitalizationType = .none
         view.widthAnchor.constraint(equalToConstant: 300).isActive = true
+
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.isHidden = false
+        window.addSubview(view)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            view.centerYAnchor.constraint(equalTo: window.centerYAnchor),
+            view.centerXAnchor.constraint(equalTo: window.centerXAnchor),
+        ])
+        
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
