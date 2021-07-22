@@ -178,8 +178,8 @@ final class KeyboardTests: XCTestCase {
             view.centerYAnchor.constraint(equalTo: window.centerYAnchor),
             view.centerXAnchor.constraint(equalTo: window.centerXAnchor),
         ])
-        
-        let eventGenerator = try EventGenerator(view: view)
+
+        let eventGenerator = try EventGenerator(window: window)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
         do {
