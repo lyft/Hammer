@@ -1,6 +1,9 @@
 import CoreGraphics
 import Foundation
 import UIKit
+#if canImport(SwiftUI)
+import SwiftUI
+#endif
 
 private enum Storage {
     static var latestEventId: UInt32 = 0
@@ -13,13 +16,9 @@ public final class EventGenerator {
     /// The window for the events
     public let window: UIWindow
 
-    /// The view that was used to create the event generator
-    private(set) var mainView: UIView
-
     var activeTouches = TouchStorage()
     var debugWindow = DebugVisualizerWindow()
     var eventCallbacks = [UInt32: CompletionHandler]()
-    private var isUsingCustomWindow: Bool = false
 
     /// The default sender id for all events.
     ///
@@ -39,7 +38,6 @@ public final class EventGenerator {
         self.window = window
         self.window.layoutIfNeeded()
         self.debugWindow.frame = self.window.frame
-        self.mainView = window
 
         UIApplication.swizzle()
         UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
@@ -63,12 +61,10 @@ public final class EventGenerator {
             window.backgroundColor = .white
         }
 
-        window.makeKeyAndVisible()
+        window.isHidden = false
         window.layoutIfNeeded()
 
         try self.init(window: window)
-        self.isUsingCustomWindow = true
-        self.mainView = viewController.view
     }
 
     /// Initialize an event generator for a specified UIView.
@@ -78,12 +74,21 @@ public final class EventGenerator {
     /// - parameter view: The view to receive events.
     public convenience init(view: UIView) throws {
         try self.init(viewController: UIViewController(wrapping: view))
-        self.mainView = view
+    }
+
+    /// Initialize an event generator for a specified UIView.
+    ///
+    ///  Event Generator will temporarily create a wrapper UIWindow to send touches.
+    ///
+    /// - parameter view: The view to receive events.
+    @available(iOS 13.0, *)
+    public convenience init<Content: View>(view: Content) throws {
+        try self.init(viewController: UIHostingController(wrapping: view))
     }
 
     deinit {
         UIApplication.unregisterForHIDEvents(ObjectIdentifier(self))
-        if self.isUsingCustomWindow {
+        if self.window.isWrapper {
             self.window.isHidden = true
             self.window.rootViewController = nil
             self.debugWindow.isHidden = true
@@ -98,9 +103,11 @@ public final class EventGenerator {
     /// Waits until the window is ready to receive user interaction events.
     ///
     /// - parameter timeout: The maximum time to wait for the window to be ready.
-    public func waitUntilWindowIsReady(timeout: TimeInterval = 2) throws {
+    public func waitUntilWindowIsReady(timeout: TimeInterval = 5) throws {
         do {
-            try self.waitUntil(self.isWindowReady, timeout: timeout)
+            var initialMarkerEventReceived = false
+            try self.sendMarkerEvent { initialMarkerEventReceived = true }
+            try self.waitUntil(self.isWindowReady && initialMarkerEventReceived, timeout: timeout)
         } catch {
             throw HammerError.windowIsNotReadyForInteraction
         }
@@ -132,6 +139,27 @@ public final class EventGenerator {
         }
 
         return true
+    }
+
+    /// The root view of the event generator
+    public func rootView() throws -> UIView {
+        if self.window.isWrapper {
+            guard let view = self.window.rootViewController?.view else {
+                throw HammerError.unableToFindMainView
+            }
+
+            if view.isWrapper {
+                guard let wrappedView = view.subviews.first else {
+                    throw HammerError.unableToFindMainView
+                }
+
+                return wrappedView
+            }
+
+            return view
+        }
+
+        return self.window
     }
 
     /// Gets the next event ID to use. Event IDs are global and sequential.

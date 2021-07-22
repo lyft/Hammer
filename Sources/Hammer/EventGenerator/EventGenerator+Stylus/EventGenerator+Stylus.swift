@@ -16,7 +16,7 @@ extension EventGenerator {
     public func stylusDown(at location: HammerLocatable? = nil,
                            azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) throws
     {
-        let location = try (location ?? self.mainView).windowHitPoint(for: self)
+        let location = try (location ?? self.rootView()).windowHitPoint(for: self)
         try self.checkPointsAreHittable([location])
         try self.sendEvent(stylus: StylusInfo(location: location, phase: .began,
                                               pressure: pressure, twist: 0,

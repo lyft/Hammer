@@ -37,7 +37,7 @@ extension EventGenerator {
     /// - parameter index:    The finger index to touch down.
     /// - parameter location: The location where to touch down. Nil to use the center.
     public func fingerDown(_ index: FingerIndex? = .automatic, at location: HammerLocatable? = nil) throws {
-        try self.fingerDown([index], at: [location ?? self.mainView])
+        try self.fingerDown([index], at: [location ?? self.rootView()])
     }
 
     /// Sends a finger up event.
@@ -217,7 +217,7 @@ extension EventGenerator {
                               angle radians: CGFloat = 0) throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
-        let location = try (location ?? self.mainView).windowHitPoint(for: self)
+        let location = try (location ?? self.rootView()).windowHitPoint(for: self)
         try self.fingerDown(indices, at: location.twoWayOffset(distance, angle: radians))
     }
 
@@ -300,7 +300,7 @@ extension EventGenerator {
                             angle radians: CGFloat = 0, duration: TimeInterval) throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
-        let location = try (location ?? self.mainView).windowHitPoint(for: self)
+        let location = try (location ?? self.rootView()).windowHitPoint(for: self)
         let startLocations = location.twoWayOffset(startDistance, angle: radians)
         let endLocations = location.twoWayOffset(endDistance, angle: radians)
         try self.fingerDown(indices, at: startLocations)
@@ -413,7 +413,7 @@ extension EventGenerator {
                              duration: TimeInterval) throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
-        let location = try (location ?? self.mainView).windowHitPoint(for: self)
+        let location = try (location ?? self.rootView()).windowHitPoint(for: self)
         try self.fingerDown(indices, at: location.twoWayOffset(distance, angle: startRadians))
         try self.fingerPivot(indices, aroundAnchor: location, byAngle: endRadians - startRadians,
                              duration: duration)

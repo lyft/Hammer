@@ -180,7 +180,7 @@ extension EventGenerator {
     ///
     /// - throws: An error if the point is not hittable within the specified time.
     public func waitUntilHittable(timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws {
-        try self.waitUntil(self.viewIsHittable(self.mainView),
+        try self.waitUntil(self.viewIsHittable(self.rootView()),
                            timeout: timeout, checkInterval: checkInterval)
     }
 }

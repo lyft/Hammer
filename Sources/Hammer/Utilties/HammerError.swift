@@ -26,6 +26,7 @@ public enum HammerError: Error {
     case viewIsNotHittable(UIView)
     case pointIsNotHittable(CGPoint)
 
+    case unableToFindMainView
     case unableToFindView(identifier: String)
     case invalidViewType(identifier: String, type: String, expected: String)
     case waitConditionTimeout(TimeInterval)
@@ -70,6 +71,8 @@ extension HammerError: CustomStringConvertible {
             return "View is not in hittable: \(view.shortDescription)"
         case .pointIsNotHittable(let point):
             return "Point is not in hittable: \(point)"
+        case .unableToFindMainView:
+            return "Unable to find main view"
         case .unableToFindView(let identifier):
             return "Unable to find view: \"\(identifier)\""
         case .invalidViewType(let identifier, let type, let expected):
