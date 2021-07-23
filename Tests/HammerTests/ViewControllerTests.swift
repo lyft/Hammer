@@ -24,8 +24,8 @@ final class ViewControllerTests: XCTestCase {
         try eventGenerator.keyPress(.returnOrEnter)
         XCTAssertTrue(passwordTextField.isFirstResponder)
         XCTAssertFalse(signInButton.isEnabled)
-        try eventGenerator.keyType("$eCr3tP@ss!")
-        XCTAssertEqual(passwordTextField.text, "$eCr3tP@ss!")
+        try eventGenerator.keyType("aSeCr3tP@ss!")
+        XCTAssertEqual(passwordTextField.text, "aSeCr3tP@ss!")
         XCTAssertTrue(signInButton.isEnabled)
         try eventGenerator.keyPress(.returnOrEnter)
 
