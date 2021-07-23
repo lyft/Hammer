@@ -49,10 +49,10 @@ extension EventGenerator {
     {
         for i in 0..<tapCount {
             try self.stylusDown(at: location, azimuth: azimuth, altitude: altitude, pressure: pressure)
-            self.sleep(EventGenerator.fingerLiftDelay)
+            try self.wait(EventGenerator.fingerLiftDelay)
             try self.stylusUp()
             if i < tapCount - 1 {
-                self.sleep(interval)
+                try self.wait(interval)
             }
         }
     }
@@ -95,7 +95,7 @@ extension EventGenerator {
                                 duration: TimeInterval = EventGenerator.longPressHoldDelay) throws
     {
         try self.stylusDown(at: location, azimuth: azimuth, altitude: altitude, pressure: pressure)
-        self.sleep(duration)
+        try self.wait(duration)
         try self.stylusUp()
     }
 
@@ -151,7 +151,7 @@ extension EventGenerator {
 
             try self.stylusMove(to: nextLocation, azimuth: nextAzimuth,
                                 altitude: nextAltitude, pressure: nextPressure)
-            self.sleep(EventGenerator.fingerMoveInterval)
+            try self.wait(EventGenerator.fingerMoveInterval)
         }
 
         try self.stylusMove(to: location, azimuth: azimuth, altitude: altitude, pressure: pressure)
