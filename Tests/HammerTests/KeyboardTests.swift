@@ -152,6 +152,7 @@ final class KeyboardTests: XCTestCase {
         let view = UITextView()
         view.disablePredictiveBar()
         view.widthAnchor.constraint(equalToConstant: 300).isActive = true
+        view.heightAnchor.constraint(equalToConstant: 300).isActive = true
         view.autocapitalizationType = .none
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)

@@ -51,24 +51,28 @@ extension UIWindow {
 }
 
 extension UIViewController {
-    convenience init(wrapping view: UIView) {
+    convenience init(wrapping view: UIView, alignment: EventGenerator.WrappingAlignment) {
         self.init(nibName: nil, bundle: nil)
         view.translatesAutoresizingMaskIntoConstraints = false
         self.view.addSubview(view)
-        NSLayoutConstraint.activate([
-            view.topAnchor.constraint(equalTo: self.view.topAnchor).priority(.defaultHigh),
-            view.bottomAnchor.constraint(equalTo: self.view.bottomAnchor).priority(.defaultHigh),
-            view.leadingAnchor.constraint(equalTo: self.view.leadingAnchor).priority(.defaultHigh),
-            view.trailingAnchor.constraint(equalTo: self.view.trailingAnchor).priority(.defaultHigh),
-            view.centerYAnchor.constraint(equalTo: self.view.centerYAnchor),
-            view.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-        ])
-    }
-}
 
-extension NSLayoutConstraint {
-    fileprivate func priority(_ priority: UILayoutPriority) -> NSLayoutConstraint {
-        self.priority = priority
-        return self
+        switch alignment {
+        case .fill:
+            NSLayoutConstraint.activate([
+                view.topAnchor.constraint(equalTo: self.view.topAnchor),
+                view.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
+                view.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
+                view.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
+            ])
+        case .center:
+            NSLayoutConstraint.activate([
+                view.centerYAnchor.constraint(equalTo: self.view.centerYAnchor),
+                view.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+                view.topAnchor.constraint(greaterThanOrEqualTo: self.view.topAnchor),
+                view.bottomAnchor.constraint(lessThanOrEqualTo: self.view.bottomAnchor),
+                view.leadingAnchor.constraint(greaterThanOrEqualTo: self.view.leadingAnchor),
+                view.trailingAnchor.constraint(lessThanOrEqualTo: self.view.trailingAnchor),
+            ])
+        }
     }
 }

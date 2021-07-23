@@ -109,8 +109,10 @@ final class HandTests: XCTestCase {
 
         XCTAssertFalse(view.isHighlighted)
         try eventGenerator.fingerDown()
+        try eventGenerator.wait(0.3)
         XCTAssertTrue(view.isHighlighted)
         try eventGenerator.fingerUp()
+        try eventGenerator.wait(0.2)
         XCTAssertFalse(view.isHighlighted)
 
         XCTAssertEqual(XCTWaiter.wait(for: [touchDownExpectation, touchUpExpectation], timeout: 1),
