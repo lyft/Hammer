@@ -10,6 +10,14 @@ private enum Storage {
 public final class EventGenerator {
     typealias CompletionHandler = () -> Void
 
+    public enum WrappingAlignment {
+        /// Expand to fill the full available space
+        case fill
+
+        /// Center inside the available space
+        case center
+    }
+
     /// The window for the events
     public let window: UIWindow
 
@@ -73,9 +81,10 @@ public final class EventGenerator {
     ///
     ///  Event Generator will temporarily create a wrapper UIWindow to send touches.
     ///
-    /// - parameter view: The view to receive events.
-    public convenience init(view: UIView) throws {
-        try self.init(viewController: UIViewController(wrapping: view))
+    /// - parameter view:      The view to receive events.
+    /// - parameter alignment: The wrapping alignment to use.
+    public convenience init(view: UIView, alignment: WrappingAlignment = .center) throws {
+        try self.init(viewController: UIViewController(wrapping: view, alignment: alignment))
         self.mainView = view
     }
 
