@@ -34,6 +34,14 @@ test-iPhone:
 		-destination "name=iPhone 11" \
 		test
 
+test-iPhone-iOS12:
+	set -o pipefail && \
+		xcodebuild \
+		-project Hammer.xcodeproj \
+		-scheme Hammer \
+		-destination "name=iPhone 6" \
+		test
+
 # List all targets (from https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile)
 
 list:
