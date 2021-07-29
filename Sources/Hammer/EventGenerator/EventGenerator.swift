@@ -54,7 +54,7 @@ public final class EventGenerator {
             self?.markerEventReceived(event)
         }
 
-        self.waitUntilWindowIsReady()
+        try self.waitUntilWindowIsReady()
     }
 
     /// Initialize an event generator for a specified UIViewController.
