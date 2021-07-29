@@ -30,6 +30,10 @@ public enum HammerError: Error {
     case unableToFindView(identifier: String)
     case invalidViewType(identifier: String, type: String, expected: String)
     case waitConditionTimeout(TimeInterval)
+
+    case waiterIsNotRunning
+    case waiterIsAlreadyRunning
+    case waiterIsAlreadyCompleted
 }
 
 extension HammerError: CustomStringConvertible {
@@ -79,6 +83,12 @@ extension HammerError: CustomStringConvertible {
             return "Invalid type for view: \"\(identifier)\", got \"\(type)\" expected \"\(expected)\""
         case .waitConditionTimeout(let timeout):
             return "Timeout while waiting for condition exceeded \(timeout) seconds"
+        case .waiterIsNotRunning:
+            return "Unable to stop a Waiter that is not running"
+        case .waiterIsAlreadyRunning:
+            return "Unable to start a Waiter that is already running"
+        case .waiterIsAlreadyCompleted:
+            return "Unable to start or stop a waiter that is already completed"
         }
     }
 }
