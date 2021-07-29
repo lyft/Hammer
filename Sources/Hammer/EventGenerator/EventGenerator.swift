@@ -53,6 +53,8 @@ public final class EventGenerator {
         UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
             self?.markerEventReceived(event)
         }
+
+        self.waitUntilWindowIsReady()
     }
 
     /// Initialize an event generator for a specified UIViewController.
