@@ -168,7 +168,8 @@ extension EventGenerator {
                 return currentView == self.window
             }
 
-            guard superview.bounds.isVisible(view.frame, visibility: visibility) else {
+            let adjustedBounds = view.convert(view.bounds, to: superview)
+            guard superview.bounds.isVisible(adjustedBounds, visibility: visibility) else {
                 return false
             }
 
