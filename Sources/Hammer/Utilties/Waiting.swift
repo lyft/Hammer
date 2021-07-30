@@ -1,14 +1,70 @@
 import Foundation
 import UIKit
+import XCTest
 
 extension EventGenerator {
+    /// Object to handle waiting
+    public final class Waiter {
+        public enum State {
+            case idle
+            case running
+            case completed(timeout: Bool)
+        }
+
+        /// The maximum time to wait before stopping itself
+        public let timeout: TimeInterval
+
+        /// The current state of the waiter
+        public private(set) var state: State = .idle
+
+        /// We use XCTestExpectations internally to sleep the execution in a way that is friendly to tests
+        /// and does not block the main thread.
+        private let expectation = XCTestExpectation(description: "Hammer-Wait")
+
+        /// Initialize a Waiter
+        ///
+        /// - parameter timeout: The maximum time to wait before stopping itself
+        public init(timeout: TimeInterval) {
+            self.timeout = timeout
+        }
+
+        /// Begin waiting
+        public func start() throws {
+            if case .running = self.state {
+                throw HammerError.waiterIsAlreadyRunning
+            } else if case .completed = self.state {
+                throw HammerError.waiterIsAlreadyCompleted
+            }
+
+            self.state = .running
+            let result = XCTWaiter.wait(for: [self.expectation], timeout: self.timeout)
+            switch result {
+            case .completed:
+                self.state = .completed(timeout: false)
+            default:
+                self.state = .completed(timeout: true)
+            }
+        }
+
+        /// Stop waiting before the timeout
+        public func complete() throws {
+            if case .idle = self.state {
+                throw HammerError.waiterIsNotRunning
+            } else if case .completed = self.state {
+                throw HammerError.waiterIsAlreadyCompleted
+            }
+
+            self.expectation.fulfill()
+        }
+    }
+
     /// Waits for a specified time.
     ///
     /// - parameter interval: The maximum time to wait.
     ///
     /// - throws: An error if there was an issue during waiting.
     public func wait(_ interval: TimeInterval) throws {
-        CFRunLoopRunInMode(CFRunLoopMode.defaultMode, interval, false)
+        try Waiter(timeout: interval).start()
     }
 
     /// Waits for a condition to become true within the specified time.

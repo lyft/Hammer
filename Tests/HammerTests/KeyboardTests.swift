@@ -171,14 +171,17 @@ final class KeyboardTests: XCTestCase {
         view.autocapitalizationType = .none
         view.widthAnchor.constraint(equalToConstant: 300).isActive = true
 
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        window.isHidden = false
-        window.addSubview(view)
+        let viewController = UIViewController()
+        viewController.view.addSubview(view)
         view.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            view.centerYAnchor.constraint(equalTo: window.centerYAnchor),
-            view.centerXAnchor.constraint(equalTo: window.centerXAnchor),
+            view.centerYAnchor.constraint(equalTo: viewController.view.centerYAnchor),
+            view.centerXAnchor.constraint(equalTo: viewController.view.centerXAnchor),
         ])
+
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = viewController
+        window.isHidden = false
 
         let eventGenerator = try EventGenerator(window: window)
         try eventGenerator.waitUntilHittable(timeout: 1)

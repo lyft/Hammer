@@ -53,6 +53,8 @@ public final class EventGenerator {
         UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
             self?.markerEventReceived(event)
         }
+
+        try self.waitUntilWindowIsReady()
     }
 
     /// Initialize an event generator for a specified UIViewController.
@@ -178,8 +180,8 @@ public final class EventGenerator {
 
     /// Sleeps the current thread until the events have finished sending.
     private func waitForEvents() throws {
-        let runLoop = CFRunLoopGetCurrent()
-        try self.sendMarkerEvent { CFRunLoopStop(runLoop) }
-        CFRunLoopRun()
+        let waiter = Waiter(timeout: 1)
+        try self.sendMarkerEvent { try? waiter.complete() }
+        try waiter.start()
     }
 }
