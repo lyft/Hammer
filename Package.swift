@@ -11,8 +11,10 @@ let package = Package(
         .library(name: "Hammer", targets: ["Hammer"]),
     ],
     targets: [
-        .target(name: "Hammer"),
-
+        .target(
+          name: "Hammer",
+          exclude: ["Info.plist"]
+        ),
         // Disabled because SPM does not support running on TestHost yet
         // .testTarget(name: "HammerTests", dependencies: ["Hammer"]),
     ]
