@@ -242,7 +242,7 @@ final class HandTests: XCTestCase {
         try eventGenerator.fingerDrag(from: view.frame.center.offset(x: 40, y: 100),
                                       to: view.frame.center.offset(x: -40, y: -100),
                                       duration: 1)
-        XCTAssertEqual(view.contentOffset, CGPoint(x: 75, y: 190), accuracy: 2)
+        XCTAssertEqual(view.contentOffset, CGPoint(x: 75, y: 190), accuracy: 10)
     }
 
     func testScrollViewPinch() throws {
