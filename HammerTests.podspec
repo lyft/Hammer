@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name          = "HammerTests"
-  spec.version       = "0.13.0"
+  spec.version       = "0.13.1"
   spec.summary       = "iOS touch and keyboard syntheis library for unit tests."
   spec.description   = "Hammer is a touch and keyboard synthesis library for emulating user interaction events. It enables new ways of triggering UI actions in unit tests, replicating a real world environment as much as possible."
   spec.homepage      = "https://github.com/lyft/Hammer"
@@ -9,6 +9,7 @@ Pod::Spec.new do |spec|
   spec.author        = { "Gabriel Lanata" => "gabriel@lanata.me" }
   spec.platform      = :ios, "11.0"
   spec.swift_version = "5.3"
+  spec.frameworks    = 'XCTest'
   spec.source        = { :git => "https://github.com/lyft/Hammer.git", :tag => "#{spec.version}" }
   spec.source_files  = "Sources/**/*.swift"
   spec.requires_arc  = true
