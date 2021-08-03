@@ -162,12 +162,7 @@ public final class EventGenerator {
             throw HammerError.unableToAccessPrivateApi(type: "UIApplication", method: "Protocol")
         }
 
-        let contextID = window.contextId
-        guard contextID != 0 else {
-            throw HammerError.unableToAccessPrivateApi(type: "UIWindow", method: "ContextID")
-        }
-
-        BackBoardServices.shared.eventSetDigitizerInfo(event, contextID, false, false, nil, 0, 0)
+        BackBoardServices.shared.eventSetDigitizerInfo(event, window.contextId, false, false, nil, 0, 0)
 
         app.enqueue(event)
 
