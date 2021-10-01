@@ -25,7 +25,6 @@ extension EventGenerator {
     public func fingerDown(_ indices: [FingerIndex?] = .automatic, at locations: [HammerLocatable]) throws {
         let indices = try self.fillNextFingerIndices(indices, withExpected: locations.count)
         let locations = try locations.map { try $0.windowHitPoint(for: self) }
-        try self.checkPointsAreHittable(locations)
         try self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
             FingerInfo(fingerIndex: index, location: location, phase: .began,
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
@@ -443,6 +442,8 @@ extension EventGenerator {
     ///
     /// - parameter hand: The event to send.
     private func sendEvent(hand: HandInfo) throws {
+        try checkPointsAreHittable(hand.fingers.map(\.location))
+
         let machTime = mach_absolute_time()
         let isTouching = hand.isTouching
 

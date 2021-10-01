@@ -223,6 +223,10 @@ extension EventGenerator {
     ///
     /// - returns: If the view is hittable
     public func viewIsHittable(_ view: UIView, atPoint point: CGPoint? = nil) -> Bool {
+        guard self.isWindowReady else {
+            return false
+        }
+
         guard self.viewIsVisible(view) else {
             return false
         }
@@ -270,6 +274,10 @@ extension EventGenerator {
     ///
     /// - returns: If the point is hittable
     public func pointIsHittable(_ point: CGPoint) -> Bool {
+        guard self.isWindowReady else {
+            return false
+        }
+
         return self.window.hitTest(point, with: nil) != nil
     }
 
@@ -279,6 +287,10 @@ extension EventGenerator {
     ///
     /// - throws: If one of the points is not hittable
     func checkPointsAreHittable(_ points: [CGPoint]) throws {
+        guard self.isWindowReady else {
+            throw HammerError.windowIsNotReadyForInteraction
+        }
+
         for point in points {
             if !self.pointIsHittable(point) {
                 throw HammerError.pointIsNotHittable(point)
@@ -296,6 +308,10 @@ extension EventGenerator {
     public func windowHitPoint(forView view: UIView) throws -> CGPoint {
         guard view.isDescendant(of: self.window) else {
             throw HammerError.viewIsNotInHierarchy(view)
+        }
+
+        guard self.isWindowReady else {
+            throw HammerError.windowIsNotReadyForInteraction
         }
 
         guard self.viewIsVisible(view) else {
