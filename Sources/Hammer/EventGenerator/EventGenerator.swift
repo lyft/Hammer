@@ -117,7 +117,8 @@ public final class EventGenerator {
 
     /// Returns if the window is ready to receive user interaction events
     public var isWindowReady: Bool {
-        guard self.window.isHidden == false
+        guard !UIApplication.shared.isIgnoringInteractionEvents
+                && self.window.isHidden == false
                 && self.window.isUserInteractionEnabled
                 && self.window.rootViewController?.viewIfLoaded != nil
                 && self.window.rootViewController?.isBeingPresented == false
@@ -130,10 +131,6 @@ public final class EventGenerator {
 
         if #available(iOS 13.0, *) {
             guard self.window.windowScene?.activationState == .foregroundActive else {
-                return false
-            }
-        } else {
-            guard !UIApplication.shared.isIgnoringInteractionEvents else {
                 return false
             }
         }
