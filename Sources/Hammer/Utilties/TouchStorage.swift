@@ -54,4 +54,9 @@ struct TouchStorage {
             self.stylusStore = nil
         }
     }
+
+    mutating func update(finger: FingerInfo, forIdentifier identifier: UInt32) throws {
+        self.fingerStore.removeAll { $0.identifier == identifier }
+        self.fingerStore.append((finger, identifier))
+    }
 }
