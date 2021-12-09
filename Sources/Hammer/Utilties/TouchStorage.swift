@@ -58,5 +58,8 @@ struct TouchStorage {
     mutating func update(finger: FingerInfo, forIdentifier identifier: UInt32) throws {
         self.fingerStore.removeAll { $0.identifier == identifier }
         self.fingerStore.append((finger, identifier))
+        if let index = self.fingerStore.firstIndex(where: { $0.identifier == identifier }) {
+            self.fingerStore[index].finger = finger
+        }
     }
 }
