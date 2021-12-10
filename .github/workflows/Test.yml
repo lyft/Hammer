@@ -39,7 +39,7 @@ jobs:
         run: make test-iPhone
   test_iphone_ios12:
     name: Test-iPhone-iOS12
-    runs-on: macOS-latest
+    runs-on: macos-10.15
     steps:
       - name: Checkout
         uses: actions/checkout@v2
