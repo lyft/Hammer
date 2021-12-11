@@ -54,4 +54,10 @@ struct TouchStorage {
             self.stylusStore = nil
         }
     }
+
+    mutating func update(finger: FingerInfo, forIdentifier identifier: UInt32) throws {
+        if let index = self.fingerStore.firstIndex(where: { $0.identifier == identifier }) {
+            self.fingerStore[index].finger = finger
+        }
+    }
 }
