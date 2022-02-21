@@ -158,25 +158,22 @@ extension EventGenerator {
             return false
         }
 
-        // Recursive
-        func viewIsVisible(currentView: UIView) -> Bool {
-            guard !currentView.isHidden && currentView.alpha >= 0.01 else {
-                return false
-            }
-
-            guard let superview = currentView.superview else {
-                return currentView == self.window
-            }
-
-            let adjustedBounds = view.convert(view.bounds, to: superview)
-            guard superview.bounds.isVisible(adjustedBounds, visibility: visibility) else {
-                return false
-            }
-
-            return viewIsVisible(currentView: superview)
+        guard !view.isHidden && view.alpha >= 0.1 else {
+            return false
         }
 
-        return viewIsVisible(currentView: view)
+        guard let superview = view.superview else {
+            return view == self.window
+        }
+
+        let frameWithinSuperview = view.convert(view.bounds, to: superview)
+        let isWithinSuperviewBounds = superview.bounds.isVisible(frameWithinSuperview, visibility: visibility)
+        let isVisibleWithinSuperview = isWithinSuperviewBounds || superview.clipsToBounds == false
+
+        let boundsWithinWindow = view.convert(view.bounds, to: self.window)
+        let isWithinWindow = self.window.bounds.isVisible(boundsWithinWindow, visibility: visibility)
+
+        return isVisibleWithinSuperview && isWithinWindow
     }
 
     /// Returns if the specified rect is visible.
