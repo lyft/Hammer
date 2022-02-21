@@ -132,6 +132,21 @@ extension EventGenerator {
     /// Unless specified, the finger indices will be the last fingers that touched down.
     ///
     /// - parameter index:    The finger index to move.
+    /// - parameter translationX: The delta value along x-axis from the current location of the finger.
+    /// - parameter y: The delta value along y-axis from the current location of the finger.
+    public func fingerMove(_ index: FingerIndex? = .automatic, translationX: CGFloat, y: CGFloat,
+                           duration: TimeInterval) throws {
+        let indices = try self.fillExistingFingerIndices([index], withMinimum: 1)
+        let fingers = self.activeTouches.fingers(forIndices: indices)
+        let targetLocations = fingers.map(\.location).map { $0.offset(x: translationX, y: y) }
+        try self.fingerMove(indices, to: targetLocations, duration: duration)
+    }
+
+    /// Sends a finger move event.
+    ///
+    /// Unless specified, the finger indices will be the last fingers that touched down.
+    ///
+    /// - parameter index:    The finger index to move.
     /// - parameter location: The new location of the finger.
     public func fingerMove(_ index: FingerIndex? = .automatic, to location: HammerLocatable) throws {
         try self.fingerMove([index], to: [location])
