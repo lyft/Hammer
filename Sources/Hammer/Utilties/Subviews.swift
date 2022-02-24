@@ -168,9 +168,11 @@ extension EventGenerator {
                 return currentView == self.window
             }
 
-            let adjustedBounds = view.convert(view.bounds, to: superview)
-            guard superview.bounds.isVisible(adjustedBounds, visibility: visibility) else {
-                return false
+            if superview.clipsToBounds {
+                let adjustedBounds = view.convert(view.bounds, to: superview)
+                guard superview.bounds.isVisible(adjustedBounds, visibility: visibility) else {
+                    return false
+                }
             }
 
             return viewIsVisible(currentView: superview)
