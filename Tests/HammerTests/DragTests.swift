@@ -6,9 +6,7 @@ final class DragTests: XCTestCase {
 
     func test_drag() throws {
         let view = TouchTestView()
-
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
-        view.heightAnchor.constraint(equalToConstant: 300).isActive = true
+        view.setSize(width: 300, height: 300)
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)

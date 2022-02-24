@@ -4,7 +4,8 @@ import XCTest
 
 final class HandTests: XCTestCase {
     func testButtonTap() throws {
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Tapped")
@@ -18,7 +19,8 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonTapOnHidden() throws {
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         view.isHidden = true
 
@@ -36,7 +38,8 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonTapOnMinimumAlpha() throws {
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         view.alpha = 0.0001
 
@@ -54,7 +57,8 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonTapOnNonInteractive() throws {
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         view.isUserInteractionEnabled = false
 
@@ -72,11 +76,13 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonTapInsideOfBounds() throws {
-        let containerView = UIView().size(width: 100, height: 100)
+        let containerView = UIView()
+        containerView.setSize(width: 100, height: 100)
         containerView.backgroundColor = .blue
         containerView.clipsToBounds = false
 
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         containerView.addSubview(view)
         view.setOrigin(x: 0, y: 0)
@@ -92,10 +98,12 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonTapOutOfBounds() throws {
-        let containerView = UIView().size(width: 100, height: 100)
+        let containerView = UIView()
+        containerView.setSize(width: 100, height: 100)
         containerView.backgroundColor = .blue
 
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         containerView.addSubview(view)
         view.setOrigin(x: 0, y: 100)
@@ -114,11 +122,13 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonTapOutOfBoundsClipped() throws {
-        let containerView = UIView().size(width: 100, height: 100)
+        let containerView = UIView()
+        containerView.setSize(width: 100, height: 100)
         containerView.backgroundColor = .blue
         containerView.clipsToBounds = true
 
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         containerView.addSubview(view)
         view.setOrigin(x: 0, y: 100)
@@ -137,11 +147,13 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonTapOnNonInteractiveSuperview() throws {
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.accessibilityIdentifier = "my_button"
         view.backgroundColor = .green
 
-        let containerView = UIView().size(width: 100, height: 100)
+        let containerView = UIView()
+        containerView.setSize(width: 100, height: 100)
         containerView.backgroundColor = .blue
         containerView.isUserInteractionEnabled = false
         containerView.addSubview(view)
@@ -160,7 +172,8 @@ final class HandTests: XCTestCase {
     }
 
     func testButtonHighlight() throws {
-        let view = UIButton().size(width: 100, height: 100)
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
 
         let touchDownExpectation = XCTestExpectation(description: "Button Touch Down")
@@ -185,7 +198,8 @@ final class HandTests: XCTestCase {
     }
 
     func testViewTapGesture() throws {
-        let view = UIView().size(width: 100, height: 100)
+        let view = UIView()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Tapped")
@@ -201,7 +215,8 @@ final class HandTests: XCTestCase {
     }
 
     func testViewDoubleTapGesture() throws {
-        let view = UIView().size(width: 100, height: 100)
+        let view = UIView()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Double Tapped")
@@ -218,7 +233,8 @@ final class HandTests: XCTestCase {
     }
 
     func testViewTwoFingerTapGesture() throws {
-        let view = UIView().size(width: 100, height: 100)
+        let view = UIView()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Two Finger Tapped")
@@ -235,7 +251,8 @@ final class HandTests: XCTestCase {
     }
 
     func testViewLongPressGesture() throws {
-        let view = UIView().size(width: 100, height: 100)
+        let view = UIView()
+        view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "Button Long Pressed")
@@ -251,7 +268,8 @@ final class HandTests: XCTestCase {
     }
 
     func testViewRotationGesture() throws {
-        let view = UIView().size(width: 300, height: 300)
+        let view = UIView()
+        view.setSize(width: 300, height: 300)
         view.backgroundColor = .green
 
         let expectation = XCTestExpectation(description: "View Rotated")
@@ -298,7 +316,8 @@ final class HandTests: XCTestCase {
     }
 
     func testScrollViewDrag() throws {
-        let view = PatternScrollView().size(width: 300, height: 300)
+        let view = PatternScrollView()
+        view.setSize(width: 300, height: 300)
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -311,7 +330,8 @@ final class HandTests: XCTestCase {
     }
 
     func testScrollViewPinch() throws {
-        let view = PatternScrollView().size(width: 300, height: 300)
+        let view = PatternScrollView()
+        view.setSize(width: 300, height: 300)
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -324,23 +344,5 @@ final class HandTests: XCTestCase {
         try eventGenerator.fingerPinchClose(duration: 1)
         try eventGenerator.wait(0.3)
         XCTAssertEqual(view.zoomScale, 1, accuracy: 0.1)
-    }
-}
-
-extension UIView {
-    fileprivate func size(width: CGFloat, height: CGFloat) -> Self {
-        self.widthAnchor.constraint(equalToConstant: width).isActive = true
-        self.heightAnchor.constraint(equalToConstant: height).isActive = true
-        return self
-    }
-
-    fileprivate func setOrigin(x: CGFloat, y: CGFloat) {
-        guard let superview = self.superview else {
-            fatalError("View must be added as a subview before setting origin constraints")
-        }
-
-        self.translatesAutoresizingMaskIntoConstraints = false
-        self.leadingAnchor.constraint(equalTo: superview.leadingAnchor, constant: x).isActive = true
-        self.topAnchor.constraint(equalTo: superview.topAnchor, constant: y).isActive = true
     }
 }

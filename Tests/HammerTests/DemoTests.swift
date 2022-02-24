@@ -40,7 +40,7 @@ final class DemoTests: XCTestCase {
         let view = UITextField()
         view.textAlignment = .center
         view.autocapitalizationType = .none
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
+        view.setSize(width: 300)
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
         try eventGenerator.wait(0.5)
@@ -61,8 +61,7 @@ final class DemoTests: XCTestCase {
         try XCTSkipIf(kSkipDemoTests, "Demo tests are disabled")
 
         let view = MapView()
-        view.widthAnchor.constraint(equalToConstant: 600).isActive = true
-        view.heightAnchor.constraint(equalToConstant: 300).isActive = true
+        view.setSize(width: 600, height: 300)
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
