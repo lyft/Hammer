@@ -76,3 +76,10 @@ extension UIViewController {
         }
     }
 }
+
+extension UIView {
+    /// Returns the view at the top level of the view hierarchy. Could be a UIWindow.
+    var topLevelView: UIView {
+        return self.superview?.topLevelView ?? self
+    }
+}

@@ -59,11 +59,12 @@ public final class EventGenerator {
 
     /// Initialize an event generator for a specified UIViewController.
     ///
-    ///  Event Generator will temporarily create a wrapper UIWindow to send touches.
+    /// If the view controller's view does not have a window, this will temporarily create a wrapper
+    /// UIWindow to send touches.
     ///
     /// - parameter viewController: The viewController to receive events.
     public convenience init(viewController: UIViewController) throws {
-        let window = UIWindow(wrapping: viewController)
+        let window = viewController.view.window ?? UIWindow(wrapping: viewController)
 
         if #available(iOS 13.0, *) {
             window.backgroundColor = .systemBackground
@@ -81,12 +82,17 @@ public final class EventGenerator {
 
     /// Initialize an event generator for a specified UIView.
     ///
-    ///  Event Generator will temporarily create a wrapper UIWindow to send touches.
+    /// If the view does not have a window, this will temporarily create a wrapper UIWindow to send touches.
     ///
     /// - parameter view:      The view to receive events.
     /// - parameter alignment: The wrapping alignment to use.
     public convenience init(view: UIView, alignment: WrappingAlignment = .center) throws {
-        try self.init(viewController: UIViewController(wrapping: view, alignment: alignment))
+        if let window = view.window {
+            try self.init(window: window)
+        } else {
+            try self.init(viewController: UIViewController(wrapping: view.topLevelView, alignment: alignment))
+        }
+
         self.mainView = view
     }
 

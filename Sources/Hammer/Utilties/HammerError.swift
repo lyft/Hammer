@@ -72,11 +72,11 @@ extension HammerError: CustomStringConvertible {
         case .viewIsNotInHierarchy(let view):
             return "View is not in hierarchy: \(view.shortDescription)"
         case .viewIsNotVisible(let view):
-            return "View is not in visible: \(view.shortDescription)"
+            return "View is not visible: \(view.shortDescription)"
         case .viewIsNotHittable(let view):
-            return "View is not in hittable: \(view.shortDescription)"
+            return "View is not hittable: \(view.shortDescription)"
         case .pointIsNotHittable(let point):
-            return "Point is not in hittable: \(point)"
+            return "Point is not hittable: \(point)"
         case .unableToFindView(let identifier):
             return "Unable to find view: \"\(identifier)\""
         case .invalidViewType(let identifier, let type, let expected):
