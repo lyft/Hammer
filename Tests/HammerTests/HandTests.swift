@@ -245,6 +245,18 @@ final class HandTests: XCTestCase {
         XCTAssertEqual(view.contentOffset, CGPoint(x: 75, y: 190), accuracy: 10)
     }
 
+    func testScrollViewDragWithTranslation() throws {
+        let view = PatternScrollView().size(width: 300, height: 300)
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(timeout: 1)
+
+        XCTAssertEqual(view.contentOffset, CGPoint(x: 0, y: 0))
+        try eventGenerator.fingerDown(at: view.frame.center.offset(x: 40, y: 100))
+        try eventGenerator.fingerMove(translationX: -80, y: -200, duration: 1)
+        XCTAssertEqual(view.contentOffset, CGPoint(x: 75, y: 190), accuracy: 10)
+    }
+
     func testScrollViewPinch() throws {
         let view = PatternScrollView().size(width: 300, height: 300)
 
