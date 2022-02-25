@@ -2,6 +2,7 @@ import Hammer
 import UIKit
 import XCTest
 
+// swiftlint:disable:next type_body_length
 final class HandTests: XCTestCase {
     func testButtonTap() throws {
         let view = UIButton().size(width: 100, height: 100)
@@ -65,6 +66,71 @@ final class HandTests: XCTestCase {
             try eventGenerator.fingerTap()
             XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotHittable {
+            // Success
+        } catch {
+            throw error
+        }
+    }
+
+    func testButtonTapInsideOfBounds() throws {
+        let containerView = UIView().size(width: 100, height: 100)
+        containerView.backgroundColor = .blue
+        containerView.clipsToBounds = false
+
+        let view = UIButton().size(width: 100, height: 100)
+        view.backgroundColor = .green
+        containerView.addSubview(view)
+        view.setOrigin(x: 0, y: 0)
+
+        let expectation = XCTestExpectation(description: "Button Tapped")
+        view.addHandler(forEvent: .primaryActionTriggered, action: expectation.fulfill)
+
+        let eventGenerator = try EventGenerator(view: containerView)
+        try eventGenerator.waitUntilHittable(view, timeout: 1)
+        try eventGenerator.fingerTap(at: view)
+
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+    }
+
+    func testButtonTapOutOfBounds() throws {
+        let containerView = UIView().size(width: 100, height: 100)
+        containerView.backgroundColor = .blue
+
+        let view = UIButton().size(width: 100, height: 100)
+        view.backgroundColor = .green
+        containerView.addSubview(view)
+        view.setOrigin(x: 0, y: 100)
+
+        let eventGenerator = try EventGenerator(view: containerView)
+        try eventGenerator.wait(0.5)
+
+        do {
+            try eventGenerator.fingerTap(at: view)
+            XCTFail("Button should not be tappable")
+        } catch HammerError.viewIsNotHittable {
+            // Success
+        } catch {
+            throw error
+        }
+    }
+
+    func testButtonTapOutOfBoundsClipped() throws {
+        let containerView = UIView().size(width: 100, height: 100)
+        containerView.backgroundColor = .blue
+        containerView.clipsToBounds = true
+
+        let view = UIButton().size(width: 100, height: 100)
+        view.backgroundColor = .green
+        containerView.addSubview(view)
+        view.setOrigin(x: 0, y: 100)
+
+        let eventGenerator = try EventGenerator(view: containerView)
+        try eventGenerator.wait(0.5)
+
+        do {
+            try eventGenerator.fingerTap(at: view)
+            XCTFail("Button should not be tappable")
+        } catch HammerError.viewIsNotVisible {
             // Success
         } catch {
             throw error
@@ -279,5 +345,15 @@ extension UIView {
         self.widthAnchor.constraint(equalToConstant: width).isActive = true
         self.heightAnchor.constraint(equalToConstant: height).isActive = true
         return self
+    }
+
+    fileprivate func setOrigin(x: CGFloat, y: CGFloat) {
+        guard let superview = self.superview else {
+            fatalError("View must be added as a subview before setting origin constraints")
+        }
+
+        self.translatesAutoresizingMaskIntoConstraints = false
+        self.leadingAnchor.constraint(equalTo: superview.leadingAnchor, constant: x).isActive = true
+        self.topAnchor.constraint(equalTo: superview.topAnchor, constant: y).isActive = true
     }
 }
