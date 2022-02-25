@@ -2,6 +2,7 @@ import Hammer
 import UIKit
 import XCTest
 
+// swiftlint:disable:next type_body_length
 final class HandTests: XCTestCase {
     func testButtonTap() throws {
         let view = UIButton()
@@ -83,7 +84,6 @@ final class HandTests: XCTestCase {
 
         let view = UIButton()
         view.setSize(width: 100, height: 100)
-        view.backgroundColor = .green
         containerView.addSubview(view)
         view.setOrigin(x: 0, y: 0)
 
@@ -326,6 +326,18 @@ final class HandTests: XCTestCase {
         try eventGenerator.fingerDrag(from: view.frame.center.offset(x: 40, y: 100),
                                       to: view.frame.center.offset(x: -40, y: -100),
                                       duration: 1)
+        XCTAssertEqual(view.contentOffset, CGPoint(x: 75, y: 190), accuracy: 10)
+    }
+
+    func testScrollViewDragWithTranslation() throws {
+        let view = PatternScrollView().size(width: 300, height: 300)
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(timeout: 1)
+
+        XCTAssertEqual(view.contentOffset, CGPoint(x: 0, y: 0))
+        try eventGenerator.fingerDown(at: view.frame.center.offset(x: 40, y: 100))
+        try eventGenerator.fingerMove(translationX: -80, y: -200, duration: 1)
         XCTAssertEqual(view.contentOffset, CGPoint(x: 75, y: 190), accuracy: 10)
     }
 
