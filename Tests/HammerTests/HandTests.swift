@@ -330,7 +330,8 @@ final class HandTests: XCTestCase {
     }
 
     func testScrollViewDragWithTranslation() throws {
-        let view = PatternScrollView().size(width: 300, height: 300)
+        let view = PatternScrollView()
+        view.setSize(width: 300, height: 300)
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
