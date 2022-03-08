@@ -5,9 +5,10 @@ import XCTest
 final class KeyboardTests: XCTestCase {
     func testTypeOnTextField() throws {
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
         view.autocapitalizationType = .none
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -21,9 +22,10 @@ final class KeyboardTests: XCTestCase {
 
     func testKeyOnTextField() throws {
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
         view.autocapitalizationType = .none
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -40,9 +42,10 @@ final class KeyboardTests: XCTestCase {
         let keys = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
         view.smartQuotesType = .no
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -58,10 +61,11 @@ final class KeyboardTests: XCTestCase {
         let keys = "abcdefghijklmnopqrstuvwxyz"
 
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
         view.smartQuotesType = .no
         view.autocapitalizationType = .none
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -77,9 +81,10 @@ final class KeyboardTests: XCTestCase {
         let keys = "0123456789"
 
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
         view.smartQuotesType = .no
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -95,9 +100,10 @@ final class KeyboardTests: XCTestCase {
         let keys = "-=,./;'[]\\"
 
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
         view.smartQuotesType = .no
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -113,9 +119,10 @@ final class KeyboardTests: XCTestCase {
         let keys = "!@#$%^&*()_+{}|:\"<>?~"
 
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
         view.smartQuotesType = .no
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -131,9 +138,10 @@ final class KeyboardTests: XCTestCase {
         let keys = "a a"
 
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
         view.autocapitalizationType = .none
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -150,10 +158,10 @@ final class KeyboardTests: XCTestCase {
         let result = "a\na\na"
 
         let view = UITextView()
+        view.setSize(width: 300, height: 300)
         view.disablePredictiveBar()
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
-        view.heightAnchor.constraint(equalToConstant: 300).isActive = true
         view.autocapitalizationType = .none
+
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
 
@@ -167,9 +175,9 @@ final class KeyboardTests: XCTestCase {
 
     func testEnsureKeyWindowError() throws {
         let view = UITextField()
+        view.setSize(width: 300)
         view.disablePredictiveBar()
         view.autocapitalizationType = .none
-        view.widthAnchor.constraint(equalToConstant: 300).isActive = true
 
         let viewController = UIViewController()
         viewController.view.addSubview(view)
