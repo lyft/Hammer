@@ -52,8 +52,7 @@ final class WaitingTests: XCTestCase {
         view.backgroundColor = .green
 
         let scrollView = PatternScrollView()
-        scrollView.widthAnchor.constraint(equalToConstant: 300).isActive = true
-        scrollView.heightAnchor.constraint(equalToConstant: 300).isActive = true
+        scrollView.setSize(width: 300, height: 300)
         scrollView.addSubview(view, at: CGRect(x: 0, y: 400, width: 50, height: 50))
 
         let eventGenerator = try EventGenerator(view: scrollView)

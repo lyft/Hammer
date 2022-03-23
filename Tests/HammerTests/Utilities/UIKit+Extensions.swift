@@ -35,3 +35,25 @@ extension UITextView {
         self.inputAssistantItem.trailingBarButtonGroups = []
     }
 }
+
+extension UIView {
+    func setOrigin(x: CGFloat? = nil, y: CGFloat? = nil) {
+        guard let superview = self.superview else {
+            fatalError("Add the view to a superview first")
+        }
+
+        self.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            x.map { self.leadingAnchor.constraint(equalTo: superview.leadingAnchor, constant: $0) },
+            y.map { self.topAnchor.constraint(equalTo: superview.topAnchor, constant: $0) },
+        ].compactMap { $0 })
+    }
+
+    func setSize(width: CGFloat? = nil, height: CGFloat? = nil) {
+        self.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            width.map { self.widthAnchor.constraint(equalToConstant: $0) },
+            height.map { self.heightAnchor.constraint(equalToConstant: $0) },
+        ].compactMap { $0 })
+    }
+}
