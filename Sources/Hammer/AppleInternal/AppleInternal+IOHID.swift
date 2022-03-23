@@ -42,7 +42,7 @@ struct IOHID {
 
     typealias IOHIDEventCreateVendorDefinedEvent = @convention(c) (
         _ allocator: CFAllocator?, _ timestamp: UInt64, _ usagePage: UInt32, _ usage: UInt32,
-        _ version: UInt32, _ data: [UInt8], _ length: Int, _ options: CFOptionFlags) -> IOHIDEvent
+        _ version: UInt32, _ data: NSArray, _ length: Int, _ options: CFOptionFlags) -> IOHIDEvent
 
     typealias IOHIDEventSystemClientCreate = @convention(c) (
         _ allocator: CFAllocator?) -> IOHIDEventSystemClient
