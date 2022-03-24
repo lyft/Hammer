@@ -1,5 +1,6 @@
 import CoreFoundation
 import Darwin
+import Foundation
 
 extension EventGenerator {
     func sendMarkerEvent(withCompletionBlock completion: @escaping CompletionHandler) throws {
@@ -11,7 +12,7 @@ extension EventGenerator {
             kCFAllocatorDefault, mach_absolute_time(),
             IOHID.Page.vendorDefinedStart.rawValue + 100,
             0, 1,
-            eventIdBytes, MemoryLayout.size(ofValue: eventIdBytes),
+            eventIdBytes as NSArray, MemoryLayout.size(ofValue: eventIdBytes),
             kIOHIDEventOptionNone)
 
         // NOTE: This should not be needed. It is a workaround because the previous method doesn't seem to be
