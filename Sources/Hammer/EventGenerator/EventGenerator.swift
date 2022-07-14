@@ -123,7 +123,7 @@ public final class EventGenerator {
 
     /// Returns if the window is ready to receive user interaction events
     public var isWindowReady: Bool {
-        guard !UIApplication.shared.isIgnoringInteractionEvents
+        guard !(UIApplication.shared as UIApplicationDeprecated).isIgnoringInteractionEvents
                 && self.window.isHidden == false
                 && self.window.isUserInteractionEnabled
                 && self.window.rootViewController?.viewIfLoaded != nil
@@ -183,3 +183,10 @@ public final class EventGenerator {
         try waiter.start()
     }
 }
+
+// Bypasses deprecation warning for `isIgnoringInteractionEvents`
+private protocol UIApplicationDeprecated {
+    var isIgnoringInteractionEvents: Bool { get }
+}
+
+extension UIApplication: UIApplicationDeprecated {}
