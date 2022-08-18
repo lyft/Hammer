@@ -71,7 +71,7 @@ public struct RelativeLocation: HammerLocatable {
     /// the view and 1 being the bottom/right of the view. Passing a value outside those bounds will result
     /// in the touch occurring outside the view.
     ///
-    /// - parameter view: The view to get a relative location for.
+    /// - parameter view: The view to get a relative location for. Passing nil will use the default view.
     /// - parameter x:    The relative x value.
     /// - parameter y:    The relative y value.
     public init(location view: UIView? = nil, x: CGFloat, y: CGFloat) {
