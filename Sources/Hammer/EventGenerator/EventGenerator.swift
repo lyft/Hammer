@@ -22,7 +22,7 @@ public final class EventGenerator {
     public let window: UIWindow
 
     /// The view that was used to create the event generator
-    private(set) var mainView: UIView
+    public private(set) var mainView: UIView
 
     var activeTouches = TouchStorage()
     var debugWindow = DebugVisualizerWindow()
