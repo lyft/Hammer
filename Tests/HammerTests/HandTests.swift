@@ -358,4 +358,56 @@ final class HandTests: XCTestCase {
         try eventGenerator.wait(0.3)
         XCTAssertEqual(view.zoomScale, 1, accuracy: 0.1)
     }
+
+    func testOffsetLocation() throws {
+        let view = UIStackView()
+        view.axis = .horizontal
+
+        var expectations = [XCTestExpectation]()
+
+        for i in 1...3 {
+            let button = UIButton()
+            button.setTitle("\(i)", for: .normal)
+            button.setSize(width: 100, height: 100)
+            let expectation = XCTestExpectation(description: "Button Tapped")
+            expectation.assertForOverFulfill = true
+            button.addHandler(forEvent: .primaryActionTriggered, action: expectation.fulfill)
+            expectations.append(expectation)
+            view.addArrangedSubview(button)
+        }
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(view.subviews[0], timeout: 1)
+        try eventGenerator.fingerTap(at: OffsetLocation(x: -100, y: 0))
+        try eventGenerator.fingerTap(at: OffsetLocation(x: 0, y: 0))
+        try eventGenerator.fingerTap(at: OffsetLocation(x: 100, y: 0))
+
+        XCTAssertEqual(XCTWaiter.wait(for: expectations, timeout: 1, enforceOrder: true), .completed)
+    }
+
+    func testRelativeLocation() throws {
+        let view = UIStackView()
+        view.axis = .horizontal
+
+        var expectations = [XCTestExpectation]()
+
+        for i in 1...3 {
+            let button = UIButton()
+            button.setTitle("\(i)", for: .normal)
+            button.setSize(width: 100, height: 100)
+            let expectation = XCTestExpectation(description: "Button Tapped")
+            expectation.assertForOverFulfill = true
+            button.addHandler(forEvent: .primaryActionTriggered, action: expectation.fulfill)
+            expectations.append(expectation)
+            view.addArrangedSubview(button)
+        }
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(view.subviews[0], timeout: 1)
+        try eventGenerator.fingerTap(at: RelativeLocation(x: 0.2, y: 0.5))
+        try eventGenerator.fingerTap(at: RelativeLocation(x: 0.5, y: 0.5))
+        try eventGenerator.fingerTap(at: RelativeLocation(x: 0.8, y: 0.5))
+
+        XCTAssertEqual(XCTWaiter.wait(for: expectations, timeout: 1, enforceOrder: true), .completed)
+    }
 }
