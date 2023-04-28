@@ -33,7 +33,7 @@ extension CGPoint {
     func twoWayOffset(_ distance: CGFloat, angle radians: CGFloat) -> [CGPoint] {
         return [
             self.offset(distance / 2, angle: radians),
-            self.offset(distance / 2, angle: .pi - radians),
+            self.offset(distance / 2, angle: .pi + radians),
         ]
     }
 

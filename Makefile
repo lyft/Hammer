@@ -23,7 +23,7 @@ test-iPad:
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPad Pro (12.9-inch) (4th generation)" \
+		-destination "name=iPad Pro (12.9-inch) (6th generation)" \
 		test
 
 test-iPhone:
