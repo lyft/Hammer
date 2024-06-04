@@ -9,7 +9,6 @@ targets:
     sources: Sources/Hammer
     settings:
       ENABLE_TESTING_SEARCH_PATHS: true
-      DEVELOPMENT_TEAM: 'H1A2M3M4ER'
     scheme:
       testTargets:
         - HammerTests
