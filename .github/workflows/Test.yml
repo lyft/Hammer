@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v2
       - name: List available Xcode versions
         run: ls /Applications | grep Xcode
-      - name: Force Xcode 12.4
+      - name: Force Xcode 15.4
         run: sudo xcode-select -switch /Applications/Xcode_15.4.app
       - name: List available simulators
         run: xcrun simctl list
@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v2
       - name: List available Xcode versions
         run: ls /Applications | grep Xcode
-      - name: Force Xcode 12.4
+      - name: Force Xcode 15.4
         run: sudo xcode-select -switch /Applications/Xcode_15.4.app
       - name: List available simulators
         run: xcrun simctl list
@@ -45,12 +45,12 @@ jobs:
         uses: actions/checkout@v2
       - name: List available Xcode versions
         run: ls /Applications | grep Xcode
-      - name: Force Xcode 12.4
+      - name: Force Xcode 15.4
         run: sudo xcode-select -switch /Applications/Xcode_15.4.app
       - name: Setup Simulator
         run: |
           sudo mkdir -p /Library/Developer/CoreSimulator/Profiles/Runtimes
-          sudo ln -s /Applications/Xcode_10.3.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/CoreSimulator/Profiles/Runtimes/iOS.simruntime /Library/Developer/CoreSimulator/Profiles/Runtimes/iOS\ 12.4.simruntime
+          sudo ln -s /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/CoreSimulator/Profiles/Runtimes/iOS.simruntime /Library/Developer/CoreSimulator/Profiles/Runtimes/iOS\ 12.4.simruntime
       - name: List available simulators
         run: xcrun simctl list
       - name: Make project
