@@ -20,8 +20,6 @@ targets:
     platform: iOS
     deploymentTarget: "12.0"
     sources: Tests/HammerTests
-    settings:
-      DEVELOPMENT_TEAM: 'H1A2M3M4ER'
     dependencies:
       - target: Hammer
       - target: TestHost
@@ -30,5 +28,3 @@ targets:
     platform: iOS
     deploymentTarget: "12.0"
     sources: TestHost
-    settings:
-      DEVELOPMENT_TEAM: 'H1A2M3M4ER'
