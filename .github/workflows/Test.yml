@@ -14,7 +14,7 @@ jobs:
       - name: List available Xcode versions
         run: ls /Applications | grep Xcode
       - name: Force Xcode 12.4
-        run: sudo xcode-select -switch /Applications/Xcode_12.4.app
+        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
       - name: List available simulators
         run: xcrun simctl list
       - name: Make project
@@ -30,7 +30,7 @@ jobs:
       - name: List available Xcode versions
         run: ls /Applications | grep Xcode
       - name: Force Xcode 12.4
-        run: sudo xcode-select -switch /Applications/Xcode_12.4.app
+        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
       - name: List available simulators
         run: xcrun simctl list
       - name: Make project
@@ -46,7 +46,7 @@ jobs:
       - name: List available Xcode versions
         run: ls /Applications | grep Xcode
       - name: Force Xcode 12.4
-        run: sudo xcode-select -switch /Applications/Xcode_12.4.app
+        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
       - name: Setup Simulator
         run: |
           sudo mkdir -p /Library/Developer/CoreSimulator/Profiles/Runtimes
