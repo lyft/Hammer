@@ -6,4 +6,3 @@ final class SceneDelegate: UIResponder, UISceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession,
                options connectionOptions: UIScene.ConnectionOptions) {}
 }
-
