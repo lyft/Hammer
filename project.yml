@@ -9,10 +9,7 @@ targets:
     sources: Sources/Hammer
     settings:
       ENABLE_TESTING_SEARCH_PATHS: true
-      CODE_SIGN_IDENTITY: ''
-      CODE_SIGNING_REQUIRED: 'NO'
-      CODE_SIGN_ENTITLEMENTS: ''
-      CODE_SIGNING_ALLOWED: 'NO'
+      DEVELOPMENT_TEAM: 'H1A2M3M4ER'
     scheme:
       testTargets:
         - HammerTests
@@ -25,10 +22,7 @@ targets:
     deploymentTarget: "12.0"
     sources: Tests/HammerTests
     settings:
-      CODE_SIGN_IDENTITY: ''
-      CODE_SIGNING_REQUIRED: 'NO'
-      CODE_SIGN_ENTITLEMENTS: ''
-      CODE_SIGNING_ALLOWED: 'NO'
+      DEVELOPMENT_TEAM: 'H1A2M3M4ER'
     dependencies:
       - target: Hammer
       - target: TestHost
@@ -38,7 +32,4 @@ targets:
     deploymentTarget: "12.0"
     sources: TestHost
     settings:
-      CODE_SIGN_IDENTITY: ''
-      CODE_SIGNING_REQUIRED: 'NO'
-      CODE_SIGN_ENTITLEMENTS: ''
-      CODE_SIGNING_ALLOWED: 'NO'
+      DEVELOPMENT_TEAM: 'H1A2M3M4ER'
