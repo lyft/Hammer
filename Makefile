@@ -12,6 +12,9 @@ install-lint:
 install-xcodegen:
 	brew list xcodegen &>/dev/null || brew install xcodegen
 
+install-xcbeautify:
+	brew list xcbeautify &>/dev/null || brew install xcbeautify
+
 # Run Tasks
 
 generate: install-xcodegen
@@ -29,7 +32,7 @@ test-iPad:
 		-scheme Hammer \
 		-destination "name=iPad Pro (12.9-inch) (6th generation)" \
 		test \
-		$(NO_CODE_SIGN_SETTINGS)
+		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
 test-iPhone:
 	set -o pipefail && \
@@ -38,7 +41,7 @@ test-iPhone:
 		-scheme Hammer \
 		-destination "name=iPhone 15" \
 		test \
-		$(NO_CODE_SIGN_SETTINGS)
+		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
 test-iPhone-iOS15:
 	set -o pipefail && \
@@ -48,7 +51,7 @@ test-iPhone-iOS15:
 		-destination "name=iPhone 11" \
 		-sdk iphonesimulator15.0 \
 		test \
-		$(NO_CODE_SIGN_SETTINGS)
+		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
 # List all targets (from https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile)
 
