@@ -1,4 +1,4 @@
-import Hammer
+@testable import Hammer
 import UIKit
 import XCTest
 
@@ -187,8 +187,7 @@ final class KeyboardTests: XCTestCase {
             view.centerXAnchor.constraint(equalTo: viewController.view.centerXAnchor),
         ])
 
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        window.rootViewController = viewController
+        let window = UIWindow(wrapping: viewController)
         window.isHidden = false
 
         let eventGenerator = try EventGenerator(window: window)
