@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: List available Xcode versions
-        run: ls /Applications | grep Xcode
       - name: Force Xcode 15.4
         run: sudo xcode-select -switch /Applications/Xcode_15.4.app
       - name: Make project
@@ -25,12 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: List available Xcode versions
-        run: ls /Applications | grep Xcode
       - name: Force Xcode 15.4
         run: sudo xcode-select -switch /Applications/Xcode_15.4.app
-      - name: List available simulators
-        run: xcrun simctl list
       - name: Make project
         run: make generate
       - name: Run tests
@@ -41,8 +35,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: List available Xcode versions
-        run: ls /Applications | grep Xcode
       - name: Force Xcode 13.1
         run: sudo xcode-select -switch /Applications/Xcode_13.1.app
       - name: Make project
