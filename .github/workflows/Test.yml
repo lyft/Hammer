@@ -15,8 +15,6 @@ jobs:
         run: ls /Applications | grep Xcode
       - name: Force Xcode 15.4
         run: sudo xcode-select -switch /Applications/Xcode_15.4.app
-      - name: List available simulators
-        run: xcrun simctl list
       - name: Make project
         run: make generate
       - name: Run tests
@@ -37,24 +35,18 @@ jobs:
         run: make generate
       - name: Run tests
         run: make test-iPhone
-  test_iphone_ios12:
-    name: Test-iPhone-iOS12
-    runs-on: macos-10.15
+  test_iphone_ios15:
+    name: Test-iPhone-iOS15
+    runs-on: macos-12
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: List available Xcode versions
         run: ls /Applications | grep Xcode
-      - name: Force Xcode 15.4
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
-      - name: Setup Simulator
-        run: |
-          sudo mkdir -p /Library/Developer/CoreSimulator/Profiles/Runtimes
-          sudo ln -s /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/Library/CoreSimulator/Profiles/Runtimes/iOS.simruntime /Library/Developer/CoreSimulator/Profiles/Runtimes/iOS\ 12.4.simruntime
-      - name: List available simulators
-        run: xcrun simctl list
+      - name: Force Xcode 13.1
+        run: sudo xcode-select -switch /Applications/Xcode_13.1.app
       - name: Make project
         run: make generate
       - name: Run tests
-        run: make test-iPhone-iOS12
+        run: make test-iPhone-iOS15
 
