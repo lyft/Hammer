@@ -1,5 +1,9 @@
 .DEFAULT_GOAL := generate
 
+# Code Signing Settings
+
+NO_CODE_SIGN_SETTINGS = CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+
 # Install Tasks
 
 install-lint:
@@ -7,6 +11,9 @@ install-lint:
 
 install-xcodegen:
 	brew list xcodegen &>/dev/null || brew install xcodegen
+
+install-xcbeautify:
+	brew list xcbeautify &>/dev/null || brew install xcbeautify
 
 # Run Tasks
 
@@ -23,24 +30,28 @@ test-iPad:
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPad Pro (12.9-inch) (4th generation)" \
-		test
+		-destination "name=iPad Pro (12.9-inch) (6th generation)" \
+		test \
+		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
 test-iPhone:
 	set -o pipefail && \
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPhone 11" \
-		test
+		-destination "name=iPhone 15" \
+		test \
+		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
-test-iPhone-iOS12:
+test-iPhone-iOS15:
 	set -o pipefail && \
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPhone 6" \
-		test
+		-destination "name=iPhone 11" \
+		-sdk iphonesimulator15.0 \
+		test \
+		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
 # List all targets (from https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile)
 

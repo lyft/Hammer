@@ -293,10 +293,8 @@ extension EventGenerator {
             throw HammerError.windowIsNotReadyForInteraction
         }
 
-        for point in points {
-            if !self.pointIsHittable(point) {
-                throw HammerError.pointIsNotHittable(point)
-            }
+        if let nonHittablePoint = points.first(where: { !self.pointIsHittable($0) }) {
+            throw HammerError.pointIsNotHittable(nonHittablePoint)
         }
     }
 
