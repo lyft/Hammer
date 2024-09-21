@@ -120,7 +120,6 @@ extension UIWindow {
     }
 }
 
-
 @available(iOS 13.0, *)
 private extension UIScene {
     static var mainOrFirstConnectedScene: UIWindowScene? {

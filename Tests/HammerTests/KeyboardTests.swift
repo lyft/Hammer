@@ -187,8 +187,11 @@ final class KeyboardTests: XCTestCase {
             view.centerXAnchor.constraint(equalTo: viewController.view.centerXAnchor),
         ])
 
-        let window = UIWindow(wrapping: viewController)
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = viewController
+        window.addToMainSceneIfNeeded()
         window.isHidden = false
+        defer { window.removeFromScene() }
 
         let eventGenerator = try EventGenerator(window: window)
         try eventGenerator.waitUntilHittable(timeout: 1)
