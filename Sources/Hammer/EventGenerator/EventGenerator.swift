@@ -22,12 +22,11 @@ public final class EventGenerator {
     public let window: UIWindow
 
     /// The view that was used to create the event generator
-    public private(set) var mainView: UIView
+    public let mainView: UIView
 
     var activeTouches = TouchStorage()
     var debugWindow = DebugVisualizerWindow()
     var eventCallbacks = [UInt32: CompletionHandler]()
-    private var isUsingCustomWindow: Bool = false
 
     /// The default sender id for all events.
     ///
@@ -42,18 +41,25 @@ public final class EventGenerator {
 
     /// Initialize an event generator for a specified UIWindow.
     ///
-    /// - parameter window: The window to receive events.
-    public init(window: UIWindow) throws {
+    /// - parameter window:   The window to receive events.
+    /// - parameter mainView: The view that was used to create the event generator
+    private init(window: UIWindow, mainView: UIView) throws {
         self.window = window
+        self.mainView = mainView
         self.window.layoutIfNeeded()
         self.debugWindow.frame = self.window.frame
-        self.mainView = window
 
         UIApplication.swizzle()
         UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
             self?.markerEventReceived(event)
         }
+    }
 
+    /// Initialize an event generator for a specified UIWindow.
+    ///
+    /// - parameter window: The window to receive events.
+    public convenience init(window: UIWindow) throws {
+        try self.init(window: window, mainView: window)
         try self.waitUntilWindowIsReady()
     }
 
@@ -64,20 +70,15 @@ public final class EventGenerator {
     ///
     /// - parameter viewController: The viewController to receive events.
     public convenience init(viewController: UIViewController) throws {
-        let window = viewController.view.window ?? UIWindow(wrapping: viewController)
-
-        if #available(iOS 13.0, *) {
-            window.backgroundColor = .systemBackground
+        if let window = viewController.view.window  {
+            try self.init(window: window, mainView: viewController.view)
         } else {
-            window.backgroundColor = .white
+            let window = HammerWindow()
+            window.presentContained(viewController)
+            try self.init(window: window, mainView: viewController.view)
         }
 
-        window.makeKeyAndVisible()
-        window.layoutIfNeeded()
-
-        try self.init(window: window)
-        self.isUsingCustomWindow = true
-        self.mainView = viewController.view
+        try self.waitUntilWindowIsReady()
     }
 
     /// Initialize an event generator for a specified UIView.
@@ -88,25 +89,22 @@ public final class EventGenerator {
     /// - parameter alignment: The wrapping alignment to use.
     public convenience init(view: UIView, alignment: WrappingAlignment = .center) throws {
         if let window = view.window {
-            try self.init(window: window)
+            try self.init(window: window, mainView: view)
         } else {
-            try self.init(viewController: UIViewController(wrapping: view.topLevelView, alignment: alignment))
+            let viewController = UIViewController(wrapping: view.topLevelView, alignment: alignment)
+            let window = HammerWindow()
+            window.presentContained(viewController)
+            try self.init(window: window, mainView: view)
         }
 
-        self.mainView = view
+        try self.waitUntilWindowIsReady()
     }
 
     deinit {
         UIApplication.unregisterForHIDEvents(ObjectIdentifier(self))
-        if self.isUsingCustomWindow {
-            self.window.isHidden = true
-            self.window.rootViewController = nil
-            self.debugWindow.isHidden = true
-            self.debugWindow.rootViewController = nil
-            if #available(iOS 13.0, *) {
-                self.window.windowScene = nil
-                self.debugWindow.windowScene = nil
-            }
+        self.debugWindow.removeFromScene()
+        if let window = self.window as? HammerWindow {
+            window.dismissContained()
         }
     }
 

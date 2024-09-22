@@ -43,17 +43,6 @@ extension UIDevice {
     }
 }
 
-extension UIWindow {
-    convenience init(wrapping viewController: UIViewController) {
-        self.init(frame: UIScreen.main.bounds)
-        if #available(iOS 13.0, *), self.windowScene == nil {
-            self.windowScene = UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }.first
-        }
-        self.rootViewController = viewController
-    }
-}
-
 extension UIViewController {
     convenience init(wrapping view: UIView, alignment: EventGenerator.WrappingAlignment) {
         self.init(nibName: nil, bundle: nil)

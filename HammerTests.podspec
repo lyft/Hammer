@@ -1,7 +1,7 @@
 Pod::Spec.new do |spec|
   spec.name          = "HammerTests"
-  spec.version       = "0.15.0"
-  spec.summary       = "iOS touch and keyboard syntheis library for unit tests."
+  spec.version       = "0.16.0"
+  spec.summary       = "iOS touch and keyboard synthesis library for unit tests."
   spec.description   = "Hammer is a touch and keyboard synthesis library for emulating user interaction events. It enables new ways of triggering UI actions in unit tests, replicating a real world environment as much as possible."
   spec.homepage      = "https://github.com/lyft/Hammer"
   spec.screenshots   = "https://user-images.githubusercontent.com/585835/116217617-ab410080-a6fe-11eb-9de1-3d42f7dd6037.gif"
