@@ -29,16 +29,16 @@ jobs:
         run: make generate
       - name: Run tests
         run: make test-iPhone
-  test_iphone_ios15:
-    name: Test-iPhone-iOS15
-    runs-on: macos-12
+  test_iphone_ios16:
+    name: Test-iPhone-iOS16
+    runs-on: macos-13
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 13.1
-        run: sudo xcode-select -switch /Applications/Xcode_13.1.app
+      - name: Force Xcode 14.1
+        run: sudo xcode-select -switch /Applications/Xcode_14.1.app
       - name: Make project
         run: make generate
       - name: Run tests
-        run: make test-iPhone-iOS15
+        run: make test-iPhone-iOS16
 
