@@ -114,6 +114,7 @@ public final class EventGenerator {
     public func waitUntilWindowIsReady(timeout: TimeInterval = 3) throws {
         do {
             try self.waitUntil(self.isWindowReady, timeout: timeout)
+            try self.waitUntilAccessibilityActivate()
             try self.waitUntilRunloopIsFlushed(timeout: timeout)
         } catch {
             throw HammerError.windowIsNotReadyForInteraction
@@ -180,6 +181,38 @@ public final class EventGenerator {
         let waiter = Waiter(timeout: 1)
         try self.sendMarkerEvent { try? waiter.complete() }
         try waiter.start()
+    }
+
+    // MARK: - Accessibility initialization
+
+    private var isAccessibilityActivated = false
+
+    private func waitUntilAccessibilityActivate() throws {
+        UIApplication.shared.accessibilityActivate()
+        if self.isAccessibilityActivated {
+            return
+        }
+
+        // The first time the accessibility engine is activated in a simulator it needs more time to warm up
+        // and start producing consistent results, after that only a short delay per test case is enough
+        let simAccessibilityActivatedKey = "accessibility_activated"
+        let simAccessibilityActivated = UserDefaults.standard.bool(forKey: simAccessibilityActivatedKey)
+        if !simAccessibilityActivated {
+            print("Activating accessibility engine for the first time in this simulator and waiting 5s")
+        } else {
+            print("Activating accessibility engine and waiting 0.1s")
+        }
+
+        try self.wait(
+            simAccessibilityActivated
+            ? EventGenerator.settings.accessibilityActivateDelay // Default: 0.02s
+            : EventGenerator.settings.accessibilityActivateFirstTimeDelay // Default: 5.0s
+        )
+
+        self.isAccessibilityActivated = true
+        if !simAccessibilityActivated {
+            UserDefaults.standard.set(true, forKey: simAccessibilityActivatedKey)
+        }
     }
 }
 
