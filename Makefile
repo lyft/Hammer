@@ -43,13 +43,13 @@ test-iPhone:
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
-test-iPhone-iOS15:
+test-iPhone-iOS16:
 	set -o pipefail && \
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPhone 11" \
-		-sdk iphonesimulator15.0 \
+		-destination "name=iPhone 14" \
+		-sdk iphonesimulator16.1 \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
