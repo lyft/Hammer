@@ -8,6 +8,10 @@ final class HammerWindow: UIWindow {
         return .zero
     }
 
+    var viewControllerHasAppeared: Bool {
+        return self.hammerViewController.hasAppeared
+    }
+
     init() {
         super.init(frame: UIScreen.main.bounds)
         self.rootViewController = self.hammerViewController
@@ -41,6 +45,8 @@ private final class HammerViewController: UIViewController {
     override var shouldAutomaticallyForwardAppearanceMethods: Bool { false }
     override var prefersStatusBarHidden: Bool { true }
 
+    var hasAppeared = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         self.view.backgroundColor = .clear
@@ -54,6 +60,16 @@ private final class HammerViewController: UIViewController {
             self.containerView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
             self.containerView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
         ])
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        self.hasAppeared = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        self.hasAppeared = false
     }
 
     func presentContained(_ viewController: UIViewController) {

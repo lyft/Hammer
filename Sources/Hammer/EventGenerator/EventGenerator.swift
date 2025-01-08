@@ -141,6 +141,10 @@ public final class EventGenerator {
             }
         }
 
+        if let hammerWindow = self.window as? HammerWindow, !hammerWindow.viewControllerHasAppeared {
+            return false
+        }
+
         return true
     }
 
