@@ -114,6 +114,7 @@ public final class EventGenerator {
     public func waitUntilWindowIsReady(timeout: TimeInterval = 3) throws {
         do {
             try self.waitUntil(self.isWindowReady, timeout: timeout)
+            try self.waitUntilRunloopIsFlushed(timeout: timeout)
         } catch {
             throw HammerError.windowIsNotReadyForInteraction
         }

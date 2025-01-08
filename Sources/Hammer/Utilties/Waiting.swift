@@ -239,4 +239,29 @@ extension EventGenerator {
         try self.waitUntil(self.viewIsHittable(self.mainView),
                            timeout: timeout, checkInterval: checkInterval)
     }
+
+    // MARK: - System waiting
+
+    /// Waits for the main runloop is flushed and all scheduled tasks have executed.
+    ///
+    /// - parameter timeout: The maximum time to wait.
+    ///
+    /// - throws: An error if the runloop is not flushed within the specified time.
+    public func waitUntilRunloopIsFlushed(timeout: TimeInterval) throws {
+        var errorCompleting: Error?
+
+        let waiter = Waiter(timeout: timeout)
+        DispatchQueue.main.async {
+            do {
+                try waiter.complete()
+            } catch {
+                errorCompleting = error
+            }
+        }
+
+        try waiter.start()
+        if let errorCompleting {
+            throw errorCompleting
+        }
+    }
 }
