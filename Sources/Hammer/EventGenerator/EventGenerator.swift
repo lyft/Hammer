@@ -121,6 +121,13 @@ public final class EventGenerator {
         }
     }
 
+    /// Waits until animations are finished.
+    ///
+    /// - parameter timeout: The maximum time to wait for the window to be ready.
+    public func waitUntilAnimationsAreFinished(timeout: TimeInterval) throws {
+        try self.waitUntil(!self.hasRunningAnimations, timeout: timeout)
+    }
+
     /// Returns if the window is ready to receive user interaction events
     public var isWindowReady: Bool {
         guard !(UIApplication.shared as UIApplicationDeprecated).isIgnoringInteractionEvents
@@ -146,6 +153,32 @@ public final class EventGenerator {
         }
 
         return true
+    }
+
+    // Returns if the view or any of its subviews has running animations.
+    public var hasRunningAnimations: Bool {
+        // Recursive
+        func hasRunningAnimations(currentView: UIView) -> Bool {
+            // If the view is not visible, we do not need to consider it as running animation
+            guard self.viewIsVisible(currentView) else {
+                return false
+            }
+
+            // If there are animations running on the layer, return true
+            if currentView.layer.animationKeys()?.isEmpty == false {
+                return true
+            }
+
+            // Special case for parallax dimming view which happens during some animations
+            if String(describing: type(of: currentView)) == "_UIParallaxDimmingView" {
+                return true
+            }
+
+            // Traverse subviews
+            return currentView.subviews.contains { hasRunningAnimations(currentView: $0) }
+        }
+
+        return hasRunningAnimations(currentView: self.window)
     }
 
     /// Gets the next event ID to use. Event IDs are global and sequential.
