@@ -115,6 +115,11 @@ public final class EventGenerator {
         do {
             try self.waitUntil(self.isWindowReady, timeout: timeout)
             try self.waitUntilAccessibilityActivate()
+
+            if EventGenerator.settings.waitForAnimations {
+                try self.waitUntilAnimationsAreFinished(timeout: timeout)
+            }
+
             try self.waitUntilRunloopIsFlushed(timeout: timeout)
         } catch {
             throw HammerError.windowIsNotReadyForInteraction
@@ -225,6 +230,10 @@ public final class EventGenerator {
     private var isAccessibilityActivated = false
 
     private func waitUntilAccessibilityActivate() throws {
+        guard EventGenerator.settings.forceActivateAccessibilityEngine else {
+            return
+        }
+
         UIApplication.shared.accessibilityActivate()
         if self.isAccessibilityActivated {
             return
