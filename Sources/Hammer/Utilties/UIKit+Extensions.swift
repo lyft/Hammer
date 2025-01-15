@@ -75,4 +75,38 @@ extension UIView {
     var topLevelView: UIView {
         return self.superview?.topLevelView ?? self
     }
+
+    /// Returns if the view is visible.
+    ///
+    /// - parameter window:     The window to check if the view is part of.
+    /// - parameter visibility: How determine if the view is visible.
+    ///
+    /// - returns: If the view is visible
+    func isVisible(inWindow window: UIWindow, visibility: EventGenerator.Visibility = .partial) -> Bool {
+        guard self.isDescendant(of: window) else {
+            return false
+        }
+
+        // Recursive
+        func isVisible(currentView: UIView) -> Bool {
+            guard !currentView.isHidden && currentView.alpha >= 0.01 else {
+                return false
+            }
+
+            guard let superview = currentView.superview else {
+                return currentView == window
+            }
+
+            if superview.clipsToBounds {
+                let adjustedBounds = self.convert(self.bounds, to: superview)
+                guard superview.bounds.isVisible(adjustedBounds, visibility: visibility) else {
+                    return false
+                }
+            }
+
+            return isVisible(currentView: superview)
+        }
+
+        return isVisible(currentView: self)
+    }
 }

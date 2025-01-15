@@ -154,31 +154,7 @@ extension EventGenerator {
     ///
     /// - returns: If the view is visible
     public func viewIsVisible(_ view: UIView, visibility: Visibility = .partial) -> Bool {
-        guard view.isDescendant(of: self.window) else {
-            return false
-        }
-
-        // Recursive
-        func viewIsVisible(currentView: UIView) -> Bool {
-            guard !currentView.isHidden && currentView.alpha >= 0.01 else {
-                return false
-            }
-
-            guard let superview = currentView.superview else {
-                return currentView == self.window
-            }
-
-            if superview.clipsToBounds {
-                let adjustedBounds = view.convert(view.bounds, to: superview)
-                guard superview.bounds.isVisible(adjustedBounds, visibility: visibility) else {
-                    return false
-                }
-            }
-
-            return viewIsVisible(currentView: superview)
-        }
-
-        return viewIsVisible(currentView: view)
+        return view.isVisible(inWindow: self.window, visibility: visibility)
     }
 
     /// Returns if the specified rect is visible.
