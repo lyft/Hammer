@@ -194,7 +194,7 @@ try eventGenerator.waitUntilHittable("my_button", timeout: 1)
 
 Make sure you are running your unit tests in a host application ([setup instructions](#setup)). To interact with a view, it must be visible on the screen and the application must have finished presenting. You can test this by adding a delay to your testing and verifying that your view is appearing on screen.
 
-- View is not in hirarchy / Unable to find view
+- View is not in hierarchy / Unable to find view
 
 Make sure the view you specified is in the same hierarchy as the view that was used to create the `EventGenerator`. If you used an accessibility identifier, check that it was spelled correctly.
 
@@ -204,7 +204,7 @@ This means that the view is in the hierarchy but is not currently visible on scr
 
 - View is not hittable
 
-This means that the view is in the hierarchy and visible on screen but is not currently able to receive touches. Make sure that the view reponds to hit test in its center coordinate and user interaction is enabled.
+This means that the view is in the hierarchy and visible on screen but is not currently able to receive touches. Make sure that the view responds to hit test in its center coordinate and user interaction is enabled.
 
 ## License
 
