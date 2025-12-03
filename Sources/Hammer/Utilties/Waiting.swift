@@ -29,11 +29,17 @@ extension EventGenerator {
         }
 
         /// Begin waiting
-        public func start() throws {
+        ///
+        /// - parameter throwIfAlreadyCompleted: If true, throws an error if the waiter has already completed
+        public func start(throwIfAlreadyCompleted: Bool = true) throws {
             if case .running = self.state {
                 throw HammerError.waiterIsAlreadyRunning
             } else if case .completed = self.state {
-                throw HammerError.waiterIsAlreadyCompleted
+                if throwIfAlreadyCompleted {
+                    throw HammerError.waiterIsAlreadyCompleted
+                } else {
+                    return
+                }
             }
 
             self.state = .running
@@ -65,6 +71,18 @@ extension EventGenerator {
     /// - throws: An error if there was an issue during waiting.
     public func wait(_ interval: TimeInterval) throws {
         try Waiter(timeout: interval).start()
+    }
+
+    /// Waits for the condition closure to call complete on the waiter.
+    ///
+    /// - parameter condition: The condition to check.
+    /// - parameter timeout:   The maximum time to wait for the condition to complete.
+    ///
+    /// - throws: An error if the condition did not complete within the specified time.
+    public func waitUntil(_ condition: @escaping (Waiter) throws -> Void, timeout: TimeInterval) throws {
+        let waiter = Waiter(timeout: timeout)
+        try condition(waiter)
+        try waiter.start(throwIfAlreadyCompleted: false)
     }
 
     /// Waits for a condition to become true within the specified time.
@@ -248,20 +266,17 @@ extension EventGenerator {
     ///
     /// - throws: An error if the runloop is not flushed within the specified time.
     public func waitUntilRunloopIsFlushed(timeout: TimeInterval) throws {
-        var errorCompleting: Error?
+        try self.waitUntil({ waiter in
+            DispatchQueue.main.async { try? waiter.complete() }
+        }, timeout: timeout)
+    }
 
-        let waiter = Waiter(timeout: timeout)
-        DispatchQueue.main.async {
-            do {
-                try waiter.complete()
-            } catch {
-                errorCompleting = error
-            }
-        }
-
-        try waiter.start()
-        if let errorCompleting {
-            throw errorCompleting
-        }
+    /// Waits until a frame has completed rendering.
+    ///
+    /// - parameter timeout: The maximum time to wait for the frame to render.
+    public func waitUntilFrameIsRendered(timeout: TimeInterval) throws {
+        try self.waitUntil({ waiter in
+            FrameTracker.shared.addNextFrameListener { try? waiter.complete() }
+        }, timeout: timeout)
     }
 }

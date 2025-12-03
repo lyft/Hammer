@@ -18,5 +18,8 @@ extension EventGenerator {
 
         /// If we should wait for animations to complete when an event generator is created.
         public var waitForAnimations: Bool = false
+
+        /// If we should wait for a frame to complete rendering when an event generator is created.
+        public var waitForFrameRender: Bool = true
     }
 }

@@ -116,6 +116,10 @@ public final class EventGenerator {
             try self.waitUntil(self.isWindowReady, timeout: timeout)
             try self.waitUntilAccessibilityActivate()
 
+            if EventGenerator.settings.waitForFrameRender {
+                try self.waitUntilFrameIsRendered(timeout: timeout)
+            }
+
             if EventGenerator.settings.waitForAnimations {
                 try self.waitUntilAnimationsAreFinished(timeout: timeout)
             }
