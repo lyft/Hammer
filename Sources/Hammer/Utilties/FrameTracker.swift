@@ -1,5 +1,6 @@
 import QuartzCore
 
+// Singleton class that helps detect frame renders
 final class FrameTracker {
     static let shared = FrameTracker()
 
@@ -11,6 +12,9 @@ final class FrameTracker {
         self.displayLink?.add(to: .main, forMode: .common)
     }
 
+    /// Adds a listener that will be called on the next frame render. Will only be called once
+    ///
+    /// - parameter listener: The listener to call on the next frame render
     func addNextFrameListener(_ listener: @escaping () -> Void) {
         self.listeners.append(listener)
     }
