@@ -49,7 +49,7 @@ test-iPhone-iOS17:
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
 		-destination "name=iPhone 15" \
-		-sdk iphonesimulator17.1 \
+		-sdk iphonesimulator17.4 \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
