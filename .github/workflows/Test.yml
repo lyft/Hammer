@@ -11,8 +11,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 15.4
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+      - name: Force Xcode 26.0
+        run: sudo xcode-select -switch /Applications/Xcode_26.0.app
       - name: Make project
         run: make generate
       - name: Run tests
@@ -23,22 +23,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 15.4
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+      - name: Force Xcode 26.0
+        run: sudo xcode-select -switch /Applications/Xcode_26.0.app
       - name: Make project
         run: make generate
       - name: Run tests
         run: make test-iPhone
   test_iphone_ios16:
-    name: Test-iPhone-iOS16
-    runs-on: macos-13
+    name: Test-iPhone-iOS17
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 14.1
-        run: sudo xcode-select -switch /Applications/Xcode_14.1.app
+      - name: Force Xcode 15.3
+        run: sudo xcode-select -switch /Applications/Xcode_15.3.app
       - name: Make project
         run: make generate
       - name: Run tests
-        run: make test-iPhone-iOS16
-
+        run: make test-iPhone-iOS17
