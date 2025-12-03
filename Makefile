@@ -30,7 +30,7 @@ test-iPad:
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPad Pro (12.9-inch) (6th generation)" \
+		-destination "name=iPad Pro 13-inch (M4)" \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
@@ -39,17 +39,17 @@ test-iPhone:
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPhone 15" \
+		-destination "name=iPhone 17" \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
-test-iPhone-iOS16:
+test-iPhone-iOS17:
 	set -o pipefail && \
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPhone 14" \
-		-sdk iphonesimulator16.1 \
+		-destination "name=iPhone 15" \
+		-sdk iphonesimulator17.1 \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
