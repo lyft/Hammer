@@ -28,7 +28,7 @@ extension EventGenerator {
         try self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
             FingerInfo(fingerIndex: index, location: location, phase: .began,
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
-        }))
+        }), validate: true)
     }
 
     /// Sends a finger down event.
@@ -50,7 +50,7 @@ extension EventGenerator {
         try self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
             return FingerInfo(fingerIndex: index, location: location, phase: .ended,
                               pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
-        }))
+        }), validate: true)
     }
 
     /// Sends a finger up event.
@@ -124,7 +124,7 @@ extension EventGenerator {
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
         }
 
-        try self.sendEvent(hand: HandInfo(fingers: fingers))
+        try self.sendEvent(hand: HandInfo(fingers: fingers), validate: true)
     }
 
     /// Sends a finger move event.
@@ -455,9 +455,12 @@ extension EventGenerator {
 
     /// Sends a hand event.
     ///
-    /// - parameter hand: The event to send.
-    private func sendEvent(hand: HandInfo) throws {
-        try checkPointsAreHittable(hand.fingers.map(\.location))
+    /// - parameter hand:     The event to send.
+    /// - parameter validate: If the window must be ready and the locations hittable.
+    private func sendEvent(hand: HandInfo, validate: Bool) throws {
+        if validate {
+            try self.checkPointsAreHittable(hand.fingers.map(\.location))
+        }
 
         let machTime = mach_absolute_time()
         let isTouching = hand.isTouching
@@ -494,7 +497,70 @@ extension EventGenerator {
                                     location: finger.phase.isTouching ? finger.location : nil)
         }
 
+        self.deliveredBeganTouches.removeAll()
         try self.sendEvent(event, wait: true)
+        try self.checkTouchesWereDelivered(for: hand.fingers.filter { $0.phase == .began })
+    }
+
+    /// Cancels the touches of all the fingers that are down, without validating the window.
+    func cancelFingers() throws {
+        let fingers = self.activeTouches.fingers.map { finger in
+            FingerInfo(fingerIndex: finger.fingerIndex, location: finger.location, phase: .cancelled,
+                       pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
+        }
+
+        try self.sendEvent(hand: HandInfo(fingers: fingers), validate: false)
+    }
+
+    /// Records the touches UIKit begins delivering to any window, since a touch can land in a window
+    /// presented above the event generator's window.
+    ///
+    /// - parameter event: The event UIKit is about to dispatch.
+    func eventDispatched(_ event: UIEvent) {
+        guard event.type == .touches else {
+            return
+        }
+
+        let beganTouches = (event.allTouches ?? []).filter { touch in
+            touch.phase == .began && touch.type == .direct
+        }
+
+        self.deliveredBeganTouches.append(contentsOf: beganTouches)
+    }
+
+    /// Checks that UIKit began a touch for each finger that touched down.
+    ///
+    /// - parameter fingers: The fingers that touched down.
+    ///
+    /// - throws: `HammerError.touchWasNotDelivered` if UIKit did not deliver a touch for a finger.
+    private func checkTouchesWereDelivered(for fingers: [FingerInfo]) throws {
+        var deliveredLocations = self.deliveredBeganTouches.compactMap { touch in
+            touch.window?.convert(touch.location(in: nil), to: self.window)
+        }
+        let undeliveredFingers = fingers.filter { finger in
+            let distances = deliveredLocations.map { $0.distance(to: finger.location) }
+            guard let closestIndex = distances.indices.min(by: { distances[$0] < distances[$1] }) else {
+                return true
+            }
+
+            deliveredLocations.remove(at: closestIndex)
+            return false
+        }
+
+        guard let firstUndeliveredFinger = undeliveredFingers.first else {
+            return
+        }
+
+        // UIKit has no touch for these fingers, so they are not down
+        for finger in undeliveredFingers {
+            if let identifier = self.activeTouches.identifier(forFingerIndex: finger.fingerIndex) {
+                self.activeTouches.remove(forIdentifier: identifier)
+            }
+
+            self.debugWindow.update(fingerIndex: finger.fingerIndex, location: nil)
+        }
+
+        throw HammerError.touchWasNotDelivered(index: firstUndeliveredFinger.fingerIndex)
     }
 
     private func identifier(for finger: FingerInfo) throws -> UInt32 {

@@ -40,6 +40,28 @@ final class StylusTests: XCTestCase {
         XCTAssertFalse(view.isHighlighted)
     }
 
+    func testStylusMovesContinueFromLastLocation() throws {
+        try XCTSkipUnless(UIDevice.current.supportsStylus, "Stylus tests only run on iPad")
+
+        let view = UIView()
+        view.setSize(width: 300, height: 300)
+        let recorder = PanRecorder()
+        let recognizer = UIPanGestureRecognizer(target: recorder, action: #selector(PanRecorder.pan))
+        view.addGestureRecognizer(recognizer)
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(timeout: 1)
+
+        try eventGenerator.stylusDown(at: RelativeLocation(x: 0.2, y: 0.5))
+        try eventGenerator.stylusMove(to: RelativeLocation(x: 0.5, y: 0.5), duration: 0.2)
+        try eventGenerator.stylusMove(to: RelativeLocation(x: 0.8, y: 0.5), duration: 0.2)
+        try eventGenerator.stylusUp()
+
+        let horizontalLocations = recorder.locations.map(\.x)
+        XCTAssertFalse(horizontalLocations.isEmpty)
+        XCTAssertEqual(horizontalLocations, horizontalLocations.sorted())
+    }
+
     func testSwitchToggle() throws {
         try XCTSkipUnless(UIDevice.current.supportsStylus, "Stylus tests only run on iPad")
 
@@ -68,5 +90,14 @@ final class StylusTests: XCTestCase {
         try eventGenerator.stylusMove(to: view.frame.center.offset(x: -40, y: 0), duration: 0.5)
         try eventGenerator.stylusUp()
         XCTAssertFalse(view.isOn)
+    }
+}
+
+private final class PanRecorder: NSObject {
+    private(set) var locations: [CGPoint] = []
+
+    @objc
+    func pan(_ recognizer: UIPanGestureRecognizer) {
+        self.locations.append(recognizer.location(in: recognizer.view))
     }
 }

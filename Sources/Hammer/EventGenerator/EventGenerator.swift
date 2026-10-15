@@ -25,9 +25,13 @@ public final class EventGenerator {
     public let mainView: UIView
 
     var activeTouches = TouchStorage()
+    var pressedKeys = Set<KeyboardKey>()
     var debugWindow = DebugVisualizerWindow()
     var eventCallbacks = [UInt32: CompletionHandler]()
     var isAccessibilityActivated = false
+
+    /// The touches UIKit began delivering to the window since the last event was sent.
+    var deliveredBeganTouches = [UITouch]()
 
     /// The default sender id for all events.
     ///
@@ -51,9 +55,11 @@ public final class EventGenerator {
         self.debugWindow.frame = self.window.frame
 
         UIApplication.swizzle()
-        UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
+        UIApplication.register(ObjectIdentifier(self), hidEventCallback: { [weak self] event in
             self?.markerEventReceived(event)
-        }
+        }, uiEventCallback: { [weak self] event in
+            self?.eventDispatched(event)
+        })
     }
 
     /// Initialize an event generator for a specified UIWindow.
@@ -102,10 +108,14 @@ public final class EventGenerator {
     }
 
     deinit {
-        UIApplication.unregisterForHIDEvents(ObjectIdentifier(self))
-        self.debugWindow.removeFromScene()
-        if let window = self.window as? HammerWindow {
-            window.dismissContained()
+        // This often runs while an error thrown by the test is propagating
+        SwiftErrorHooks.suspend {
+            self.releaseActiveInputs()
+            UIApplication.unregister(ObjectIdentifier(self))
+            self.debugWindow.removeFromScene()
+            if let window = self.window as? HammerWindow {
+                window.dismissContained()
+            }
         }
     }
 
@@ -152,6 +162,23 @@ public final class EventGenerator {
             }, timeout: timeout)
         } catch HammerError.waitConditionTimeout {
             throw HammerError.eventProcessingTimeout(timeout)
+        }
+    }
+
+    // MARK: - Teardown
+
+    /// Lifts the fingers, stylus and keys still down so UIKit does not keep them for the next test.
+    private func releaseActiveInputs() {
+        if !self.activeTouches.fingers.isEmpty {
+            try? self.cancelFingers()
+        }
+
+        if self.activeTouches.stylus != nil {
+            try? self.cancelStylus()
+        }
+
+        for key in self.pressedKeys {
+            try? self.sendKeyboardEvent(key: key, isKeyDown: false, validate: false, wait: true)
         }
     }
 }
