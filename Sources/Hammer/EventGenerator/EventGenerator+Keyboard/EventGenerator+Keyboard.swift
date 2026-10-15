@@ -132,9 +132,7 @@ extension EventGenerator {
     /// - parameter isKeyDown: If the key is currently pressed down.
     /// - parameter wait:      If we should wait until UIKit has processed the event.
     private func sendKeyboardEvent(key: KeyboardKey, isKeyDown: Bool, wait: Bool) throws {
-        guard self.isWindowReady else {
-            throw HammerError.windowIsNotReadyForInteraction
-        }
+        try self.checkWindowIsReady()
 
         guard self.window.isKeyWindow else {
             throw HammerError.windowIsNotKey

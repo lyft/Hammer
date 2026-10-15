@@ -265,9 +265,7 @@ extension EventGenerator {
     ///
     /// - throws: If one of the points is not hittable
     func checkPointsAreHittable(_ points: [CGPoint]) throws {
-        guard self.isWindowReady else {
-            throw HammerError.windowIsNotReadyForInteraction
-        }
+        try self.checkWindowIsReady()
 
         if let nonHittablePoint = points.first(where: { !self.pointIsHittable($0) }) {
             throw HammerError.pointIsNotHittable(nonHittablePoint)
@@ -286,9 +284,7 @@ extension EventGenerator {
             throw HammerError.viewIsNotInHierarchy(view)
         }
 
-        guard self.isWindowReady else {
-            throw HammerError.windowIsNotReadyForInteraction
-        }
+        try self.checkWindowIsReady()
 
         guard self.viewIsVisible(view) else {
             throw HammerError.viewIsNotVisible(view)

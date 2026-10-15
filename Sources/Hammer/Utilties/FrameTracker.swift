@@ -27,7 +27,9 @@ final class FrameTracker {
 
     @objc
     private func displayLinkCallback() {
-        self.listeners.forEach { $0() }
+        // Listeners added by a listener wait for the following frame
+        let listeners = self.listeners
         self.listeners.removeAll(keepingCapacity: true)
+        listeners.forEach { $0() }
     }
 }

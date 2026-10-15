@@ -83,6 +83,9 @@ extension EventGenerator {
         let waiter = Waiter(timeout: timeout)
         try condition(waiter)
         try waiter.start(throwIfAlreadyCompleted: false)
+        if case .completed(timeout: true) = waiter.state {
+            throw HammerError.waitConditionTimeout(timeout)
+        }
     }
 
     /// Waits for a condition to become true within the specified time.
@@ -274,6 +277,8 @@ extension EventGenerator {
     /// Waits until a frame has completed rendering.
     ///
     /// - parameter timeout: The maximum time to wait for the frame to render.
+    ///
+    /// - throws: An error if no frame rendered within the specified time.
     public func waitUntilFrameIsRendered(timeout: TimeInterval) throws {
         try self.waitUntil({ waiter in
             FrameTracker.shared.addNextFrameListener { try? waiter.complete() }
