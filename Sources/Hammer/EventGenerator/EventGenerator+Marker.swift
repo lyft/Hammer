@@ -3,9 +3,12 @@ import Darwin
 import Foundation
 
 extension EventGenerator {
+    // Static so the events sent while an event generator deinitializes still complete
+    private static var markerCallbacks = [UInt32: CompletionHandler]()
+
     func sendMarkerEvent(withCompletionBlock completion: @escaping CompletionHandler) throws {
         let eventId = self.nextEventId()
-        self.eventCallbacks[eventId] = completion
+        EventGenerator.markerCallbacks[eventId] = completion
 
         let eventIdBytes = withUnsafeBytes(of: Int(eventId), Array.init)
         let markerEvent = IOHID.shared.createVendorDefinedEvent(
@@ -23,7 +26,7 @@ extension EventGenerator {
         try self.sendEvent(markerEvent, wait: false)
     }
 
-    func markerEventReceived(_ event: IOHIDEvent) {
+    static func markerEventReceived(_ event: IOHIDEvent) {
         guard IOHID.shared.eventGetType(event) == IOHID.EventType.vendorDefined.rawValue else {
             return
         }
@@ -31,7 +34,7 @@ extension EventGenerator {
         let callbackIDRaw = IOHID.shared.eventGetIntegerValue(event,
                                                               IOHID.EventField.VendorDefined.data.rawValue)
         let callbackID = UInt32(callbackIDRaw)
-        let completionBlock = self.eventCallbacks.removeValue(forKey: callbackID)
+        let completionBlock = self.markerCallbacks.removeValue(forKey: callbackID)
         completionBlock?()
     }
 }

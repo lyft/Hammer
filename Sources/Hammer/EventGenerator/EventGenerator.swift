@@ -27,7 +27,6 @@ public final class EventGenerator {
     var activeTouches = TouchStorage()
     var pressedKeys = Set<KeyboardKey>()
     var debugWindow = DebugVisualizerWindow()
-    var eventCallbacks = [UInt32: CompletionHandler]()
     var isAccessibilityActivated = false
 
     /// The touches UIKit began delivering to the window since the last event was sent.
@@ -55,8 +54,8 @@ public final class EventGenerator {
         self.debugWindow.frame = self.window.frame
 
         UIApplication.swizzle()
-        UIApplication.register(ObjectIdentifier(self), hidEventCallback: { [weak self] event in
-            self?.markerEventReceived(event)
+        UIApplication.register(ObjectIdentifier(self), hidEventCallback: { event in
+            EventGenerator.markerEventReceived(event)
         }, uiEventCallback: { [weak self] event in
             self?.eventDispatched(event)
         })
