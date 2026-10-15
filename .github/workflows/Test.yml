@@ -44,6 +44,8 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
+      - name: Load simulators
+        run: xcrun simctl list devices available
       - name: Install iOS 17 simulator
         # The download progress is printed as a new line per update outside a terminal
         run: |
