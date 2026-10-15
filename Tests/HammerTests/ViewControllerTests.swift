@@ -39,7 +39,7 @@ final class ViewControllerTests: XCTestCase {
 private final class TestSignInViewController: UIViewController, UITextFieldDelegate {
     let usernameTextField: UITextField = {
         let view = UITextField()
-        view.disablePredictiveBar()
+        view.disableTextSuggestions()
         view.accessibilityIdentifier = "username_field"
         view.borderStyle = .roundedRect
         view.placeholder = "Username"
@@ -48,7 +48,7 @@ private final class TestSignInViewController: UIViewController, UITextFieldDeleg
 
     let passwordTextField: UITextField = {
         let view = UITextField()
-        view.disablePredictiveBar()
+        view.disableTextSuggestions()
         view.accessibilityIdentifier = "password_field"
         view.borderStyle = .roundedRect
         view.placeholder = "Password"
