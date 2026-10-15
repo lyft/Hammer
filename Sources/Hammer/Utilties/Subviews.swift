@@ -216,12 +216,16 @@ extension EventGenerator {
 
         // Check if hittable through standard piping
         let windowHitPoint = view.convert(point, to: self.window)
-        let windowHitTest = self.window.hitTest(windowHitPoint, with: nil)
-        if windowHitTest == view {
-            // If the hit test returns the target view we know it is hittable
-            return true
-        } else if windowHitTest == nil {
+        guard let windowHitTest = self.window.hitTest(windowHitPoint, with: nil) else {
             // If the hit test returns nil there is no interactive view
+            return false
+        }
+
+        if windowHitTest.isDescendant(of: view) {
+            // If the hit test returns the target view or one of its subviews we know it is hittable
+            return true
+        } else if !view.isDescendant(of: windowHitTest) {
+            // Another view covers the target and would receive the touch instead
             return false
         }
 

@@ -171,6 +171,32 @@ final class HandTests: XCTestCase {
         }
     }
 
+    func testButtonTapOnCoveredButton() throws {
+        let containerView = UIView()
+        containerView.setSize(width: 100, height: 100)
+
+        let view = UIButton()
+        view.setSize(width: 100, height: 100)
+        view.accessibilityIdentifier = "my_button"
+        containerView.addSubview(view)
+
+        let coverView = UIButton()
+        coverView.setSize(width: 100, height: 100)
+        containerView.addSubview(coverView)
+
+        let eventGenerator = try EventGenerator(view: containerView)
+        try eventGenerator.wait(0.5)
+
+        do {
+            try eventGenerator.fingerTap(at: "my_button")
+            XCTFail("Button should not be tappable")
+        } catch HammerError.viewIsNotHittable {
+            // Success
+        } catch {
+            throw error
+        }
+    }
+
     func testButtonHighlight() throws {
         let view = UIButton()
         view.setSize(width: 100, height: 100)
