@@ -15,7 +15,7 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
-      - name: List simulators
+      - name: Load simulators
         run: xcrun simctl list devices available
       - name: Run tests
         run: make test-iPad
@@ -29,7 +29,7 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
-      - name: List simulators
+      - name: Load simulators
         run: xcrun simctl list devices available
       - name: Run tests
         run: make test-iPhone
