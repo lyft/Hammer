@@ -45,8 +45,6 @@ jobs:
       - name: Make project
         run: make generate
       - name: Install iOS 17 simulator
-        run: |
-          xcodebuild -downloadPlatform iOS -buildVersion 17.5
-          xcrun simctl create "iPhone 15" "iPhone 15" com.apple.CoreSimulator.SimRuntime.iOS-17-5
+        run: xcodebuild -downloadPlatform iOS -buildVersion 17.5
       - name: Run tests
         run: make test-iPhone-iOS17
