@@ -30,7 +30,7 @@ test-iPad:
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPad Pro 13-inch (M4)" \
+		-destination "name=iPad Pro 13-inch (M5)" \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 

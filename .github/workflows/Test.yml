@@ -7,24 +7,24 @@ on:
 jobs:
   test_ipad:
     name: Test-iPad
-    runs-on: macOS-latest
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 26.0
-        run: sudo xcode-select -switch /Applications/Xcode_26.0.app
+      - name: Force Xcode 26.6
+        run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
       - name: Run tests
         run: make test-iPad
   test_iphone:
     name: Test-iPhone
-    runs-on: macOS-latest
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 26.0
-        run: sudo xcode-select -switch /Applications/Xcode_26.0.app
+      - name: Force Xcode 26.6
+        run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
       - name: Run tests
