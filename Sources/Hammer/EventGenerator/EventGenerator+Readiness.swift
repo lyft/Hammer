@@ -140,7 +140,8 @@ extension EventGenerator {
                 throw HammerError.windowIsNotReadyForInteraction(reason: reason)
             }
 
-            try self.wait(min(0.1, remaining()))
+            // Checking every frame lets the generator start as soon as the window appears
+            try self.wait(min(EventGenerator.fingerMoveInterval, remaining()))
         }
 
         // The accessibility warm up is a fixed delay, so it does not count against the timeout
