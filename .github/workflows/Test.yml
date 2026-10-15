@@ -45,6 +45,9 @@ jobs:
       - name: Make project
         run: make generate
       - name: Install iOS 17 simulator
-        run: xcodebuild -downloadPlatform iOS -buildVersion 17.5
+        # The download progress is printed as a new line per update outside a terminal
+        run: |
+          set -o pipefail
+          xcodebuild -downloadPlatform iOS -buildVersion 17.5 | sed '/^Downloading/d'
       - name: Run tests
         run: make test-iPhone-iOS17
