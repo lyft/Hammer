@@ -51,3 +51,37 @@ extension UIApplication {
         self.hidEventCallbacks.removeValue(forKey: object)
     }
 }
+
+/// The queue UIKit uses to process keyboard input, such as inserting typed text.
+enum KeyboardTaskQueue {
+    /// Waits until UIKit has processed all the keyboard input received so far. Returns immediately when
+    /// there is no active keyboard.
+    ///
+    /// - throws: An error if the private API is not available.
+    static func waitUntilAllTasksAreFinished() throws {
+        guard let keyboardClass = NSClassFromString("UIKeyboardImpl") as AnyObject? else {
+            throw HammerError.unableToAccessPrivateApi(type: "UIKeyboardImpl", method: "Class")
+        }
+
+        let activeInstanceSelector = NSSelectorFromString("activeInstance")
+        guard keyboardClass.responds(to: activeInstanceSelector) else {
+            throw HammerError.unableToAccessPrivateApi(type: "UIKeyboardImpl", method: "activeInstance")
+        }
+
+        guard let keyboard = keyboardClass.perform(activeInstanceSelector)?.takeUnretainedValue() else {
+            return
+        }
+
+        let taskQueueSelector = NSSelectorFromString("taskQueue")
+        let waitSelector = NSSelectorFromString("waitUntilAllTasksAreFinished")
+        guard keyboard.responds(to: taskQueueSelector),
+              let taskQueue = keyboard.perform(taskQueueSelector)?.takeUnretainedValue(),
+              taskQueue.responds(to: waitSelector) else
+        {
+            throw HammerError.unableToAccessPrivateApi(type: "UIKeyboardTaskQueue",
+                                                       method: "waitUntilAllTasksAreFinished")
+        }
+
+        _ = taskQueue.perform(waitSelector)
+    }
+}

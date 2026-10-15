@@ -7,37 +7,47 @@ on:
 jobs:
   test_ipad:
     name: Test-iPad
-    runs-on: macOS-latest
+    runs-on: xcode-27
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 26.0
-        run: sudo xcode-select -switch /Applications/Xcode_26.0.app
+      - name: Force Xcode 27.0
+        run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Make project
         run: make generate
+      - name: Load simulators
+        run: xcrun simctl list devices available
       - name: Run tests
         run: make test-iPad
   test_iphone:
     name: Test-iPhone
-    runs-on: macOS-latest
+    runs-on: xcode-27
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 26.0
-        run: sudo xcode-select -switch /Applications/Xcode_26.0.app
+      - name: Force Xcode 27.0
+        run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Make project
         run: make generate
+      - name: Load simulators
+        run: xcrun simctl list devices available
       - name: Run tests
         run: make test-iPhone
   test_iphone_ios17:
     name: Test-iPhone-iOS17
-    runs-on: macos-14
+    # Xcode 27 can no longer download the iOS 17 simulator
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 15.3
-        run: sudo xcode-select -switch /Applications/Xcode_15.3.app
+      - name: Force Xcode 26.6
+        run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
+      - name: Install iOS 17 simulator
+        # The download progress is printed as a new line per update outside a terminal
+        run: |
+          set -o pipefail
+          xcodebuild -downloadPlatform iOS -buildVersion 17.5 | sed '/^Downloading/d'
       - name: Run tests
         run: make test-iPhone-iOS17

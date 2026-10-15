@@ -30,7 +30,7 @@ test-iPad:
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPad Pro 13-inch (M4)" \
+		-destination "name=iPad Pro 13-inch (M5)" \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
@@ -48,8 +48,7 @@ test-iPhone-iOS17:
 		xcodebuild \
 		-project Hammer.xcodeproj \
 		-scheme Hammer \
-		-destination "name=iPhone 15" \
-		-sdk iphonesimulator17.4 \
+		-destination "platform=iOS Simulator,name=iPhone 15,OS=17.5" \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 

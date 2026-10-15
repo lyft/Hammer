@@ -45,6 +45,7 @@ final class KeyboardTests: XCTestCase {
         view.setSize(width: 300)
         view.disablePredictiveBar()
         view.smartQuotesType = .no
+        view.smartDashesType = .no
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -64,6 +65,7 @@ final class KeyboardTests: XCTestCase {
         view.setSize(width: 300)
         view.disablePredictiveBar()
         view.smartQuotesType = .no
+        view.smartDashesType = .no
         view.autocapitalizationType = .none
 
         let eventGenerator = try EventGenerator(view: view)
@@ -84,6 +86,7 @@ final class KeyboardTests: XCTestCase {
         view.setSize(width: 300)
         view.disablePredictiveBar()
         view.smartQuotesType = .no
+        view.smartDashesType = .no
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -103,6 +106,7 @@ final class KeyboardTests: XCTestCase {
         view.setSize(width: 300)
         view.disablePredictiveBar()
         view.smartQuotesType = .no
+        view.smartDashesType = .no
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -122,6 +126,7 @@ final class KeyboardTests: XCTestCase {
         view.setSize(width: 300)
         view.disablePredictiveBar()
         view.smartQuotesType = .no
+        view.smartDashesType = .no
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)

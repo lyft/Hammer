@@ -19,7 +19,7 @@ extension EventGenerator {
     ///
     /// - parameter key: The key to press down.
     public func keyDown(_ key: KeyboardKey) throws {
-        try self.sendKeyboardEvent(key: key, isKeyDown: true)
+        try self.sendKeyboardEvent(key: key, isKeyDown: true, wait: true)
     }
 
     /// Sends a key up event.
@@ -36,7 +36,7 @@ extension EventGenerator {
     ///
     /// - parameter key: The key to release.
     public func keyUp(_ key: KeyboardKey) throws {
-        try self.sendKeyboardEvent(key: key, isKeyDown: false)
+        try self.sendKeyboardEvent(key: key, isKeyDown: false, wait: true)
     }
 
     // MARK: - Press Actions
@@ -56,8 +56,9 @@ extension EventGenerator {
     ///
     /// - parameter key: The key to press.
     public func keyPress(_ key: KeyboardKey) throws {
-        try self.keyDown(key)
-        try self.keyUp(key)
+        // Sending the key up right away keeps a busy main thread from repeating the key while it is down
+        try self.sendKeyboardEvent(key: key, isKeyDown: true, wait: false)
+        try self.sendKeyboardEvent(key: key, isKeyDown: false, wait: true)
     }
 
     /// Sends a key press event a specified number times.
@@ -129,7 +130,8 @@ extension EventGenerator {
     ///
     /// - parameter key:       The keyboard key for the event.
     /// - parameter isKeyDown: If the key is currently pressed down.
-    private func sendKeyboardEvent(key: KeyboardKey, isKeyDown: Bool) throws {
+    /// - parameter wait:      If we should wait until UIKit has processed the event.
+    private func sendKeyboardEvent(key: KeyboardKey, isKeyDown: Bool, wait: Bool) throws {
         guard self.isWindowReady else {
             throw HammerError.windowIsNotReadyForInteraction
         }
@@ -148,9 +150,11 @@ extension EventGenerator {
 
         IOHID.shared.eventSetSenderID(event, self.senderId)
 
-        try self.sendEvent(event, wait: true)
+        try self.sendEvent(event, wait: wait)
 
-        // Key events seem to be processed a little later, so we wait for one frame
-        try self.wait(0.02)
+        // UIKit applies key presses, such as inserting text, in a queue after the event is delivered
+        if wait {
+            try KeyboardTaskQueue.waitUntilAllTasksAreFinished()
+        }
     }
 }
