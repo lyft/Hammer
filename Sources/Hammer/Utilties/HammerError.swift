@@ -13,6 +13,7 @@ public enum HammerError: Error {
     case touchForFingerDoesNotExist(index: FingerIndex)
     case fingerLimitReached(limit: Int)
     case invalidFingerCount(count: Int, expected: Int)
+    case touchWasNotDelivered(index: FingerIndex)
 
     case touchForStylusAlreadyExists
     case touchForStylusDoesNotExist
@@ -62,6 +63,8 @@ extension HammerError: CustomStringConvertible {
             return "The maximum number of fingers on the screen simultaneously has been exceeded (\(limit))"
         case .invalidFingerCount(let count, let expected):
             return "Invalid number of fingers, got \(count) expected \(expected)"
+        case .touchWasNotDelivered(let index):
+            return "The touch for finger with index \(index) was not delivered to the app"
         case .touchForStylusAlreadyExists:
             return "A touch for the stylus already exists"
         case .touchForStylusDoesNotExist:

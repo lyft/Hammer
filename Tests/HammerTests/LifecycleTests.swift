@@ -60,6 +60,23 @@ final class LifecycleTests: XCTestCase {
         XCTAssertEqual(view.cancelledTouchCount, 1)
     }
 
+    func testTapIsDeliveredToWindowPresentedAbove() throws {
+        let eventGenerator = try EventGenerator(view: UIButton().withSize(width: 300, height: 300))
+        try eventGenerator.waitUntilHittable(timeout: 1)
+
+        let overlayView = TouchCountingView()
+        let overlayWindow = UIWindow(frame: eventGenerator.window.frame)
+        overlayWindow.windowScene = eventGenerator.window.windowScene
+        overlayWindow.windowLevel = eventGenerator.window.windowLevel + 1
+        overlayWindow.rootViewController = UIViewController()
+        overlayWindow.rootViewController?.view = overlayView
+        overlayWindow.isHidden = false
+        defer { overlayWindow.isHidden = true }
+
+        try eventGenerator.fingerTap()
+        XCTAssertEqual(overlayView.endedTouchCount, 1)
+    }
+
     func testWaitUntilClosureThrowsOnTimeout() throws {
         let eventGenerator = try EventGenerator(view: UIButton().withSize(width: 100, height: 100))
         XCTAssertThrowsError(try eventGenerator.waitUntil({ _ in }, timeout: 0.1)) { error in
@@ -76,6 +93,15 @@ private final class CancellationTestView: UIView {
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesCancelled(touches, with: event)
         self.cancelledTouchCount += touches.count
+    }
+}
+
+private final class TouchCountingView: UIView {
+    private(set) var endedTouchCount = 0
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesEnded(touches, with: event)
+        self.endedTouchCount += touches.count
     }
 }
 
