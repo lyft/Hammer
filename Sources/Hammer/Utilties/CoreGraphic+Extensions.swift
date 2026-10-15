@@ -12,6 +12,15 @@ extension CGPoint {
         return CGPoint(x: self.x + x, y: self.y + y)
     }
 
+    /// Calculates the straight line distance to another point.
+    ///
+    /// - parameter point: The other point.
+    ///
+    /// - returns: The distance between both points.
+    func distance(to point: CGPoint) -> CGFloat {
+        return hypot(point.x - self.x, point.y - self.y)
+    }
+
     /// Calculates the offset point by moving a specified distance along an angle. A zero angle is assumed
     /// to be straight to the right.
     ///

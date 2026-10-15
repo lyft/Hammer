@@ -200,6 +200,10 @@ Make sure you are running your unit tests in a host application ([setup instruct
 
   You can increase the time Hammer waits with `EventGenerator.settings.windowReadyTimeout`.
 
+- The touch was not delivered to the app
+
+UIKit processed the event but did not begin a touch in any of the app's windows. Check that the window is attached to the app's active scene.
+
 - UIKit did not process the generated event
 
 The main thread did not get to the event in time, for example because it is blocked by other work. You can increase the time Hammer waits with `EventGenerator.settings.eventProcessingTimeout`.

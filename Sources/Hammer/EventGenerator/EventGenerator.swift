@@ -30,6 +30,9 @@ public final class EventGenerator {
     var eventCallbacks = [UInt32: CompletionHandler]()
     var isAccessibilityActivated = false
 
+    /// The touches UIKit began delivering to the window since the last event was sent.
+    var deliveredBeganTouches = [UITouch]()
+
     /// The default sender id for all events.
     ///
     /// Can be any value except 0.
@@ -52,9 +55,11 @@ public final class EventGenerator {
         self.debugWindow.frame = self.window.frame
 
         UIApplication.swizzle()
-        UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
+        UIApplication.register(ObjectIdentifier(self), hidEventCallback: { [weak self] event in
             self?.markerEventReceived(event)
-        }
+        }, uiEventCallback: { [weak self] event in
+            self?.eventDispatched(event)
+        })
     }
 
     /// Initialize an event generator for a specified UIWindow.
@@ -106,7 +111,7 @@ public final class EventGenerator {
         // This often runs while an error thrown by the test is propagating
         SwiftErrorHooks.suspend {
             self.releaseActiveInputs()
-            UIApplication.unregisterForHIDEvents(ObjectIdentifier(self))
+            UIApplication.unregister(ObjectIdentifier(self))
             self.debugWindow.removeFromScene()
             if let window = self.window as? HammerWindow {
                 window.dismissContained()
