@@ -310,6 +310,25 @@ final class HandTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed)
     }
 
+    func testTwoFingerDownAtAngle() throws {
+        let view = TouchTestView()
+        view.setSize(width: 300, height: 300)
+        view.backgroundColor = .green
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(timeout: 1)
+        try eventGenerator.twoFingerDown(withDistance: 100, angle: .pi / 2)
+
+        let locations = view.touches.map { $0.location(in: view) }.sorted { $0.y < $1.y }
+        XCTAssertEqual(locations.count, 2)
+        XCTAssertEqual(locations.first?.x ?? 0, 150, accuracy: 0.5)
+        XCTAssertEqual(locations.first?.y ?? 0, 100, accuracy: 0.5)
+        XCTAssertEqual(locations.last?.x ?? 0, 150, accuracy: 0.5)
+        XCTAssertEqual(locations.last?.y ?? 0, 200, accuracy: 0.5)
+
+        try eventGenerator.twoFingerUp()
+    }
+
     func testSwitchToggle() throws {
         let view = UISwitch()
         let eventGenerator = try EventGenerator(view: view)
