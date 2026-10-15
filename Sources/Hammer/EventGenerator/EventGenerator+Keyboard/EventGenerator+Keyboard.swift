@@ -19,7 +19,7 @@ extension EventGenerator {
     ///
     /// - parameter key: The key to press down.
     public func keyDown(_ key: KeyboardKey) throws {
-        try self.sendKeyboardEvent(key: key, isKeyDown: true, wait: true)
+        try self.sendKeyboardEvent(key: key, isKeyDown: true, validate: true, wait: true)
     }
 
     /// Sends a key up event.
@@ -36,7 +36,7 @@ extension EventGenerator {
     ///
     /// - parameter key: The key to release.
     public func keyUp(_ key: KeyboardKey) throws {
-        try self.sendKeyboardEvent(key: key, isKeyDown: false, wait: true)
+        try self.sendKeyboardEvent(key: key, isKeyDown: false, validate: true, wait: true)
     }
 
     // MARK: - Press Actions
@@ -57,8 +57,8 @@ extension EventGenerator {
     /// - parameter key: The key to press.
     public func keyPress(_ key: KeyboardKey) throws {
         // Sending the key up right away keeps a busy main thread from repeating the key while it is down
-        try self.sendKeyboardEvent(key: key, isKeyDown: true, wait: false)
-        try self.sendKeyboardEvent(key: key, isKeyDown: false, wait: true)
+        try self.sendKeyboardEvent(key: key, isKeyDown: true, validate: true, wait: false)
+        try self.sendKeyboardEvent(key: key, isKeyDown: false, validate: true, wait: true)
     }
 
     /// Sends a key press event a specified number times.
@@ -130,12 +130,15 @@ extension EventGenerator {
     ///
     /// - parameter key:       The keyboard key for the event.
     /// - parameter isKeyDown: If the key is currently pressed down.
+    /// - parameter validate:  If the window must be ready and key to receive the event.
     /// - parameter wait:      If we should wait until UIKit has processed the event.
-    private func sendKeyboardEvent(key: KeyboardKey, isKeyDown: Bool, wait: Bool) throws {
-        try self.checkWindowIsReady()
+    func sendKeyboardEvent(key: KeyboardKey, isKeyDown: Bool, validate: Bool, wait: Bool) throws {
+        if validate {
+            try self.checkWindowIsReady()
 
-        guard self.window.isKeyWindow else {
-            throw HammerError.windowIsNotKey
+            guard self.window.isKeyWindow else {
+                throw HammerError.windowIsNotKey
+            }
         }
 
         let machTime = mach_absolute_time()
@@ -147,6 +150,12 @@ extension EventGenerator {
             kIOHIDEventOptionNone)
 
         IOHID.shared.eventSetSenderID(event, self.senderId)
+
+        if isKeyDown {
+            self.pressedKeys.insert(key)
+        } else {
+            self.pressedKeys.remove(key)
+        }
 
         try self.sendEvent(event, wait: wait)
 

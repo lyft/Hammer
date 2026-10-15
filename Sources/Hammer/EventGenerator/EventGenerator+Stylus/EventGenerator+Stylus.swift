@@ -19,7 +19,7 @@ extension EventGenerator {
         let location = try (location ?? self.mainView).windowHitPoint(for: self)
         try self.sendEvent(stylus: StylusInfo(location: location, phase: .began,
                                               pressure: pressure, twist: 0,
-                                              altitude: altitude, azimuth: azimuth))
+                                              altitude: altitude, azimuth: azimuth), validate: true)
     }
 
     /// Sends a stylus up event.
@@ -29,7 +29,7 @@ extension EventGenerator {
         }
 
         try self.sendEvent(stylus: StylusInfo(location: location, phase: .ended, pressure: 0, twist: 0,
-                                              altitude: 0, azimuth: 0))
+                                              altitude: 0, azimuth: 0), validate: true)
     }
 
     // MARK: - Tap Actions
@@ -111,7 +111,7 @@ extension EventGenerator {
     {
         let location = try location.windowHitPoint(for: self)
         try self.sendEvent(stylus: StylusInfo(location: location, phase: .moved, pressure: pressure, twist: 0,
-                                              altitude: altitude, azimuth: azimuth))
+                                              altitude: altitude, azimuth: azimuth), validate: true)
     }
 
     /// Sends a stylus move event, interpolating between the changes for the specified duration.
@@ -158,11 +158,24 @@ extension EventGenerator {
 
     // MARK: - Event
 
+    /// Cancels the stylus touch, without validating the window.
+    func cancelStylus() throws {
+        guard let stylus = self.activeTouches.stylus else {
+            throw HammerError.touchForStylusDoesNotExist
+        }
+
+        try self.sendEvent(stylus: StylusInfo(location: stylus.location, phase: .cancelled, pressure: 0,
+                                              twist: 0, altitude: 0, azimuth: 0), validate: false)
+    }
+
     /// Sends a stylus event.
     ///
-    /// - parameter stylus: The event to send.
-    private func sendEvent(stylus: StylusInfo) throws {
-        try self.checkPointsAreHittable([stylus.location])
+    /// - parameter stylus:   The event to send.
+    /// - parameter validate: If the window must be ready and the location hittable.
+    private func sendEvent(stylus: StylusInfo, validate: Bool) throws {
+        if validate {
+            try self.checkPointsAreHittable([stylus.location])
+        }
 
         let machTime = mach_absolute_time()
         let isTouching = stylus.phase.isTouching
@@ -214,6 +227,7 @@ extension EventGenerator {
                 throw HammerError.touchForStylusDoesNotExist
             }
 
+            try self.activeTouches.set(stylus: stylus, forIdentifier: existingIdentifier)
             return existingIdentifier
         case .ended, .cancelled:
             guard let existingIdentifier = existingIdentifier else {

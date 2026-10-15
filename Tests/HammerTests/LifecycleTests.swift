@@ -31,6 +31,35 @@ final class LifecycleTests: XCTestCase {
         }
     }
 
+    func testNotReadyErrorIsReportedAfterScrollViewTeardown() throws {
+        // Tearing down a scroll view makes UIKit throw and catch its own errors, which XCTest must not
+        // report instead of the error that failed the test.
+        let options = XCTExpectedFailure.Options()
+        options.issueMatcher = { issue in
+            issue.compactDescription.contains("not ready for interaction")
+        }
+
+        XCTExpectFailure("The window is not ready", options: options)
+
+        UIApplication.shared.beginIgnoringInteractionEvents()
+        defer { UIApplication.shared.endIgnoringInteractionEvents() }
+
+        _ = try EventGenerator(view: PatternScrollView().withSize(width: 300, height: 300))
+    }
+
+    func testTeardownCancelsFingersStillDown() throws {
+        let view = CancellationTestView()
+        view.setSize(width: 100, height: 100)
+
+        var eventGenerator: EventGenerator? = try EventGenerator(view: view)
+        try eventGenerator?.waitUntilHittable(timeout: 1)
+        try eventGenerator?.fingerDown()
+        XCTAssertEqual(view.cancelledTouchCount, 0)
+
+        eventGenerator = nil
+        XCTAssertEqual(view.cancelledTouchCount, 1)
+    }
+
     func testWaitUntilClosureThrowsOnTimeout() throws {
         let eventGenerator = try EventGenerator(view: UIButton().withSize(width: 100, height: 100))
         XCTAssertThrowsError(try eventGenerator.waitUntil({ _ in }, timeout: 0.1)) { error in
@@ -38,6 +67,15 @@ final class LifecycleTests: XCTestCase {
                 return XCTFail("Unexpected error: \(error)")
             }
         }
+    }
+}
+
+private final class CancellationTestView: UIView {
+    private(set) var cancelledTouchCount = 0
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesCancelled(touches, with: event)
+        self.cancelledTouchCount += touches.count
     }
 }
 

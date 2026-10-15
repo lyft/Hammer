@@ -28,7 +28,7 @@ extension EventGenerator {
         try self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
             FingerInfo(fingerIndex: index, location: location, phase: .began,
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
-        }))
+        }), validate: true)
     }
 
     /// Sends a finger down event.
@@ -50,7 +50,7 @@ extension EventGenerator {
         try self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
             return FingerInfo(fingerIndex: index, location: location, phase: .ended,
                               pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
-        }))
+        }), validate: true)
     }
 
     /// Sends a finger up event.
@@ -124,7 +124,7 @@ extension EventGenerator {
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
         }
 
-        try self.sendEvent(hand: HandInfo(fingers: fingers))
+        try self.sendEvent(hand: HandInfo(fingers: fingers), validate: true)
     }
 
     /// Sends a finger move event.
@@ -455,9 +455,12 @@ extension EventGenerator {
 
     /// Sends a hand event.
     ///
-    /// - parameter hand: The event to send.
-    private func sendEvent(hand: HandInfo) throws {
-        try checkPointsAreHittable(hand.fingers.map(\.location))
+    /// - parameter hand:     The event to send.
+    /// - parameter validate: If the window must be ready and the locations hittable.
+    private func sendEvent(hand: HandInfo, validate: Bool) throws {
+        if validate {
+            try self.checkPointsAreHittable(hand.fingers.map(\.location))
+        }
 
         let machTime = mach_absolute_time()
         let isTouching = hand.isTouching
@@ -495,6 +498,16 @@ extension EventGenerator {
         }
 
         try self.sendEvent(event, wait: true)
+    }
+
+    /// Cancels the touches of all the fingers that are down, without validating the window.
+    func cancelFingers() throws {
+        let fingers = self.activeTouches.fingers.map { finger in
+            FingerInfo(fingerIndex: finger.fingerIndex, location: finger.location, phase: .cancelled,
+                       pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
+        }
+
+        try self.sendEvent(hand: HandInfo(fingers: fingers), validate: false)
     }
 
     private func identifier(for finger: FingerInfo) throws -> UInt32 {
