@@ -35,13 +35,17 @@ jobs:
         run: make test-iPhone
   test_iphone_ios17:
     name: Test-iPhone-iOS17
-    runs-on: macos-14
+    runs-on: xcode-27
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 15.3
-        run: sudo xcode-select -switch /Applications/Xcode_15.3.app
+      - name: Force Xcode 27.0
+        run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Make project
         run: make generate
+      - name: Install iOS 17 simulator
+        run: |
+          xcodebuild -downloadPlatform iOS -buildVersion 17.5
+          xcrun simctl create "iPhone 15" "iPhone 15" com.apple.CoreSimulator.SimRuntime.iOS-17-5
       - name: Run tests
         run: make test-iPhone-iOS17
