@@ -258,6 +258,28 @@ extension EventGenerator {
                            timeout: timeout, checkInterval: checkInterval)
     }
 
+    /// Runs one step per frame over the duration, with the progress of each step from 0 to 1.
+    ///
+    /// Steps are never skipped when the main thread falls behind, so gesture recognizers see the whole path.
+    ///
+    /// - parameter duration: The time to spread the steps over.
+    /// - parameter step:     The closure to run for each step, the last one with a progress of 1.
+    ///
+    /// - throws: An error if a step throws.
+    func performSteps(duration: TimeInterval, step: (TimeInterval) throws -> Void) throws {
+        let stepCount = max(Int((duration / EventGenerator.fingerMoveInterval).rounded(.up)), 1)
+        let startTime = Date()
+        for index in 1...stepCount {
+            let progress = TimeInterval(index) / TimeInterval(stepCount)
+            let delay = duration * progress - Date().timeIntervalSince(startTime)
+            if delay > 0 {
+                try self.wait(delay)
+            }
+
+            try step(progress)
+        }
+    }
+
     // MARK: - System waiting
 
     /// Waits for the main runloop is flushed and all scheduled tasks have executed.
