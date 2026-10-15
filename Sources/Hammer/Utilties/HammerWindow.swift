@@ -45,6 +45,7 @@ private final class HammerViewController: UIViewController {
     override var shouldAutomaticallyForwardAppearanceMethods: Bool { false }
     override var prefersStatusBarHidden: Bool { true }
 
+    // Stays true after a full screen modal covers the view, since the modal can still receive events
     var hasAppeared = false
 
     override func viewDidLoad() {
@@ -65,11 +66,6 @@ private final class HammerViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         self.hasAppeared = true
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        self.hasAppeared = false
     }
 
     func presentContained(_ viewController: UIViewController) {

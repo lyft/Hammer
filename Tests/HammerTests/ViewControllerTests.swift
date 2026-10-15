@@ -4,6 +4,26 @@ import UIKit
 import XCTest
 
 final class ViewControllerTests: XCTestCase {
+    func testTapInFullScreenModal() throws {
+        let presentingViewController = UIViewController()
+        let eventGenerator = try EventGenerator(viewController: presentingViewController)
+
+        let button = UIButton()
+        button.accessibilityIdentifier = "modal_button"
+        let modalViewController = UIViewController()
+        modalViewController.modalPresentationStyle = .fullScreen
+        modalViewController.view.addSubview(button)
+        button.frame = CGRect(x: 0, y: 0, width: 200, height: 200)
+        presentingViewController.present(modalViewController, animated: false)
+
+        let expectation = XCTestExpectation(description: "Button Tapped")
+        button.addHandler(forEvent: .primaryActionTriggered, action: expectation.fulfill)
+
+        try eventGenerator.waitUntilHittable("modal_button", timeout: 1)
+        try eventGenerator.fingerTap(at: "modal_button")
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+    }
+
     func testSignIn() throws {
         let viewController = TestSignInViewController()
         let navigationController = UINavigationController(rootViewController: viewController)
