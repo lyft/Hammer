@@ -35,12 +35,13 @@ jobs:
         run: make test-iPhone
   test_iphone_ios17:
     name: Test-iPhone-iOS17
-    runs-on: xcode-27
+    # Xcode 27 can no longer download the iOS 17 simulator
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Force Xcode 27.0
-        run: sudo xcode-select -switch /Applications/Xcode_27.0.app
+      - name: Force Xcode 26.6
+        run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
       - name: Install iOS 17 simulator
