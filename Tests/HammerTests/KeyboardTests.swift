@@ -6,7 +6,7 @@ final class KeyboardTests: XCTestCase {
     func testTypeOnTextField() throws {
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
+        view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
         let eventGenerator = try EventGenerator(view: view)
@@ -23,7 +23,7 @@ final class KeyboardTests: XCTestCase {
     func testKeyOnTextField() throws {
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
+        view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
         let eventGenerator = try EventGenerator(view: view)
@@ -43,9 +43,7 @@ final class KeyboardTests: XCTestCase {
 
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
-        view.smartQuotesType = .no
-        view.smartDashesType = .no
+        view.disableTextSuggestions()
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -63,9 +61,7 @@ final class KeyboardTests: XCTestCase {
 
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
-        view.smartQuotesType = .no
-        view.smartDashesType = .no
+        view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
         let eventGenerator = try EventGenerator(view: view)
@@ -84,9 +80,7 @@ final class KeyboardTests: XCTestCase {
 
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
-        view.smartQuotesType = .no
-        view.smartDashesType = .no
+        view.disableTextSuggestions()
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -104,9 +98,7 @@ final class KeyboardTests: XCTestCase {
 
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
-        view.smartQuotesType = .no
-        view.smartDashesType = .no
+        view.disableTextSuggestions()
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -124,9 +116,7 @@ final class KeyboardTests: XCTestCase {
 
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
-        view.smartQuotesType = .no
-        view.smartDashesType = .no
+        view.disableTextSuggestions()
 
         let eventGenerator = try EventGenerator(view: view)
         try eventGenerator.waitUntilHittable(timeout: 1)
@@ -144,7 +134,7 @@ final class KeyboardTests: XCTestCase {
 
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
+        view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
         let eventGenerator = try EventGenerator(view: view)
@@ -164,7 +154,7 @@ final class KeyboardTests: XCTestCase {
 
         let view = UITextView()
         view.setSize(width: 300, height: 300)
-        view.disablePredictiveBar()
+        view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
         let eventGenerator = try EventGenerator(view: view)
@@ -181,7 +171,7 @@ final class KeyboardTests: XCTestCase {
     func testEnsureKeyWindowError() throws {
         let view = UITextField()
         view.setSize(width: 300)
-        view.disablePredictiveBar()
+        view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
         let viewController = UIViewController()

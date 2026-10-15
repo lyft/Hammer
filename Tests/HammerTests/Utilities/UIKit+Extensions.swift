@@ -21,18 +21,28 @@ extension CGPoint {
 }
 
 extension UITextField {
-    /// Disables the predictive bar which causes autolayout issues
-    func disablePredictiveBar() {
+    /// Disables the predictive bar, which causes autolayout issues, and the text corrections that would
+    /// change typed text
+    func disableTextSuggestions() {
         self.inputAssistantItem.leadingBarButtonGroups = []
         self.inputAssistantItem.trailingBarButtonGroups = []
+        self.autocorrectionType = .no
+        self.spellCheckingType = .no
+        self.smartQuotesType = .no
+        self.smartDashesType = .no
     }
 }
 
 extension UITextView {
-    /// Disables the predictive bar which causes autolayout issues
-    func disablePredictiveBar() {
+    /// Disables the predictive bar, which causes autolayout issues, and the text corrections that would
+    /// change typed text
+    func disableTextSuggestions() {
         self.inputAssistantItem.leadingBarButtonGroups = []
         self.inputAssistantItem.trailingBarButtonGroups = []
+        self.autocorrectionType = .no
+        self.spellCheckingType = .no
+        self.smartQuotesType = .no
+        self.smartDashesType = .no
     }
 }
 
