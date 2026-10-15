@@ -171,22 +171,13 @@ extension EventGenerator {
         let locations = try locations.map { try $0.windowHitPoint(for: self) }
         let startLocations = self.activeTouches.fingers(forIndices: indices).map(\.location)
 
-        let startTime = Date()
-        var elapsed: TimeInterval = 0
-
-        while elapsed < (duration - EventGenerator.fingerMoveInterval) {
-            elapsed = Date().timeIntervalSince(startTime)
-            let interval = elapsed / duration
-
+        try self.performSteps(duration: duration) { progress in
             let nextLocations = zip(startLocations, locations).map { startLocation, endLocation in
-                return curveInterpolation(from: startLocation, to: endLocation, time: interval)
+                return curveInterpolation(from: startLocation, to: endLocation, time: progress)
             }
 
             try self.fingerMove(indices, to: nextLocations)
-            try self.wait(EventGenerator.fingerMoveInterval)
         }
-
-        try self.fingerMove(indices, to: locations)
     }
 
     /// Sends a finger move event, interpolating between the changes for the specified duration.
@@ -393,21 +384,12 @@ extension EventGenerator {
         let anchor = try anchor.windowHitPoint(for: self)
         let startLocations = self.activeTouches.fingers(forIndices: indices).map(\.location)
 
-        let startTime = Date()
-        var elapsed: TimeInterval = 0
-
-        while elapsed < (duration - EventGenerator.fingerMoveInterval) {
-            elapsed = Date().timeIntervalSince(startTime)
-            let interval = elapsed / duration
-
-            let radians = curveInterpolation(from: 0, to: radians, time: interval)
+        try self.performSteps(duration: duration) { progress in
+            let radians = curveInterpolation(from: 0, to: radians, time: progress)
             let nextLocations = startLocations.map { $0.pivot(anchor: anchor, angle: radians) }
 
             try self.fingerMove(indices, to: nextLocations)
-            try self.wait(EventGenerator.fingerMoveInterval)
         }
-
-        try self.fingerMove(indices, to: startLocations.map { $0.pivot(anchor: anchor, angle: radians) })
     }
 
     /// Sends a finger move event rotating a between to angles and interpolating between the changes for the

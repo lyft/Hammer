@@ -136,24 +136,15 @@ extension EventGenerator {
         let startAltitude = existingStylus.altitude
         let startPressure = existingStylus.pressure
 
-        let startTime = Date()
-        var elapsed: TimeInterval = 0
-
-        while elapsed < (duration - EventGenerator.fingerMoveInterval) {
-            elapsed = Date().timeIntervalSince(startTime)
-            let interval = elapsed / duration
-
-            let nextLocation = curveInterpolation(from: startLocation, to: location, time: interval)
-            let nextAzimuth = curveInterpolation(from: startAzimuth, to: azimuth, time: interval)
-            let nextAltitude = curveInterpolation(from: startAltitude, to: altitude, time: interval)
-            let nextPressure = curveInterpolation(from: startPressure, to: pressure, time: interval)
+        try self.performSteps(duration: duration) { progress in
+            let nextLocation = curveInterpolation(from: startLocation, to: location, time: progress)
+            let nextAzimuth = curveInterpolation(from: startAzimuth, to: azimuth, time: progress)
+            let nextAltitude = curveInterpolation(from: startAltitude, to: altitude, time: progress)
+            let nextPressure = curveInterpolation(from: startPressure, to: pressure, time: progress)
 
             try self.stylusMove(to: nextLocation, azimuth: nextAzimuth,
                                 altitude: nextAltitude, pressure: nextPressure)
-            try self.wait(EventGenerator.fingerMoveInterval)
         }
-
-        try self.stylusMove(to: location, azimuth: azimuth, altitude: altitude, pressure: pressure)
     }
 
     // MARK: - Event
