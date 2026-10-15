@@ -10,7 +10,7 @@ jobs:
     runs-on: xcode-27
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Force Xcode 27.0
         run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Make project
@@ -19,12 +19,18 @@ jobs:
         run: xcrun simctl list devices available
       - name: Run tests
         run: make test-iPad
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-iPad.xcresult
+          path: build/test-iPad.xcresult
   test_iphone:
     name: Test-iPhone
     runs-on: xcode-27
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Force Xcode 27.0
         run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Make project
@@ -33,13 +39,19 @@ jobs:
         run: xcrun simctl list devices available
       - name: Run tests
         run: make test-iPhone
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-iPhone.xcresult
+          path: build/test-iPhone.xcresult
   test_iphone_ios17:
     name: Test-iPhone-iOS17
     # Xcode 27 can no longer download the iOS 17 simulator
     runs-on: macos-26
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Force Xcode 26.6
         run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
@@ -51,3 +63,9 @@ jobs:
           xcodebuild -downloadPlatform iOS -buildVersion 17.5 | sed '/^Downloading/d'
       - name: Run tests
         run: make test-iPhone-iOS17
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-iPhone-iOS17.xcresult
+          path: build/test-iPhone-iOS17.xcresult
