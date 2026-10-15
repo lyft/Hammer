@@ -17,17 +17,16 @@ final class LifecycleTests: XCTestCase {
     }
 
     func testNotReadyErrorIncludesReason() throws {
-        UIApplication.shared.beginIgnoringInteractionEvents()
-        defer { UIApplication.shared.endIgnoringInteractionEvents() }
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = UIViewController()
 
-        let view = UIButton().withSize(width: 100, height: 100)
-        XCTAssertThrowsError(try EventGenerator(view: view)) { error in
+        XCTAssertThrowsError(try EventGenerator(window: window)) { error in
             guard case HammerError.windowIsNotReadyForInteraction(let reason) = error else {
                 return XCTFail("Unexpected error: \(error)")
             }
 
-            XCTAssertEqual(reason, .applicationIsIgnoringInteractionEvents)
-            XCTAssertTrue("\(error)".contains("the application is ignoring interaction events"))
+            XCTAssertEqual(reason, .windowIsHidden)
+            XCTAssertTrue("\(error)".contains("the window is hidden"))
         }
     }
 
@@ -41,10 +40,9 @@ final class LifecycleTests: XCTestCase {
 
         XCTExpectFailure("The window is not ready", options: options)
 
-        UIApplication.shared.beginIgnoringInteractionEvents()
-        defer { UIApplication.shared.endIgnoringInteractionEvents() }
-
-        _ = try EventGenerator(view: PatternScrollView().withSize(width: 300, height: 300))
+        let eventGenerator = try EventGenerator(view: PatternScrollView().withSize(width: 300, height: 300))
+        eventGenerator.window.isUserInteractionEnabled = false
+        try eventGenerator.fingerTap()
     }
 
     func testTeardownCancelsFingersStillDown() throws {
