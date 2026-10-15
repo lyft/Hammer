@@ -2,8 +2,9 @@ import UIKit
 
 /// https://github.com/lyft/Hammer#troubleshooting.
 public enum HammerError: Error {
-    case windowIsNotReadyForInteraction
+    case windowIsNotReadyForInteraction(reason: WindowNotReadyReason)
     case windowIsNotKey
+    case eventProcessingTimeout(TimeInterval)
 
     case deviceDoesNotSupportTouches
     case deviceDoesNotSupportStylus
@@ -12,6 +13,7 @@ public enum HammerError: Error {
     case touchForFingerDoesNotExist(index: FingerIndex)
     case fingerLimitReached(limit: Int)
     case invalidFingerCount(count: Int, expected: Int)
+    case touchWasNotDelivered(index: FingerIndex)
 
     case touchForStylusAlreadyExists
     case touchForStylusDoesNotExist
@@ -39,14 +41,16 @@ public enum HammerError: Error {
 extension HammerError: CustomStringConvertible {
     public var description: String {
         switch self {
-        case .windowIsNotReadyForInteraction:
+        case .windowIsNotReadyForInteraction(let reason):
             return """
-                The app or window is not ready for interaction. Ensure that your tests are running in a \
-                host application and that you have given enough time for the view to present on screen. \
-                For more troubleshooting tips see: https://github.com/lyft/Hammer#troubleshooting.
+                The app or window is not ready for interaction: \(reason). Ensure that your tests are \
+                running in a host application and that you have given enough time for the view to present \
+                on screen. For more troubleshooting tips see: https://github.com/lyft/Hammer#troubleshooting.
                 """
         case .windowIsNotKey:
             return "The window must be the key window to receive keyboard events"
+        case .eventProcessingTimeout(let timeout):
+            return "UIKit did not process the generated event within \(timeout) seconds"
         case .deviceDoesNotSupportTouches:
             return "Device does not support touches"
         case .deviceDoesNotSupportStylus:
@@ -59,6 +63,8 @@ extension HammerError: CustomStringConvertible {
             return "The maximum number of fingers on the screen simultaneously has been exceeded (\(limit))"
         case .invalidFingerCount(let count, let expected):
             return "Invalid number of fingers, got \(count) expected \(expected)"
+        case .touchWasNotDelivered(let index):
+            return "The touch for finger with index \(index) was not delivered to the app"
         case .touchForStylusAlreadyExists:
             return "A touch for the stylus already exists"
         case .touchForStylusDoesNotExist:

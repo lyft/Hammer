@@ -25,8 +25,12 @@ public final class EventGenerator {
     public let mainView: UIView
 
     var activeTouches = TouchStorage()
+    var pressedKeys = Set<KeyboardKey>()
     var debugWindow = DebugVisualizerWindow()
-    var eventCallbacks = [UInt32: CompletionHandler]()
+    var isAccessibilityActivated = false
+
+    /// The touches UIKit began delivering to the window since the last event was sent.
+    var deliveredBeganTouches = [UITouch]()
 
     /// The default sender id for all events.
     ///
@@ -50,9 +54,11 @@ public final class EventGenerator {
         self.debugWindow.frame = self.window.frame
 
         UIApplication.swizzle()
-        UIApplication.registerForHIDEvents(ObjectIdentifier(self)) { [weak self] event in
-            self?.markerEventReceived(event)
-        }
+        UIApplication.register(ObjectIdentifier(self), hidEventCallback: { event in
+            EventGenerator.markerEventReceived(event)
+        }, uiEventCallback: { [weak self] event in
+            self?.eventDispatched(event)
+        })
     }
 
     /// Initialize an event generator for a specified UIWindow.
@@ -101,93 +107,15 @@ public final class EventGenerator {
     }
 
     deinit {
-        UIApplication.unregisterForHIDEvents(ObjectIdentifier(self))
-        self.debugWindow.removeFromScene()
-        if let window = self.window as? HammerWindow {
-            window.dismissContained()
-        }
-    }
-
-    /// Waits until the window is ready to receive user interaction events.
-    ///
-    /// - parameter timeout: The maximum time to wait for the window to be ready.
-    public func waitUntilWindowIsReady(timeout: TimeInterval = 3) throws {
-        do {
-            try self.waitUntil(self.isWindowReady, timeout: timeout)
-            try self.waitUntilAccessibilityActivate()
-
-            if EventGenerator.settings.waitForFrameRender {
-                try self.waitUntilFrameIsRendered(timeout: timeout)
-            }
-
-            if EventGenerator.settings.waitForAnimations {
-                try self.waitUntilAnimationsAreFinished(timeout: timeout)
-            }
-
-            try self.waitUntilRunloopIsFlushed(timeout: timeout)
-        } catch {
-            throw HammerError.windowIsNotReadyForInteraction
-        }
-    }
-
-    /// Waits until animations are finished.
-    ///
-    /// - parameter timeout: The maximum time to wait for the window to be ready.
-    public func waitUntilAnimationsAreFinished(timeout: TimeInterval) throws {
-        try self.waitUntil(!self.hasRunningAnimations, timeout: timeout)
-    }
-
-    /// Returns if the window is ready to receive user interaction events
-    public var isWindowReady: Bool {
-        guard !(UIApplication.shared as UIApplicationDeprecated).isIgnoringInteractionEvents
-                && self.window.isHidden == false
-                && self.window.isUserInteractionEnabled
-                && self.window.rootViewController?.viewIfLoaded != nil
-                && self.window.rootViewController?.isBeingPresented == false
-                && self.window.rootViewController?.isBeingDismissed == false
-                && self.window.rootViewController?.isMovingToParent == false
-                && self.window.rootViewController?.isMovingFromParent == false else
-        {
-            return false
-        }
-
-        if #available(iOS 13.0, *) {
-            guard self.window.windowScene?.activationState == .foregroundActive else {
-                return false
+        // This often runs while an error thrown by the test is propagating
+        SwiftErrorHooks.suspend {
+            self.releaseActiveInputs()
+            UIApplication.unregister(ObjectIdentifier(self))
+            self.debugWindow.removeFromScene()
+            if let window = self.window as? HammerWindow {
+                window.dismissContained()
             }
         }
-
-        if let hammerWindow = self.window as? HammerWindow, !hammerWindow.viewControllerHasAppeared {
-            return false
-        }
-
-        return true
-    }
-
-    // Returns if the view or any of its subviews has running animations.
-    public var hasRunningAnimations: Bool {
-        // Recursive
-        func hasRunningAnimations(currentView: UIView) -> Bool {
-            // If the view is not visible, we do not need to consider it as running animation
-            guard self.viewIsVisible(currentView) else {
-                return false
-            }
-
-            // If there are animations running on the layer, return true
-            if currentView.layer.animationKeys()?.isEmpty == false {
-                return true
-            }
-
-            // Special case for parallax dimming view which happens during some animations
-            if String(describing: type(of: currentView)) == "_UIParallaxDimmingView" {
-                return true
-            }
-
-            // Traverse subviews
-            return currentView.subviews.contains { hasRunningAnimations(currentView: $0) }
-        }
-
-        return hasRunningAnimations(currentView: self.window)
     }
 
     /// Gets the next event ID to use. Event IDs are global and sequential.
@@ -223,52 +151,33 @@ public final class EventGenerator {
     // MARK: - Sleep
 
     /// Sleeps the current thread until the events have finished sending.
+    ///
+    /// - throws: `HammerError.eventProcessingTimeout` if UIKit did not process the events in time.
     private func waitForEvents() throws {
-        let waiter = Waiter(timeout: 1)
-        try self.sendMarkerEvent { try? waiter.complete() }
-        try waiter.start()
+        let timeout = EventGenerator.settings.eventProcessingTimeout
+        do {
+            try self.waitUntil({ waiter in
+                try self.sendMarkerEvent { try? waiter.complete() }
+            }, timeout: timeout)
+        } catch HammerError.waitConditionTimeout {
+            throw HammerError.eventProcessingTimeout(timeout)
+        }
     }
 
-    // MARK: - Accessibility initialization
+    // MARK: - Teardown
 
-    private var isAccessibilityActivated = false
-
-    private func waitUntilAccessibilityActivate() throws {
-        guard EventGenerator.settings.forceActivateAccessibilityEngine else {
-            return
+    /// Lifts the fingers, stylus and keys still down so UIKit does not keep them for the next test.
+    private func releaseActiveInputs() {
+        if !self.activeTouches.fingers.isEmpty {
+            try? self.cancelFingers()
         }
 
-        UIApplication.shared.accessibilityActivate()
-        if self.isAccessibilityActivated {
-            return
+        if self.activeTouches.stylus != nil {
+            try? self.cancelStylus()
         }
 
-        // The first time the accessibility engine is activated in a simulator it needs more time to warm up
-        // and start producing consistent results, after that only a short delay per test case is enough
-        let simAccessibilityActivatedKey = "accessibility_activated"
-        let simAccessibilityActivated = UserDefaults.standard.bool(forKey: simAccessibilityActivatedKey)
-        if !simAccessibilityActivated {
-            print("Activating accessibility engine for the first time in this simulator and waiting 5s")
-        } else {
-            print("Activating accessibility engine and waiting 0.1s")
-        }
-
-        try self.wait(
-            simAccessibilityActivated
-            ? EventGenerator.settings.accessibilityActivateDelay // Default: 0.02s
-            : EventGenerator.settings.accessibilityActivateFirstTimeDelay // Default: 5.0s
-        )
-
-        self.isAccessibilityActivated = true
-        if !simAccessibilityActivated {
-            UserDefaults.standard.set(true, forKey: simAccessibilityActivatedKey)
+        for key in self.pressedKeys {
+            try? self.sendKeyboardEvent(key: key, isKeyDown: false, validate: false, wait: true)
         }
     }
 }
-
-// Bypasses deprecation warning for `isIgnoringInteractionEvents`
-private protocol UIApplicationDeprecated {
-    var isIgnoringInteractionEvents: Bool { get }
-}
-
-extension UIApplication: UIApplicationDeprecated {}

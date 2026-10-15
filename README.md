@@ -192,7 +192,21 @@ try eventGenerator.waitUntilHittable("my_button", timeout: 1)
 
 - The app or window is not ready for interaction
 
-Make sure you are running your unit tests in a host application ([setup instructions](#setup)). To interact with a view, it must be visible on the screen and the application must have finished presenting. You can test this by adding a delay to your testing and verifying that your view is appearing on screen.
+Make sure you are running your unit tests in a host application ([setup instructions](#setup)). To interact with a view, it must be visible on the screen and the application must have finished presenting. The error includes the check that did not pass:
+
+  - *The window's scene is not foreground active*: the host app is in the background or covered by a system alert. This usually means the simulator is in a bad state; rebooting it fixes it.
+  - *No frame was rendered*: the app is not drawing to the screen, usually for the same reasons.
+  - *The application is ignoring interaction events* or *the root view controller is being presented, dismissed or moved*: a transition is still running. Wait for it to finish before creating the `EventGenerator`.
+
+  You can increase the time Hammer waits with `EventGenerator.settings.windowReadyTimeout`.
+
+- The touch was not delivered to the app
+
+UIKit processed the event but did not begin a touch in any of the app's windows. Check that the window is attached to the app's active scene.
+
+- UIKit did not process the generated event
+
+The main thread did not get to the event in time, for example because it is blocked by other work. You can increase the time Hammer waits with `EventGenerator.settings.eventProcessingTimeout`.
 
 - View is not in hirarchy / Unable to find view
 

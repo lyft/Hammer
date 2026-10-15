@@ -21,5 +21,11 @@ extension EventGenerator {
 
         /// If we should wait for a frame to complete rendering when an event generator is created.
         public var waitForFrameRender: Bool = true
+
+        /// The maximum time to wait for the window to be ready when an event generator is created.
+        public var windowReadyTimeout: TimeInterval = 3
+
+        /// The maximum time to wait for UIKit to process each generated event.
+        public var eventProcessingTimeout: TimeInterval = 5
     }
 }

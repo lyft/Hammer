@@ -13,8 +13,10 @@ import UIKit
 
 extension UIApplication {
     typealias HIDEventCallback = (_ event: IOHIDEvent) -> Void
+    typealias UIEventCallback = (_ event: UIEvent) -> Void
 
     private static var hidEventCallbacks = [ObjectIdentifier: HIDEventCallback]()
+    private static var uiEventCallbacks = [ObjectIdentifier: UIEventCallback]()
 
     @objc
     private func swizzledHandleHIDEvent(_ event: IOHIDEvent) {
@@ -24,31 +26,49 @@ extension UIApplication {
         UIApplication.hidEventCallbacks.values.forEach { $0(event) }
     }
 
+    @objc
+    private func swizzledSendEvent(_ event: UIEvent) {
+        // Callbacks run before dispatch so they see the phases that came from the HID event
+        UIApplication.uiEventCallbacks.values.forEach { $0(event) }
+
+        // Calling this really calls the original un-swizzled method
+        self.swizzledSendEvent(event)
+    }
+
     private static let runOnce: () = {
         class_addProtocol(UIApplication.self, UIApplicationPrivate.self)
         class_addProtocol(UIWindow.self, UIWindowPrivate.self)
 
-        let originalMethod = class_getInstanceMethod(
-            UIApplication.self, NSSelectorFromString("_handleHIDEvent:"))
-        let swizzledMethod = class_getInstanceMethod(
-            UIApplication.self, #selector(UIApplication.swizzledHandleHIDEvent(_:)))
+        UIApplication.exchange(NSSelectorFromString("_handleHIDEvent:"),
+                               with: #selector(UIApplication.swizzledHandleHIDEvent(_:)))
+        UIApplication.exchange(#selector(UIApplication.sendEvent(_:)),
+                               with: #selector(UIApplication.swizzledSendEvent(_:)))
+    }()
+
+    private static func exchange(_ originalSelector: Selector, with swizzledSelector: Selector) {
+        let originalMethod = class_getInstanceMethod(UIApplication.self, originalSelector)
+        let swizzledMethod = class_getInstanceMethod(UIApplication.self, swizzledSelector)
         if let originalMethod = originalMethod, let swizzledMethod = swizzledMethod {
             method_exchangeImplementations(originalMethod, swizzledMethod)
         } else {
-            preconditionFailure("Failed to swizzle _handleHIDEvent")
+            preconditionFailure("Failed to swizzle \(originalSelector)")
         }
-    }()
+    }
 
     static func swizzle() {
         self.runOnce
     }
 
-    static func registerForHIDEvents(_ object: ObjectIdentifier, callback: @escaping HIDEventCallback) {
-        self.hidEventCallbacks.updateValue(callback, forKey: object)
+    static func register(_ object: ObjectIdentifier, hidEventCallback: @escaping HIDEventCallback,
+                         uiEventCallback: @escaping UIEventCallback)
+    {
+        self.hidEventCallbacks.updateValue(hidEventCallback, forKey: object)
+        self.uiEventCallbacks.updateValue(uiEventCallback, forKey: object)
     }
 
-    static func unregisterForHIDEvents(_ object: ObjectIdentifier) {
+    static func unregister(_ object: ObjectIdentifier) {
         self.hidEventCallbacks.removeValue(forKey: object)
+        self.uiEventCallbacks.removeValue(forKey: object)
     }
 }
 
