@@ -10,7 +10,7 @@ jobs:
     runs-on: xcode-27
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Force Xcode 27.0
         run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Make project
@@ -21,7 +21,7 @@ jobs:
         run: make test-iPad
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-iPad.xcresult
           path: build/test-iPad.xcresult
@@ -30,7 +30,7 @@ jobs:
     runs-on: xcode-27
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Force Xcode 27.0
         run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Make project
@@ -41,7 +41,7 @@ jobs:
         run: make test-iPhone
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-iPhone.xcresult
           path: build/test-iPhone.xcresult
@@ -51,7 +51,7 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Force Xcode 26.6
         run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
@@ -67,7 +67,7 @@ jobs:
         run: make test-iPhone-iOS17
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-iPhone-iOS17.xcresult
           path: build/test-iPhone-iOS17.xcresult
