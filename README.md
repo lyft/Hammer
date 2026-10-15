@@ -40,10 +40,12 @@ Hammer requires Swift 5.3 and iOS 11.0 or later.
 .package(url: "https://github.com/lyft/Hammer.git", from: "0.13.0")
 ```
 
-#### With [CocoaPods](https://cocoapods.org/)
+#### With [CocoaPods](https://cocoapods.org/) (deprecated)
+
+CocoaPods support is deprecated and will not be updated. Versions up to 0.15.0 remain available on CocoaPods trunk, but newer releases are only available through SwiftPM.
 
 ```ruby
-pod 'HammerTests', '~> 0.13.1'
+pod 'HammerTests', '~> 0.15.0'
 ```
 
 ## Setup
