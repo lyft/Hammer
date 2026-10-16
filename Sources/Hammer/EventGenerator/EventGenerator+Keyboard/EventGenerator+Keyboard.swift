@@ -160,10 +160,10 @@ extension EventGenerator {
         try self.sendEvent(event, wait: wait)
 
         // UIKit applies key presses, such as inserting text, in a queue after the event is delivered, and
-        // reacts to the new text, such as updating auto capitalization, on a later runloop pass
+        // reacts to the new text, such as updating auto capitalization, by the next frame
         if wait {
             try KeyboardTaskQueue.waitUntilAllTasksAreFinished()
-            try self.waitUntilRunloopIsFlushed(timeout: EventGenerator.settings.eventProcessingTimeout)
+            try self.waitUntilFrameIsRendered(timeout: EventGenerator.settings.eventProcessingTimeout)
         }
     }
 }
