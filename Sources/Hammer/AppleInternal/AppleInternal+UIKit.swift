@@ -74,11 +74,13 @@ extension UIApplication {
 
 /// The queue UIKit uses to process keyboard input, such as inserting typed text.
 enum KeyboardTaskQueue {
-    /// Waits until UIKit has processed all the keyboard input received so far. Returns immediately when
-    /// there is no active keyboard.
+    /// Adds a task that runs once UIKit has processed all the keyboard input received so far. Runs the task
+    /// right away when there is no active keyboard.
+    ///
+    /// - parameter task: The task to run.
     ///
     /// - throws: An error if the private API is not available.
-    static func waitUntilAllTasksAreFinished() throws {
+    static func addTask(_ task: @escaping () -> Void) throws {
         guard let keyboardClass = NSClassFromString("UIKeyboardImpl") as AnyObject? else {
             throw HammerError.unableToAccessPrivateApi(type: "UIKeyboardImpl", method: "Class")
         }
@@ -89,19 +91,26 @@ enum KeyboardTaskQueue {
         }
 
         guard let keyboard = keyboardClass.perform(activeInstanceSelector)?.takeUnretainedValue() else {
+            task()
             return
         }
 
         let taskQueueSelector = NSSelectorFromString("taskQueue")
-        let waitSelector = NSSelectorFromString("waitUntilAllTasksAreFinished")
+        let addTaskSelector = NSSelectorFromString("addTask:")
         guard keyboard.responds(to: taskQueueSelector),
               let taskQueue = keyboard.perform(taskQueueSelector)?.takeUnretainedValue(),
-              taskQueue.responds(to: waitSelector) else
+              taskQueue.responds(to: addTaskSelector) else
         {
-            throw HammerError.unableToAccessPrivateApi(type: "UIKeyboardTaskQueue",
-                                                       method: "waitUntilAllTasksAreFinished")
+            throw HammerError.unableToAccessPrivateApi(type: "UIKeyboardTaskQueue", method: "addTask:")
         }
 
-        _ = taskQueue.perform(waitSelector)
+        // The queue only moves on to the next task once this one returns execution to it
+        let returnSelector = NSSelectorFromString("returnExecutionToParent")
+        let block: @convention(block) (AnyObject) -> Void = { context in
+            task()
+            _ = context.perform(returnSelector)
+        }
+
+        _ = taskQueue.perform(addTaskSelector, with: unsafeBitCast(block, to: AnyObject.self))
     }
 }

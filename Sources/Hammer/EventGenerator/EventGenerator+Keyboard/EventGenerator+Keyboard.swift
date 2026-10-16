@@ -173,9 +173,13 @@ extension EventGenerator {
 
     /// Waits until UIKit has processed all keyboard input and rendered the result.
     ///
-    /// - throws: An error if the keyboard queue is not accessible or no frame rendered in time.
+    /// - throws: An error if the keyboard queue is not accessible or did not finish in time.
     private func waitUntilKeyboardIsIdle() throws {
-        try KeyboardTaskQueue.waitUntilAllTasksAreFinished()
-        try self.waitUntilFrameIsRendered(timeout: EventGenerator.settings.eventProcessingTimeout)
+        // Blocking the main thread on the keyboard queue deadlocks with tasks that need the main thread
+        try self.waitUntil({ waiter in
+            try KeyboardTaskQueue.addTask {
+                FrameTracker.shared.addNextFrameListener { try? waiter.complete() }
+            }
+        }, timeout: EventGenerator.settings.eventProcessingTimeout)
     }
 }
