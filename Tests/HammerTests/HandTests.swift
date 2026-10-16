@@ -312,6 +312,7 @@ final class HandTests: XCTestCase {
 
     func testTwoFingerDownAtAngle() throws {
         let view = TouchTestView()
+        view.isMultipleTouchEnabled = true
         view.setSize(width: 300, height: 300)
         view.backgroundColor = .green
 
