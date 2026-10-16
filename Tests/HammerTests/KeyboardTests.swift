@@ -20,6 +20,22 @@ final class KeyboardTests: XCTestCase {
         XCTAssertEqual(view.text, "abc")
     }
 
+    func testTypeOnAutocapitalizedTextField() throws {
+        let view = UITextField()
+        view.setSize(width: 300)
+        view.disableTextSuggestions()
+        view.autocapitalizationType = .sentences
+
+        let eventGenerator = try EventGenerator(view: view)
+        try eventGenerator.waitUntilHittable(timeout: 1)
+
+        try eventGenerator.fingerTap()
+        XCTAssertTrue(view.isFirstResponder)
+
+        try eventGenerator.keyType("be")
+        XCTAssertEqual(view.text, "Be")
+    }
+
     func testKeyOnTextField() throws {
         let view = UITextField()
         view.setSize(width: 300)

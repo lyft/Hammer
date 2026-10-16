@@ -139,6 +139,11 @@ extension EventGenerator {
             guard self.window.isKeyWindow else {
                 throw HammerError.windowIsNotKey
             }
+
+            // The keyboard sets up its state, such as auto capitalization, after the text input gains focus
+            if isKeyDown {
+                try self.waitUntilKeyboardIsIdle()
+            }
         }
 
         let machTime = mach_absolute_time()
@@ -159,9 +164,22 @@ extension EventGenerator {
 
         try self.sendEvent(event, wait: wait)
 
-        // UIKit applies key presses, such as inserting text, in a queue after the event is delivered
+        // UIKit applies key presses, such as inserting text, in a queue after the event is delivered, and
+        // reacts to the new text, such as updating auto capitalization, by the next frame
         if wait {
-            try KeyboardTaskQueue.waitUntilAllTasksAreFinished()
+            try self.waitUntilKeyboardIsIdle()
         }
+    }
+
+    /// Waits until UIKit has processed all keyboard input and rendered the result.
+    ///
+    /// - throws: An error if the keyboard queue is not accessible or did not finish in time.
+    private func waitUntilKeyboardIsIdle() throws {
+        // Blocking the main thread on the keyboard queue deadlocks with tasks that need the main thread
+        try self.waitUntil({ waiter in
+            try KeyboardTaskQueue.addTask {
+                FrameTracker.shared.addNextFrameListener { try? waiter.complete() }
+            }
+        }, timeout: EventGenerator.settings.eventProcessingTimeout)
     }
 }
