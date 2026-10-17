@@ -44,8 +44,9 @@ final class LifecycleTests: XCTestCase {
 
         XCTExpectFailure("The window is not ready", options: options)
 
-        let scrollView = PatternScrollView().withSize(width: 300, height: 300)
-        let eventGenerator = try await EventGenerator(view: scrollView)
+        // Only the window may keep the scroll view, so that it is torn down with the event generator
+        let eventGenerator = try await EventGenerator(
+            view: PatternScrollView().withSize(width: 300, height: 300))
         eventGenerator.window.isUserInteractionEnabled = false
         try await eventGenerator.fingerTap()
     }
@@ -59,9 +60,7 @@ final class LifecycleTests: XCTestCase {
         try await eventGenerator?.fingerDown()
         XCTAssertEqual(view.cancelledTouchCount, 0)
 
-        // Releasing the event generator only enqueues the cancellation, the next one waits for it
         eventGenerator = nil
-        _ = try await EventGenerator(view: UIView().withSize(width: 100, height: 100))
         XCTAssertEqual(view.cancelledTouchCount, 1)
     }
 

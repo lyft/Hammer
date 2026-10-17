@@ -142,9 +142,6 @@ extension EventGenerator {
             try await self.wait(min(EventGenerator.fingerMoveInterval, remaining()))
         }
 
-        // Inputs a previous event generator released when it was deinitialized must not reach this one
-        try await self.waitForEvents()
-
         // The accessibility warm up is a fixed delay, so it does not count against the timeout
         let accessibilityStart = ContinuousClock.now
         try await self.waitUntilAccessibilityActivate()

@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import UIKit
+import XCTest
 
 @MainActor
 private enum Storage {
@@ -175,8 +176,7 @@ public final class EventGenerator {
         app.enqueue(event)
     }
 
-    /// Waits until UIKit has processed all the events sent so far, including those sent by an event
-    /// generator that has since been released.
+    /// Waits until UIKit has processed all the events sent so far.
     ///
     /// - throws: `HammerError.eventProcessingTimeout` if UIKit did not process the events in time.
     func waitForEvents() async throws {
@@ -192,19 +192,27 @@ public final class EventGenerator {
 
     // MARK: - Teardown
 
-    /// Lifts the fingers, stylus and keys still down so UIKit does not keep them for the next test. The next
-    /// event generator waits for UIKit to process these before it is ready.
+    /// Lifts the fingers, stylus and keys still down so UIKit does not keep them for the next test.
     private func releaseActiveInputs() {
-        if !self.activeTouches.fingers.isEmpty {
-            try? self.enqueueEvent(self.cancelFingersEvent())
+        var events = self.pressedKeys.map { self.keyboardEvent(key: $0, isKeyDown: false) }
+        if !self.activeTouches.fingers.isEmpty, let event = try? self.cancelFingersEvent() {
+            events.append(event)
         }
 
-        if let stylusEvent = try? self.cancelStylusEvent() {
-            try? self.enqueueEvent(stylusEvent)
+        if self.activeTouches.stylus != nil, let event = try? self.cancelStylusEvent() {
+            events.append(event)
         }
 
-        for key in self.pressedKeys {
-            try? self.enqueueEvent(self.keyboardEvent(key: key, isKeyDown: false))
+        guard !events.isEmpty else {
+            return
+        }
+
+        events.forEach { try? self.enqueueEvent($0) }
+
+        // Deinit cannot suspend, but the window must stay until UIKit has cancelled the touches in it
+        let expectation = XCTestExpectation(description: "Hammer-Release")
+        if (try? self.sendMarkerEvent(withCompletionBlock: expectation.fulfill)) != nil {
+            _ = XCTWaiter.wait(for: [expectation], timeout: EventGenerator.settings.eventProcessingTimeout)
         }
     }
 }
