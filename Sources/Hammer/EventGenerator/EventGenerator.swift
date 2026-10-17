@@ -1,7 +1,6 @@
 import CoreGraphics
 import Foundation
 import UIKit
-import XCTest
 
 @MainActor
 private enum Storage {
@@ -28,10 +27,14 @@ public final class EventGenerator {
     /// The view that was used to create the event generator
     public let mainView: UIView
 
+    /// The settings for this event generator, starting from `EventGenerator.settings`.
+    public var settings = EventGenerator.settings
+
     var activeTouches = TouchStorage()
     var pressedKeys = Set<KeyboardKey>()
     var debugWindow = DebugVisualizerWindow()
     var isAccessibilityActivated = false
+    private var isFinished = false
 
     /// The touches UIKit began delivering to the window since the last event was sent.
     var deliveredBeganTouches = [UITouch]()
@@ -128,16 +131,42 @@ public final class EventGenerator {
 
     deinit {
         // UIKit objects are only released on the main thread, and this often runs while an error thrown by
-        // the test is propagating
+        // the test is propagating, even after `finish` because the views are released here
         MainActor.assumeIsolated {
             SwiftErrorHooks.suspend {
-                self.releaseActiveInputs()
-                UIApplication.unregister(ObjectIdentifier(self))
-                self.debugWindow.removeFromScene()
-                if let window = self.window as? HammerWindow {
-                    window.dismissContained()
+                guard !self.isFinished else {
+                    return
                 }
+
+                // Deinit cannot suspend, but the window must stay until UIKit has cancelled the touches in it
+                if self.enqueueReleaseEvents() {
+                    var isProcessed = false
+                    if (try? self.sendMarkerEvent { isProcessed = true }) != nil {
+                        MainRunLoop.run(until: { isProcessed }, timeout: self.settings.eventProcessingTimeout)
+                    }
+                }
+
+                self.removeFromApplication()
             }
+        }
+    }
+
+    /// Lifts the fingers, stylus and keys still down and removes the windows Hammer added. No more events
+    /// can be sent afterwards. Event generators that are not finished do this when they are released.
+    ///
+    /// - throws: `HammerError.eventProcessingTimeout` if UIKit did not process the released inputs in time.
+    public func finish() async throws {
+        guard !self.isFinished else {
+            return
+        }
+
+        if self.enqueueReleaseEvents() {
+            try await self.waitForEvents()
+        }
+
+        self.isFinished = true
+        SwiftErrorHooks.suspend {
+            self.removeFromApplication()
         }
     }
 
@@ -163,6 +192,10 @@ public final class EventGenerator {
     ///
     /// - parameter event: The event to send.
     func enqueueEvent(_ event: IOHIDEvent) throws {
+        guard !self.isFinished else {
+            throw HammerError.eventGeneratorIsFinished
+        }
+
         guard let window = self.window as? UIWindow & UIWindowPrivate else {
             throw HammerError.unableToAccessPrivateApi(type: "UIWindow", method: "Protocol")
         }
@@ -180,7 +213,7 @@ public final class EventGenerator {
     ///
     /// - throws: `HammerError.eventProcessingTimeout` if UIKit did not process the events in time.
     func waitForEvents() async throws {
-        let timeout = EventGenerator.settings.eventProcessingTimeout
+        let timeout = self.settings.eventProcessingTimeout
         do {
             // UIKit reacts to some events, such as by toggling a switch, at the end of the run loop pass
             try await self.waitForCompletion(timeout: timeout) { complete in
@@ -194,7 +227,9 @@ public final class EventGenerator {
     // MARK: - Teardown
 
     /// Lifts the fingers, stylus and keys still down so UIKit does not keep them for the next test.
-    private func releaseActiveInputs() {
+    ///
+    /// - returns: If any events were enqueued.
+    private func enqueueReleaseEvents() -> Bool {
         var events = self.pressedKeys.map { self.keyboardEvent(key: $0, isKeyDown: false) }
         if !self.activeTouches.fingers.isEmpty, let event = try? self.cancelFingersEvent() {
             events.append(event)
@@ -204,16 +239,15 @@ public final class EventGenerator {
             events.append(event)
         }
 
-        guard !events.isEmpty else {
-            return
-        }
-
         events.forEach { try? self.enqueueEvent($0) }
+        return !events.isEmpty
+    }
 
-        // Deinit cannot suspend, but the window must stay until UIKit has cancelled the touches in it
-        let expectation = XCTestExpectation(description: "Hammer-Release")
-        if (try? self.sendMarkerEvent(withCompletionBlock: expectation.fulfill)) != nil {
-            _ = XCTWaiter.wait(for: [expectation], timeout: EventGenerator.settings.eventProcessingTimeout)
+    private func removeFromApplication() {
+        UIApplication.unregister(ObjectIdentifier(self))
+        self.debugWindow.removeFromScene()
+        if let window = self.window as? HammerWindow {
+            window.dismissContained()
         }
     }
 }

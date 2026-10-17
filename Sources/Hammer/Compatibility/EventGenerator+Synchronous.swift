@@ -1,5 +1,4 @@
 import UIKit
-import XCTest
 
 // Synchronous versions of the async API, for tests that are not async. Swift picks these in synchronous
 // code and the async versions in async code.
@@ -19,32 +18,31 @@ extension EventGenerator {
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
-    public func waitUntilWindowIsReady(timeout: TimeInterval = EventGenerator.settings.windowReadyTimeout)
-        throws
-    {
+    public func finish() throws {
+        try self.runSynchronously { try await self.finish() }
+    }
+
+    public func waitUntilWindowIsReady(timeout: TimeInterval? = nil) throws {
         try self.runSynchronously { try await self.waitUntilWindowIsReady(timeout: timeout) }
     }
 
-    public func waitUntilAnimationsAreFinished(timeout: TimeInterval) throws {
+    public func waitUntilAnimationsAreFinished(timeout: TimeInterval? = nil) throws {
         try self.runSynchronously { try await self.waitUntilAnimationsAreFinished(timeout: timeout) }
     }
 
-    public func viewWithIdentifier(_ accessibilityIdentifier: String, timeout: TimeInterval,
-                                   checkInterval: TimeInterval = 0.1) throws -> UIView
+    public func viewWithIdentifier(_ accessibilityIdentifier: String,
+                                   timeout: TimeInterval) throws -> UIView
     {
         try self.runSynchronously {
-            try await self.viewWithIdentifier(accessibilityIdentifier, timeout: timeout,
-                                              checkInterval: checkInterval)
+            try await self.viewWithIdentifier(accessibilityIdentifier, timeout: timeout)
         }
     }
 
     public func viewWithIdentifier<T: UIView>(_ accessibilityIdentifier: String, ofType type: T.Type,
-                                              timeout: TimeInterval,
-                                              checkInterval: TimeInterval = 0.1) throws -> T
+                                              timeout: TimeInterval) throws -> T
     {
         try self.runSynchronously {
-            try await self.viewWithIdentifier(accessibilityIdentifier, ofType: type, timeout: timeout,
-                                              checkInterval: checkInterval)
+            try await self.viewWithIdentifier(accessibilityIdentifier, ofType: type, timeout: timeout)
         }
     }
 
@@ -59,30 +57,21 @@ extension EventGenerator {
     ///
     /// - returns: The value the work returns.
     func runSynchronously<T>(_ operation: @escaping @MainActor () async throws -> T) throws -> T {
-        let outcome = Outcome<T>()
-        let expectation = XCTestExpectation(description: "Hammer-Synchronous")
+        var result: Result<T, Error>?
         Task { @MainActor in
             do {
-                outcome.result = .success(try await operation())
+                result = .success(try await operation())
             } catch {
-                outcome.result = .failure(error)
+                result = .failure(error)
             }
-
-            expectation.fulfill()
         }
 
-        while true {
-            if let result = outcome.result {
-                return try result.get()
-            }
-
-            // The timeouts that matter are inside the work, this only bounds each run loop pass
-            _ = XCTWaiter.wait(for: [expectation], timeout: 1)
+        // The work has its own timeouts
+        MainRunLoop.run(until: { result != nil }, timeout: nil)
+        guard let result else {
+            preconditionFailure("The main run loop stopped before the work completed")
         }
+
+        return try result.get()
     }
-}
-
-@MainActor
-private final class Outcome<T> {
-    var result: Result<T, Error>?
 }

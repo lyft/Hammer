@@ -64,6 +64,46 @@ final class LifecycleTests: XCTestCase {
         XCTAssertEqual(view.cancelledTouchCount, 1)
     }
 
+    func testFinishCancelsFingersStillDown() async throws {
+        let view = CancellationTestView()
+        view.setSize(width: 100, height: 100)
+
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable()
+        try await eventGenerator.fingerDown()
+        try await eventGenerator.finish()
+        XCTAssertEqual(view.cancelledTouchCount, 1)
+        XCTAssertNil(view.window)
+    }
+
+    func testEventsAfterFinishThrow() async throws {
+        let eventGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
+        try await eventGenerator.finish()
+        try await eventGenerator.finish()
+
+        do {
+            try await eventGenerator.fingerTap()
+            XCTFail("Events after finish should throw")
+        } catch HammerError.eventGeneratorIsFinished {
+        }
+    }
+
+    func testSettingsArePerEventGenerator() async throws {
+        let eventGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
+        eventGenerator.settings.waitTimeout = 0.1
+        XCTAssertNotEqual(EventGenerator.settings.waitTimeout, 0.1)
+
+        let start = ContinuousClock.now
+        do {
+            try await eventGenerator.waitUntil(false)
+            XCTFail("The wait should time out")
+        } catch HammerError.waitConditionTimeout(let timeout) {
+            XCTAssertEqual(timeout, 0.1)
+        }
+
+        XCTAssertLessThan(ContinuousClock.now - start, .seconds(1))
+    }
+
     func testTapIsDeliveredToWindowPresentedAbove() async throws {
         let eventGenerator = try await EventGenerator(view: UIButton().withSize(width: 300, height: 300))
         try await eventGenerator.waitUntilHittable(timeout: 1)

@@ -187,7 +187,7 @@ extension EventGenerator {
     /// - throws: An error if the keyboard queue is not accessible or did not finish in time.
     private func waitUntilKeyboardIsIdle() async throws {
         // Blocking the main thread on the keyboard queue deadlocks with tasks that need the main thread
-        let timeout = EventGenerator.settings.eventProcessingTimeout
+        let timeout = self.settings.eventProcessingTimeout
         try await self.waitForCompletion(timeout: timeout) { complete in
             try KeyboardTaskQueue.addTask {
                 FrameTracker.shared.addNextFrameListener(complete)

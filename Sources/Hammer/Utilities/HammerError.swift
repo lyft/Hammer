@@ -5,6 +5,7 @@ public enum HammerError: Error, @unchecked Sendable {
     case windowIsNotReadyForInteraction(reason: WindowNotReadyReason)
     case windowIsNotKey
     case eventProcessingTimeout(TimeInterval)
+    case eventGeneratorIsFinished
 
     case deviceDoesNotSupportTouches
     case deviceDoesNotSupportStylus
@@ -51,6 +52,8 @@ extension HammerError: CustomStringConvertible {
             return "The window must be the key window to receive keyboard events"
         case .eventProcessingTimeout(let timeout):
             return "UIKit did not process the generated event within \(timeout) seconds"
+        case .eventGeneratorIsFinished:
+            return "The event generator is finished and cannot send more events"
         case .deviceDoesNotSupportTouches:
             return "Device does not support touches"
         case .deviceDoesNotSupportStylus:

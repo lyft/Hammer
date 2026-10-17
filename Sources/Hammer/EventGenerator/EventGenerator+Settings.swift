@@ -1,11 +1,11 @@
 import Foundation
 
 extension EventGenerator {
-    /// Shared setting values for all event generators
+    /// The settings each new event generator starts with.
     @MainActor
     public static var settings = Settings()
 
-    /// Shared setting values for all event generators
+    /// Setting values for event generators
     public struct Settings: Sendable {
         /// The delay to wait after activating the accessibility engine.
         public var accessibilityActivateDelay: TimeInterval = 0.02
@@ -28,5 +28,8 @@ extension EventGenerator {
 
         /// The maximum time to wait for UIKit to process each generated event.
         public var eventProcessingTimeout: TimeInterval = 5
+
+        /// The maximum time the waiting methods wait when they are not given a timeout.
+        public var waitTimeout: TimeInterval = 3
     }
 }

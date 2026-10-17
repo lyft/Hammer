@@ -16,7 +16,11 @@
       <li><a href="#simulating-keyboard">Simulating Keyboard</a></li>
       <li><a href="#finding-a-subview">Finding a Subview</a></li>
       <li><a href="#waiting">Waiting</a></li>
+      <li><a href="#finishing">Finishing</a></li>
+      <li><a href="#settings">Settings</a></li>
+      <li><a href="#swift-testing">Swift Testing</a></li>
       <li><a href="#synchronous-tests">Synchronous Tests</a></li>
+      <li><a href="#upgrading-from-1x">Upgrading from 1.x</a></li>
     </ul></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
     <li><a href="#license">License</a></li>
@@ -196,18 +200,49 @@ try await eventGenerator.fingerUp()
 
 ### Waiting
 
-You will often need to wait for the simulator to finish displaying something on the screen or for an animation to end. Hammer provides multiple methods to wait until a view is visible on screen or if a control is hittable
+You will often need to wait for the simulator to finish displaying something on the screen or for an animation to end. Hammer provides multiple methods to wait until a view is visible on screen or if a control is hittable. They check every frame, and wait up to `settings.waitTimeout` unless you pass a timeout.
 
 ```swift
-try await eventGenerator.waitUntilVisible("my_label", timeout: 1)
+try await eventGenerator.waitUntilVisible("my_label")
 try await eventGenerator.waitUntilHittable("my_button", timeout: 1)
 ```
 
 You can also wait for any condition, or for a fixed time.
 
 ```swift
-try await eventGenerator.waitUntil(viewModel.isLoaded, timeout: 1)
+try await eventGenerator.waitUntil(viewModel.isLoaded)
 try await eventGenerator.wait(0.5)
+```
+
+### Finishing
+
+When you are done with an event generator, finish it. This lifts any fingers, stylus or keys still down, waits for UIKit to process that, and removes the windows Hammer added. An event generator that is released without finishing does the same, but it has to block the main thread to do it.
+
+```swift
+try await eventGenerator.finish()
+```
+
+### Settings
+
+`EventGenerator.settings` holds the settings every new event generator starts with, such as timeouts. Each event generator has its own copy in `eventGenerator.settings`, so a test can change it without affecting other tests.
+
+```swift
+EventGenerator.settings.waitTimeout = 5
+eventGenerator.settings.eventProcessingTimeout = 10
+```
+
+### Swift Testing
+
+Hammer works with [Swift Testing](https://developer.apple.com/xcode/swift-testing/) too. Tests that use it must run on the main actor, and should finish their event generators since Swift Testing has no tear down.
+
+```swift
+@MainActor
+@Test
+func buttonTap() async throws {
+    let eventGenerator = try await EventGenerator(view: myView)
+    try await eventGenerator.fingerTap(at: "my_button")
+    try await eventGenerator.finish()
+}
 ```
 
 ### Synchronous Tests
@@ -222,6 +257,13 @@ func testButtonTap() throws {
 ```
 
 The synchronous versions keep the main run loop running while they wait, like `XCTestCase.wait(for:timeout:)`. Prefer async tests for new code.
+
+### Upgrading from 1.x
+
+- Make tests async and add `await`, or keep them synchronous as they are.
+- Hammer now needs Swift 6, iOS 17 and the main actor.
+- Waits check every frame, so `checkInterval` is gone.
+- Timeouts are optional and default to `settings.waitTimeout`.
 
 ## Troubleshooting
 

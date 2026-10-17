@@ -1,6 +1,5 @@
 import Foundation
 import UIKit
-import XCTest
 
 // Synchronous versions of the async API, for tests that are not async.
 extension EventGenerator {
@@ -20,9 +19,7 @@ extension EventGenerator {
         /// The current state of the waiter
         public private(set) var state: State = .idle
 
-        /// We use XCTestExpectations internally to sleep the execution in a way that is friendly to tests
-        /// and does not block the main thread.
-        private let expectation = XCTestExpectation(description: "Hammer-Wait")
+        private var isCompleteRequested = false
 
         /// Initialize a Waiter
         ///
@@ -47,13 +44,8 @@ extension EventGenerator {
             }
 
             self.state = .running
-            let result = XCTWaiter.wait(for: [self.expectation], timeout: self.timeout)
-            switch result {
-            case .completed:
-                self.state = .completed(timeout: false)
-            default:
-                self.state = .completed(timeout: true)
-            }
+            let isCompleted = MainRunLoop.run(until: { self.isCompleteRequested }, timeout: self.timeout)
+            self.state = .completed(timeout: !isCompleted)
         }
 
         /// Stop waiting before the timeout
@@ -64,7 +56,7 @@ extension EventGenerator {
                 throw HammerError.waiterIsAlreadyCompleted
             }
 
-            self.expectation.fulfill()
+            self.isCompleteRequested = true
         }
     }
 
@@ -75,11 +67,12 @@ extension EventGenerator {
     /// Waits for the condition closure to call complete on the waiter.
     ///
     /// - parameter condition: The condition to check.
-    /// - parameter timeout:   The maximum time to wait for the condition to complete.
+    /// - parameter timeout:   The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the condition did not complete within the specified time.
     @available(*, noasync, message: "Await the async waiting methods instead")
-    public func waitUntil(_ condition: (Waiter) throws -> Void, timeout: TimeInterval) throws {
+    public func waitUntil(_ condition: (Waiter) throws -> Void, timeout: TimeInterval? = nil) throws {
+        let timeout = timeout ?? self.settings.waitTimeout
         let waiter = Waiter(timeout: timeout)
         try condition(waiter)
         try waiter.start(throwIfAlreadyCompleted: false)
@@ -89,102 +82,75 @@ extension EventGenerator {
     }
 
     public func waitUntil(_ condition: @autoclosure @escaping () throws -> Bool,
-                          timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+                          timeout: TimeInterval? = nil) throws
     {
-        try self.runSynchronously {
-            try await self.waitUntil(try condition(), timeout: timeout, checkInterval: checkInterval)
-        }
+        try self.runSynchronously { try await self.waitUntil(try condition(), timeout: timeout) }
     }
 
     @discardableResult
     public func waitUntilExists<T>(_ exists: @autoclosure @escaping () throws -> T?,
-                                   timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws -> T
+                                   timeout: TimeInterval? = nil) throws -> T
     {
-        try self.runSynchronously {
-            try await self.waitUntilExists(try exists(), timeout: timeout, checkInterval: checkInterval)
-        }
+        try self.runSynchronously { try await self.waitUntilExists(try exists(), timeout: timeout) }
     }
 
-    public func waitUntilExists(_ accessibilityIdentifier: String,
-                                timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
-    {
+    public func waitUntilExists(_ accessibilityIdentifier: String, timeout: TimeInterval? = nil) throws {
         try self.runSynchronously {
-            try await self.waitUntilExists(accessibilityIdentifier, timeout: timeout,
-                                           checkInterval: checkInterval)
+            try await self.waitUntilExists(accessibilityIdentifier, timeout: timeout)
         }
     }
 
     public func waitUntilVisible(_ accessibilityIdentifier: String, visibility: Visibility = .partial,
-                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+                                 timeout: TimeInterval? = nil) throws
     {
         try self.runSynchronously {
-            try await self.waitUntilVisible(accessibilityIdentifier, visibility: visibility, timeout: timeout,
-                                            checkInterval: checkInterval)
+            try await self.waitUntilVisible(accessibilityIdentifier, visibility: visibility, timeout: timeout)
         }
     }
 
     public func waitUntilVisible(_ view: UIView, visibility: Visibility = .partial,
-                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+                                 timeout: TimeInterval? = nil) throws
     {
         try self.runSynchronously {
-            try await self.waitUntilVisible(view, visibility: visibility, timeout: timeout,
-                                            checkInterval: checkInterval)
+            try await self.waitUntilVisible(view, visibility: visibility, timeout: timeout)
         }
     }
 
     public func waitUntilVisible(_ rect: CGRect, visibility: Visibility = .partial,
-                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
+                                 timeout: TimeInterval? = nil) throws
     {
         try self.runSynchronously {
-            try await self.waitUntilVisible(rect, visibility: visibility, timeout: timeout,
-                                            checkInterval: checkInterval)
+            try await self.waitUntilVisible(rect, visibility: visibility, timeout: timeout)
         }
     }
 
-    public func waitUntilVisible(_ point: CGPoint,
-                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
-    {
+    public func waitUntilVisible(_ point: CGPoint, timeout: TimeInterval? = nil) throws {
+        try self.runSynchronously { try await self.waitUntilVisible(point, timeout: timeout) }
+    }
+
+    public func waitUntilHittable(_ accessibilityIdentifier: String, timeout: TimeInterval? = nil) throws {
         try self.runSynchronously {
-            try await self.waitUntilVisible(point, timeout: timeout, checkInterval: checkInterval)
+            try await self.waitUntilHittable(accessibilityIdentifier, timeout: timeout)
         }
     }
 
-    public func waitUntilHittable(_ accessibilityIdentifier: String,
-                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
-    {
-        try self.runSynchronously {
-            try await self.waitUntilHittable(accessibilityIdentifier, timeout: timeout,
-                                             checkInterval: checkInterval)
-        }
+    public func waitUntilHittable(_ view: UIView, timeout: TimeInterval? = nil) throws {
+        try self.runSynchronously { try await self.waitUntilHittable(view, timeout: timeout) }
     }
 
-    public func waitUntilHittable(_ view: UIView,
-                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
-    {
-        try self.runSynchronously {
-            try await self.waitUntilHittable(view, timeout: timeout, checkInterval: checkInterval)
-        }
+    public func waitUntilHittable(_ point: CGPoint, timeout: TimeInterval? = nil) throws {
+        try self.runSynchronously { try await self.waitUntilHittable(point, timeout: timeout) }
     }
 
-    public func waitUntilHittable(_ point: CGPoint,
-                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws
-    {
-        try self.runSynchronously {
-            try await self.waitUntilHittable(point, timeout: timeout, checkInterval: checkInterval)
-        }
+    public func waitUntilHittable(timeout: TimeInterval? = nil) throws {
+        try self.runSynchronously { try await self.waitUntilHittable(timeout: timeout) }
     }
 
-    public func waitUntilHittable(timeout: TimeInterval, checkInterval: TimeInterval = 0.1) throws {
-        try self.runSynchronously {
-            try await self.waitUntilHittable(timeout: timeout, checkInterval: checkInterval)
-        }
-    }
-
-    public func waitUntilRunloopIsFlushed(timeout: TimeInterval) throws {
+    public func waitUntilRunloopIsFlushed(timeout: TimeInterval? = nil) throws {
         try self.runSynchronously { try await self.waitUntilRunloopIsFlushed(timeout: timeout) }
     }
 
-    public func waitUntilFrameIsRendered(timeout: TimeInterval) throws {
+    public func waitUntilFrameIsRendered(timeout: TimeInterval? = nil) throws {
         try self.runSynchronously { try await self.waitUntilFrameIsRendered(timeout: timeout) }
     }
 }

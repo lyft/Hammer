@@ -9,8 +9,6 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
     sources: Sources/Hammer
-    settings:
-      ENABLE_TESTING_SEARCH_PATHS: true
     scheme:
       testTargets:
         - HammerTests

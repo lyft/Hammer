@@ -124,13 +124,12 @@ extension EventGenerator {
 
     /// Waits until the window is ready to receive user interaction events.
     ///
-    /// - parameter timeout: The maximum time to wait for all readiness checks combined.
+    /// - parameter timeout: The maximum time to wait for all readiness checks combined, or nil to use
+    ///                      `settings.windowReadyTimeout`.
     ///
     /// - throws: `HammerError.windowIsNotReadyForInteraction` with the check that did not pass.
-    public func waitUntilWindowIsReady(timeout: TimeInterval = EventGenerator.settings.windowReadyTimeout)
-        async throws
-    {
-        var deadline = ContinuousClock.now + .seconds(timeout)
+    public func waitUntilWindowIsReady(timeout: TimeInterval? = nil) async throws {
+        var deadline = ContinuousClock.now + .seconds(timeout ?? self.settings.windowReadyTimeout)
         let remaining = { max((deadline - .now).timeInterval, 0) }
 
         while let reason = self.windowNotReadyReason {
@@ -139,7 +138,7 @@ extension EventGenerator {
             }
 
             // Checking every frame lets the generator start as soon as the window appears
-            try await self.wait(min(EventGenerator.fingerMoveInterval, remaining()))
+            try await self.waitForNextFrame(before: deadline)
         }
 
         // The accessibility warm up is a fixed delay, so it does not count against the timeout
@@ -147,13 +146,13 @@ extension EventGenerator {
         try await self.waitUntilAccessibilityActivate()
         deadline += .now - accessibilityStart
 
-        if EventGenerator.settings.waitForFrameRender {
+        if self.settings.waitForFrameRender {
             try await self.waitUntilReady(.frameWasNotRendered) {
                 try await self.waitUntilFrameIsRendered(timeout: remaining())
             }
         }
 
-        if EventGenerator.settings.waitForAnimations {
+        if self.settings.waitForAnimations {
             try await self.waitUntilReady(.animationsAreRunning) {
                 try await self.waitUntilAnimationsAreFinished(timeout: remaining())
             }
@@ -166,8 +165,8 @@ extension EventGenerator {
 
     /// Waits until animations are finished.
     ///
-    /// - parameter timeout: The maximum time to wait for the window to be ready.
-    public func waitUntilAnimationsAreFinished(timeout: TimeInterval) async throws {
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
+    public func waitUntilAnimationsAreFinished(timeout: TimeInterval? = nil) async throws {
         try await self.waitUntil(!self.hasRunningAnimations, timeout: timeout)
     }
 
@@ -208,7 +207,7 @@ extension EventGenerator {
     }
 
     private func waitUntilAccessibilityActivate() async throws {
-        guard EventGenerator.settings.forceActivateAccessibilityEngine else {
+        guard self.settings.forceActivateAccessibilityEngine else {
             return
         }
 
@@ -229,8 +228,8 @@ extension EventGenerator {
 
         try await self.wait(
             simAccessibilityActivated
-            ? EventGenerator.settings.accessibilityActivateDelay // Default: 0.02s
-            : EventGenerator.settings.accessibilityActivateFirstTimeDelay // Default: 5.0s
+            ? self.settings.accessibilityActivateDelay // Default: 0.02s
+            : self.settings.accessibilityActivateFirstTimeDelay // Default: 5.0s
         )
 
         self.isAccessibilityActivated = true

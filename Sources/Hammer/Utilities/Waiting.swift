@@ -11,188 +11,167 @@ extension EventGenerator {
         try await Task.sleep(for: .seconds(max(interval, 0)))
     }
 
-    /// Waits for a condition to become true within the specified time.
+    /// Waits for a condition to become true within the specified time, checking it every frame.
     ///
-    /// - parameter condition:     The condition to check.
-    /// - parameter timeout:       The maximum time to wait for the condition to become true.
-    /// - parameter checkInterval: How often should the condition be checked.
+    /// - parameter condition: The condition to check.
+    /// - parameter timeout:   The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the condition did not return true within the specified time.
     public func waitUntil(_ condition: @autoclosure () throws -> Bool,
-                          timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
+                          timeout: TimeInterval? = nil) async throws
     {
-        try await self.waitUntilExists(try condition() ? true : nil,
-                                       timeout: timeout, checkInterval: checkInterval)
+        try await self.waitUntilExists(try condition() ? true : nil, timeout: timeout)
     }
 
-    /// Waits for a closure to return non-nil within the specified time.
+    /// Waits for a closure to return non-nil within the specified time, checking it every frame.
     ///
-    /// - parameter exists:        The closure to check.
-    /// - parameter timeout:       The maximum time to wait for the closure to return an object.
-    /// - parameter checkInterval: How often should the closure be checked.
+    /// - parameter exists:  The closure to check.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the closure did not return an object within the specified time.
     ///
     /// - returns: The non-nil object.
     @discardableResult
     public func waitUntilExists<T>(_ exists: @autoclosure () throws -> T?,
-                                   timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws -> T
+                                   timeout: TimeInterval? = nil) async throws -> T
     {
+        let timeout = timeout ?? self.settings.waitTimeout
         let deadline = ContinuousClock.now + .seconds(timeout)
         while true {
             if let element = try exists() {
                 return element
             }
 
-            let now = ContinuousClock.now
-            if now >= deadline {
+            if ContinuousClock.now >= deadline {
                 throw HammerError.waitConditionTimeout(timeout)
             }
 
-            try await Task.sleep(until: min(now + .seconds(checkInterval), deadline))
+            try await self.waitForNextFrame(before: deadline)
         }
     }
 
     /// Waits for a view with the specified identifier to exist within the specified time.
     ///
     /// - parameter accessibilityIdentifier: The identifier of the view to wait for.
-    /// - parameter timeout:                 The maximum time to wait for the view to be visible.
-    /// - parameter checkInterval:           How often should the view be checked.
+    /// - parameter timeout:                 The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the view does not exist after the specified time.
     public func waitUntilExists(_ accessibilityIdentifier: String,
-                                timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
+                                timeout: TimeInterval? = nil) async throws
     {
         try await self.waitUntilExists(try? self.viewWithIdentifier(accessibilityIdentifier),
-                                       timeout: timeout, checkInterval: checkInterval)
+                                       timeout: timeout)
     }
 
     /// Waits for a view with the specified identifier to be visible within the specified time.
     ///
     /// - parameter accessibilityIdentifier: The identifier of the view to wait for.
     /// - parameter visibility:              How determine if the view is visible.
-    /// - parameter timeout:                 The maximum time to wait for the view to be visible.
-    /// - parameter checkInterval:           How often should the view be checked.
+    /// - parameter timeout:                 The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the view does not exist after the specified time.
     public func waitUntilVisible(_ accessibilityIdentifier: String, visibility: Visibility = .partial,
-                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
+                                 timeout: TimeInterval? = nil) async throws
     {
         try await self.waitUntil(self.viewIsVisible(accessibilityIdentifier, visibility: visibility),
-                                 timeout: timeout, checkInterval: checkInterval)
+                                 timeout: timeout)
     }
 
     /// Waits for a view to be visible within the specified time.
     ///
-    /// - parameter view:          The view to wait for.
-    /// - parameter visibility:    How determine if the view is visible.
-    /// - parameter timeout:       The maximum time to wait for the view to be visible.
-    /// - parameter checkInterval: How often should the view be checked.
+    /// - parameter view:       The view to wait for.
+    /// - parameter visibility: How determine if the view is visible.
+    /// - parameter timeout:    The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the view is not visible after the specified time.
     public func waitUntilVisible(_ view: UIView, visibility: Visibility = .partial,
-                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
+                                 timeout: TimeInterval? = nil) async throws
     {
-        try await self.waitUntil(self.viewIsVisible(view, visibility: visibility),
-                                 timeout: timeout, checkInterval: checkInterval)
+        try await self.waitUntil(self.viewIsVisible(view, visibility: visibility), timeout: timeout)
     }
 
     /// Waits for a rect to be visible on screen within the specified time.
     ///
-    /// - parameter rect:          The rect to wait for.
-    /// - parameter visibility:    How determine if the view is visible.
-    /// - parameter timeout:       The maximum time to wait for the rect to be visible.
-    /// - parameter checkInterval: How often should the view be checked.
+    /// - parameter rect:       The rect to wait for.
+    /// - parameter visibility: How determine if the view is visible.
+    /// - parameter timeout:    The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the rect is not visible within the specified time.
     public func waitUntilVisible(_ rect: CGRect, visibility: Visibility = .partial,
-                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
+                                 timeout: TimeInterval? = nil) async throws
     {
-        try await self.waitUntil(self.rectIsVisible(rect, visibility: visibility),
-                                 timeout: timeout, checkInterval: checkInterval)
+        try await self.waitUntil(self.rectIsVisible(rect, visibility: visibility), timeout: timeout)
     }
 
     /// Waits for a point to be visible on screen within the specified time.
     ///
-    /// - parameter point:         The point to wait for.
-    /// - parameter timeout:       The maximum time to wait for the point to be visible.
-    /// - parameter checkInterval: How often should the view be checked.
+    /// - parameter point:   The point to wait for.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the point is not visible within the specified time.
-    public func waitUntilVisible(_ point: CGPoint,
-                                 timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
-    {
-        try await self.waitUntil(self.pointIsVisible(point), timeout: timeout, checkInterval: checkInterval)
+    public func waitUntilVisible(_ point: CGPoint, timeout: TimeInterval? = nil) async throws {
+        try await self.waitUntil(self.pointIsVisible(point), timeout: timeout)
     }
 
     /// Waits for a view with the specified identifier to be hittable within the specified time.
     ///
     /// - parameter accessibilityIdentifier: The identifier of the view to wait for.
-    /// - parameter timeout:                 The maximum time to wait for the view to be hittable.
-    /// - parameter checkInterval:           How often should the view be checked.
+    /// - parameter timeout:                 The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the view is not hittable after the specified time.
     public func waitUntilHittable(_ accessibilityIdentifier: String,
-                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
+                                  timeout: TimeInterval? = nil) async throws
     {
-        try await self.waitUntil(self.viewIsHittable(accessibilityIdentifier),
-                                 timeout: timeout, checkInterval: checkInterval)
+        try await self.waitUntil(self.viewIsHittable(accessibilityIdentifier), timeout: timeout)
     }
 
     /// Waits for a view to be hittable within the specified time.
     ///
-    /// - parameter view:          The view to wait for.
-    /// - parameter timeout:       The maximum time to wait for the view to be hittable.
-    /// - parameter checkInterval: How often should the view be checked.
+    /// - parameter view:    The view to wait for.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the view is not hittable after the specified time.
-    public func waitUntilHittable(_ view: UIView,
-                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
-    {
-        try await self.waitUntil(self.viewIsHittable(view), timeout: timeout, checkInterval: checkInterval)
+    public func waitUntilHittable(_ view: UIView, timeout: TimeInterval? = nil) async throws {
+        try await self.waitUntil(self.viewIsHittable(view), timeout: timeout)
     }
 
     /// Waits for a point to be visible and hittable on screen within the specified time.
     ///
-    /// - parameter point:         The point to wait for.
-    /// - parameter timeout:       The maximum time to wait for the point to be hittable.
-    /// - parameter checkInterval: How often should the view be checked.
+    /// - parameter point:   The point to wait for.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the point is not hittable within the specified time.
-    public func waitUntilHittable(_ point: CGPoint,
-                                  timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws
-    {
-        try await self.waitUntil(self.pointIsHittable(point), timeout: timeout, checkInterval: checkInterval)
+    public func waitUntilHittable(_ point: CGPoint, timeout: TimeInterval? = nil) async throws {
+        try await self.waitUntil(self.pointIsHittable(point), timeout: timeout)
     }
 
     /// Waits for the default touch location to be visible and hittable on screen within the specified time.
     ///
-    /// - parameter timeout:       The maximum time to wait for the point to be hittable.
-    /// - parameter checkInterval: How often should the view be checked.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the point is not hittable within the specified time.
-    public func waitUntilHittable(timeout: TimeInterval, checkInterval: TimeInterval = 0.1) async throws {
-        try await self.waitUntil(self.viewIsHittable(self.mainView),
-                                 timeout: timeout, checkInterval: checkInterval)
+    public func waitUntilHittable(timeout: TimeInterval? = nil) async throws {
+        try await self.waitUntil(self.viewIsHittable(self.mainView), timeout: timeout)
     }
 
-    /// Runs one step per frame over the duration, with the progress of each step from 0 to 1.
+    /// Runs the steps over the duration, each on its own frame, with the progress of each step from 0 to 1.
     ///
-    /// Steps are never skipped when the main thread falls behind, so gesture recognizers see the whole path.
+    /// Steps are never skipped or sent together when the main thread falls behind, so gesture recognizers
+    /// see the whole path.
     ///
     /// - parameter duration: The time to spread the steps over.
     /// - parameter step:     The closure to run for each step, the last one with a progress of 1.
     ///
-    /// - throws: An error if a step throws.
+    /// - throws: An error if a step throws or no frame renders.
     func performSteps(duration: TimeInterval, step: (TimeInterval) async throws -> Void) async throws {
         let stepCount = max(Int((duration / EventGenerator.fingerMoveInterval).rounded(.up)), 1)
         let start = ContinuousClock.now
         for index in 1...stepCount {
             let progress = TimeInterval(index) / TimeInterval(stepCount)
             let stepTime = start + .seconds(duration * progress)
-            if stepTime > .now {
-                try await Task.sleep(until: stepTime)
-            }
+            repeat {
+                try await self.waitUntilFrameIsRendered(timeout: self.settings.eventProcessingTimeout)
+            } while ContinuousClock.now < stepTime
 
             try await step(progress)
         }
@@ -202,11 +181,11 @@ extension EventGenerator {
 
     /// Waits for the main runloop is flushed and all scheduled tasks have executed.
     ///
-    /// - parameter timeout: The maximum time to wait.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the runloop is not flushed within the specified time.
-    public func waitUntilRunloopIsFlushed(timeout: TimeInterval) async throws {
-        try await self.waitForCompletion(timeout: timeout) { complete in
+    public func waitUntilRunloopIsFlushed(timeout: TimeInterval? = nil) async throws {
+        try await self.waitForCompletion(timeout: timeout ?? self.settings.waitTimeout) { complete in
             DispatchQueue.main.async {
                 MainActor.assumeIsolated(complete)
             }
@@ -215,12 +194,25 @@ extension EventGenerator {
 
     /// Waits until a frame has completed rendering.
     ///
-    /// - parameter timeout: The maximum time to wait for the frame to render.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if no frame rendered within the specified time.
-    public func waitUntilFrameIsRendered(timeout: TimeInterval) async throws {
-        try await self.waitForCompletion(timeout: timeout) { complete in
+    public func waitUntilFrameIsRendered(timeout: TimeInterval? = nil) async throws {
+        try await self.waitForCompletion(timeout: timeout ?? self.settings.waitTimeout) { complete in
             FrameTracker.shared.addNextFrameListener(complete)
+        }
+    }
+
+    /// Waits for the next frame, or until the deadline when no frame renders before it.
+    ///
+    /// - parameter deadline: The latest time to wait until.
+    ///
+    /// - throws: `CancellationError` if the task is cancelled while waiting.
+    func waitForNextFrame(before deadline: ContinuousClock.Instant) async throws {
+        do {
+            try await self.waitUntilFrameIsRendered(timeout: max((deadline - .now).timeInterval, 0))
+        } catch HammerError.waitConditionTimeout {
+            return
         }
     }
 
