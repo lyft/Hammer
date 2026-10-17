@@ -65,69 +65,59 @@ extension EventGenerator {
     }
 
     /// Searches the view's subviews recursively for the first one that has the specified identifier. If the
-    /// view does not exist it will check again multiple times until the specified timeout.
+    /// view does not exist it will check again every frame until the specified timeout.
     ///
     /// NOTE: This uses a level order traversal with complexity O(n), where n is number of nodes in the tree.
     ///
     /// - parameter accessibilityIdentifier: The identifier to match.
-    /// - parameter timeout:                 The maximum time to wait for the closure to return an object.
-    /// - parameter checkInterval:           How often should the closure be checked.
+    /// - parameter timeout:                 The maximum time to wait for the view.
     ///
     /// - throws: And error if the view is not found.
     ///
     /// - returns: The view.
     public func viewWithIdentifier(_ accessibilityIdentifier: String,
-                                   timeout: TimeInterval,
-                                   checkInterval: TimeInterval = 0.1) throws -> UIView
+                                   timeout: TimeInterval) async throws -> UIView
     {
-        do {
-            return try self.waitUntilExists({
-                do {
-                    return try self.viewWithIdentifier(accessibilityIdentifier)
-                } catch HammerError.unableToFindView {
-                    return nil
-                } catch {
-                    throw error
-                }
-            }(), timeout: timeout, checkInterval: checkInterval)
-        } catch HammerError.waitConditionTimeout {
-            throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
-        } catch {
-            throw error
-        }
+        try await self.viewWithIdentifier(accessibilityIdentifier, ofType: UIView.self, timeout: timeout)
     }
 
     /// Searches the view's subviews recursively for the first one that has the specified identifier. If the
-    /// view does not exist it will check again multiple times until the specified timeout.
+    /// view does not exist it will check again every frame until the specified timeout.
     ///
     /// NOTE: This uses a level order traversal with complexity O(n), where n is number of nodes in the tree.
     ///
     /// - parameter accessibilityIdentifier: The identifier to match.
     /// - parameter type:                    The type of the view.
-    /// - parameter timeout:                 The maximum time to wait for the closure to return an object.
-    /// - parameter checkInterval:           How often should the closure be checked.
+    /// - parameter timeout:                 The maximum time to wait for the view.
     ///
     /// - throws: And error if the view is not found.
     ///
     /// - returns: The view.
     public func viewWithIdentifier<T: UIView>(_ accessibilityIdentifier: String, ofType type: T.Type,
-                                              timeout: TimeInterval,
-                                              checkInterval: TimeInterval = 0.1) throws -> T
+                                              timeout: TimeInterval) async throws -> T
     {
         do {
-            return try self.waitUntilExists({
-                do {
-                    return try self.viewWithIdentifier(accessibilityIdentifier, ofType: type)
-                } catch HammerError.unableToFindView {
-                    return nil
-                } catch {
-                    throw error
-                }
-            }(), timeout: timeout, checkInterval: checkInterval)
+            return try await self.waitUntilExists(try self.existingView(accessibilityIdentifier, type),
+                                                  timeout: timeout)
         } catch HammerError.waitConditionTimeout {
             throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
-        } catch {
-            throw error
+        }
+    }
+
+    /// Searches for the view with the specified identifier, returning nil instead of throwing when it is not
+    /// in the hierarchy yet.
+    ///
+    /// - parameter accessibilityIdentifier: The identifier to match.
+    /// - parameter type:                    The type of the view.
+    ///
+    /// - throws: An error if the view is of an invalid type.
+    ///
+    /// - returns: The view, or nil if it is not in the hierarchy.
+    private func existingView<T: UIView>(_ accessibilityIdentifier: String, _ type: T.Type) throws -> T? {
+        do {
+            return try self.viewWithIdentifier(accessibilityIdentifier, ofType: type)
+        } catch HammerError.unableToFindView {
+            return nil
         }
     }
 
@@ -284,11 +274,11 @@ extension EventGenerator {
     ///
     /// - returns: If the view is hittable
     public func windowHitPoint(forView view: UIView) throws -> CGPoint {
+        try self.checkWindowIsReady()
+
         guard view.isDescendant(of: self.window) else {
             throw HammerError.viewIsNotInHierarchy(view)
         }
-
-        try self.checkWindowIsReady()
 
         guard self.viewIsVisible(view) else {
             throw HammerError.viewIsNotVisible(view)

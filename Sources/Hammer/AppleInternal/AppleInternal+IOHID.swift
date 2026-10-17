@@ -12,7 +12,7 @@ let kIOHIDTransducerTouch: CFOptionFlags = 0x00020000
 @objc protocol IOHIDEvent: NSObjectProtocol {}
 @objc protocol IOHIDEventSystemClient: NSObjectProtocol {}
 
-struct IOHID {
+struct IOHID: Sendable {
     typealias IOHIDEventSystemClientEventCallback = (_ target: Any?, _ refcon: Any?,
                                                      _ queue: AnyObject, _ event: IOHIDEvent) -> Void
 

@@ -1,11 +1,18 @@
 import Foundation
+import os
+
+// Tests set this from any context, such as a nonisolated `setUp`
+private let kSettings = OSAllocatedUnfairLock(initialState: EventGenerator.Settings())
 
 extension EventGenerator {
-    /// Shared setting values for all event generators
-    public static var settings = Settings()
+    /// The settings each new event generator starts with.
+    nonisolated public static var settings: Settings {
+        get { kSettings.withLock { $0 } }
+        set { kSettings.withLock { $0 = newValue } }
+    }
 
-    /// Shared setting values for all event generators
-    public struct Settings {
+    /// Setting values for event generators
+    public struct Settings: Sendable {
         /// The delay to wait after activating the accessibility engine.
         public var accessibilityActivateDelay: TimeInterval = 0.02
 
@@ -27,5 +34,8 @@ extension EventGenerator {
 
         /// The maximum time to wait for UIKit to process each generated event.
         public var eventProcessingTimeout: TimeInterval = 5
+
+        /// The maximum time the waiting methods wait when they are not given a timeout.
+        public var waitTimeout: TimeInterval = 3
     }
 }

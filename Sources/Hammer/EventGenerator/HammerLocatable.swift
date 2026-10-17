@@ -1,5 +1,8 @@
 import UIKit
 
+/// A location that touches can be sent to.
+@preconcurrency
+@MainActor
 public protocol HammerLocatable {
     func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint
 }

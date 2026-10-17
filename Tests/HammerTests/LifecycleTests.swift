@@ -2,25 +2,29 @@
 import UIKit
 import XCTest
 
+@MainActor
 final class LifecycleTests: XCTestCase {
-    private var originalSettings = EventGenerator.settings
+    private var originalSettings = EventGenerator.Settings()
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         self.originalSettings = EventGenerator.settings
         EventGenerator.settings.windowReadyTimeout = 0.3
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         EventGenerator.settings = self.originalSettings
-        super.tearDown()
+        try await super.tearDown()
     }
 
-    func testNotReadyErrorIncludesReason() throws {
+    func testNotReadyErrorIncludesReason() async throws {
         let window = UIWindow(frame: UIScreen.main.bounds)
         window.rootViewController = UIViewController()
 
-        XCTAssertThrowsError(try EventGenerator(window: window)) { error in
+        do {
+            _ = try await EventGenerator(window: window)
+            XCTFail("The window should not be ready")
+        } catch {
             guard case HammerError.windowIsNotReadyForInteraction(let reason) = error else {
                 return XCTFail("Unexpected error: \(error)")
             }
@@ -30,7 +34,7 @@ final class LifecycleTests: XCTestCase {
         }
     }
 
-    func testNotReadyErrorIsReportedAfterScrollViewTeardown() throws {
+    func testNotReadyErrorIsReportedAfterScrollViewTeardown() async throws {
         // Tearing down a scroll view makes UIKit throw and catch its own errors, which XCTest must not
         // report instead of the error that failed the test.
         let options = XCTExpectedFailure.Options()
@@ -40,27 +44,83 @@ final class LifecycleTests: XCTestCase {
 
         XCTExpectFailure("The window is not ready", options: options)
 
-        let eventGenerator = try EventGenerator(view: PatternScrollView().withSize(width: 300, height: 300))
+        // Only the window may keep the scroll view, so that it is torn down with the event generator
+        let eventGenerator = try await EventGenerator(
+            view: PatternScrollView().withSize(width: 300, height: 300))
         eventGenerator.window.isUserInteractionEnabled = false
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
     }
 
-    func testTeardownCancelsFingersStillDown() throws {
+    func testTeardownCancelsFingersStillDown() async throws {
         let view = CancellationTestView()
         view.setSize(width: 100, height: 100)
 
-        var eventGenerator: EventGenerator? = try EventGenerator(view: view)
-        try eventGenerator?.waitUntilHittable(timeout: 1)
-        try eventGenerator?.fingerDown()
+        var eventGenerator: EventGenerator? = try await EventGenerator(view: view)
+        try await eventGenerator?.waitUntilHittable(timeout: 1)
+        try await eventGenerator?.fingerDown()
         XCTAssertEqual(view.cancelledTouchCount, 0)
 
         eventGenerator = nil
         XCTAssertEqual(view.cancelledTouchCount, 1)
     }
 
-    func testTapIsDeliveredToWindowPresentedAbove() throws {
-        let eventGenerator = try EventGenerator(view: UIButton().withSize(width: 300, height: 300))
-        try eventGenerator.waitUntilHittable(timeout: 1)
+    func testFinishCancelsFingersStillDown() async throws {
+        let view = CancellationTestView()
+        view.setSize(width: 100, height: 100)
+
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable()
+        try await eventGenerator.fingerDown()
+        try await eventGenerator.finish()
+        XCTAssertEqual(view.cancelledTouchCount, 1)
+        XCTAssertNil(view.window)
+    }
+
+    func testEventsAfterFinishThrow() async throws {
+        let eventGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
+        try await eventGenerator.finish()
+        try await eventGenerator.finish()
+
+        do {
+            try await eventGenerator.fingerTap()
+            XCTFail("Events after finish should throw")
+        } catch HammerError.eventGeneratorIsFinished {
+        }
+    }
+
+    func testOlderEventGeneratorThrowsWhileNewerIsActive() async throws {
+        let olderGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
+        let newerGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
+
+        do {
+            try await olderGenerator.fingerTap()
+            XCTFail("The older event generator should not send events")
+        } catch HammerError.anotherEventGeneratorIsActive {
+        }
+
+        try await newerGenerator.finish()
+        try await olderGenerator.fingerTap()
+    }
+
+    func testSettingsArePerEventGenerator() async throws {
+        let eventGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
+        eventGenerator.settings.waitTimeout = 0.1
+        XCTAssertNotEqual(EventGenerator.settings.waitTimeout, 0.1)
+
+        let start = ContinuousClock.now
+        do {
+            try await eventGenerator.waitUntil(false)
+            XCTFail("The wait should time out")
+        } catch HammerError.waitConditionTimeout(let timeout) {
+            XCTAssertEqual(timeout, 0.1)
+        }
+
+        XCTAssertLessThan(ContinuousClock.now - start, .seconds(1))
+    }
+
+    func testTapIsDeliveredToWindowPresentedAbove() async throws {
+        let eventGenerator = try await EventGenerator(view: UIButton().withSize(width: 300, height: 300))
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
         let overlayView = TouchCountingView()
         let overlayWindow = UIWindow(frame: eventGenerator.window.frame)
@@ -71,17 +131,8 @@ final class LifecycleTests: XCTestCase {
         overlayWindow.isHidden = false
         defer { overlayWindow.isHidden = true }
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertEqual(overlayView.endedTouchCount, 1)
-    }
-
-    func testWaitUntilClosureThrowsOnTimeout() throws {
-        let eventGenerator = try EventGenerator(view: UIButton().withSize(width: 100, height: 100))
-        XCTAssertThrowsError(try eventGenerator.waitUntil({ _ in }, timeout: 0.1)) { error in
-            guard case HammerError.waitConditionTimeout = error else {
-                return XCTFail("Unexpected error: \(error)")
-            }
-        }
     }
 }
 
@@ -100,12 +151,5 @@ private final class TouchCountingView: UIView {
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesEnded(touches, with: event)
         self.endedTouchCount += touches.count
-    }
-}
-
-extension UIView {
-    fileprivate func withSize(width: CGFloat, height: CGFloat) -> Self {
-        self.setSize(width: width, height: height)
-        return self
     }
 }

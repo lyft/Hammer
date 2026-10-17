@@ -1,5 +1,5 @@
 /// Representation of a key in a keyboard
-public enum KeyboardKey: UInt32 {
+public enum KeyboardKey: UInt32, Sendable {
     case letterA = 0x04
     case letterB = 0x05
     case letterC = 0x06

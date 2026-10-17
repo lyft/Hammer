@@ -9,12 +9,13 @@ import Foundation
 import Hammer
 import XCTest
 
+@MainActor
 final class TableViewControllerTests: XCTestCase {
 
-    func testFindViewAfterScrolling() throws{
+    func testFindViewAfterScrolling() async throws {
         let viewController = TableViewController()
-        let eventGenerator = try EventGenerator(viewController: viewController)
-        try eventGenerator.waitUntilVisible("accessibilityId_0-1", timeout: 1)
+        let eventGenerator = try await EventGenerator(viewController: viewController)
+        try await eventGenerator.waitUntilVisible("accessibilityId_0-1", timeout: 1)
 
         viewController.tableView.scrollToRow(at: IndexPath(row: 40, section: 0), at: .bottom, animated: false)
         XCTAssertTrue(eventGenerator.viewIsVisible("accessibilityId_0-35"))

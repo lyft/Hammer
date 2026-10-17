@@ -2,15 +2,21 @@ import CoreGraphics
 import Foundation
 import UIKit
 
+@MainActor
 private enum Storage {
     static var latestEventId: UInt32 = 0
+
+    /// The event generators that are not finished, oldest first.
+    static var activeGenerators = [ObjectIdentifier]()
 }
 
 /// Class for generating fake User Interaction events.
+@preconcurrency
+@MainActor
 public final class EventGenerator {
-    typealias CompletionHandler = () -> Void
+    typealias CompletionHandler = @MainActor () -> Void
 
-    public enum WrappingAlignment {
+    public enum WrappingAlignment: Sendable {
         /// Expand to fill the full available space
         case fill
 
@@ -24,10 +30,14 @@ public final class EventGenerator {
     /// The view that was used to create the event generator
     public let mainView: UIView
 
+    /// The settings for this event generator, starting from `EventGenerator.settings`.
+    public var settings = EventGenerator.settings
+
     var activeTouches = TouchStorage()
     var pressedKeys = Set<KeyboardKey>()
     var debugWindow = DebugVisualizerWindow()
     var isAccessibilityActivated = false
+    private(set) var isFinished = false
 
     /// The touches UIKit began delivering to the window since the last event was sent.
     var deliveredBeganTouches = [UITouch]()
@@ -47,12 +57,13 @@ public final class EventGenerator {
     ///
     /// - parameter window:   The window to receive events.
     /// - parameter mainView: The view that was used to create the event generator
-    private init(window: UIWindow, mainView: UIView) throws {
+    init(window: UIWindow, mainView: UIView) {
         self.window = window
         self.mainView = mainView
         self.window.layoutIfNeeded()
         self.debugWindow.frame = self.window.frame
 
+        Storage.activeGenerators.append(ObjectIdentifier(self))
         UIApplication.swizzle()
         UIApplication.register(ObjectIdentifier(self), hidEventCallback: { event in
             EventGenerator.markerEventReceived(event)
@@ -64,9 +75,9 @@ public final class EventGenerator {
     /// Initialize an event generator for a specified UIWindow.
     ///
     /// - parameter window: The window to receive events.
-    public convenience init(window: UIWindow) throws {
-        try self.init(window: window, mainView: window)
-        try self.waitUntilWindowIsReady()
+    public convenience init(window: UIWindow) async throws {
+        self.init(window: window, mainView: window)
+        try await self.waitUntilWindowIsReady()
     }
 
     /// Initialize an event generator for a specified UIViewController.
@@ -75,16 +86,9 @@ public final class EventGenerator {
     /// UIWindow to send touches.
     ///
     /// - parameter viewController: The viewController to receive events.
-    public convenience init(viewController: UIViewController) throws {
-        if let window = viewController.view.window  {
-            try self.init(window: window, mainView: viewController.view)
-        } else {
-            let window = HammerWindow()
-            window.presentContained(viewController)
-            try self.init(window: window, mainView: viewController.view)
-        }
-
-        try self.waitUntilWindowIsReady()
+    public convenience init(viewController: UIViewController) async throws {
+        self.init(window: EventGenerator.window(for: viewController), mainView: viewController.view)
+        try await self.waitUntilWindowIsReady()
     }
 
     /// Initialize an event generator for a specified UIView.
@@ -93,28 +97,80 @@ public final class EventGenerator {
     ///
     /// - parameter view:      The view to receive events.
     /// - parameter alignment: The wrapping alignment to use.
-    public convenience init(view: UIView, alignment: WrappingAlignment = .center) throws {
-        if let window = view.window {
-            try self.init(window: window, mainView: view)
-        } else {
-            let viewController = UIViewController(wrapping: view.topLevelView, alignment: alignment)
-            let window = HammerWindow()
-            window.presentContained(viewController)
-            try self.init(window: window, mainView: view)
+    public convenience init(view: UIView, alignment: WrappingAlignment = .center) async throws {
+        self.init(window: EventGenerator.window(for: view, alignment: alignment), mainView: view)
+        try await self.waitUntilWindowIsReady()
+    }
+
+    /// Returns the view controller's window, or presents it in a new temporary window.
+    ///
+    /// - parameter viewController: The view controller to receive events.
+    ///
+    /// - returns: The window to send events to.
+    static func window(for viewController: UIViewController) -> UIWindow {
+        if let window = viewController.view.window {
+            return window
         }
 
-        try self.waitUntilWindowIsReady()
+        let window = HammerWindow()
+        window.presentContained(viewController)
+        return window
+    }
+
+    /// Returns the view's window, or presents it in a new temporary window.
+    ///
+    /// - parameter view:      The view to receive events.
+    /// - parameter alignment: The wrapping alignment to use.
+    ///
+    /// - returns: The window to send events to.
+    static func window(for view: UIView, alignment: WrappingAlignment) -> UIWindow {
+        if let window = view.window {
+            return window
+        }
+
+        let window = HammerWindow()
+        window.presentContained(UIViewController(wrapping: view.topLevelView, alignment: alignment))
+        return window
     }
 
     deinit {
-        // This often runs while an error thrown by the test is propagating
-        SwiftErrorHooks.suspend {
-            self.releaseActiveInputs()
-            UIApplication.unregister(ObjectIdentifier(self))
-            self.debugWindow.removeFromScene()
-            if let window = self.window as? HammerWindow {
-                window.dismissContained()
+        // UIKit objects are only released on the main thread, and this often runs while an error thrown by
+        // the test is propagating, even after `finish` because the views are released here
+        MainActor.assumeIsolated {
+            SwiftErrorHooks.suspend {
+                guard !self.isFinished else {
+                    return
+                }
+
+                // Deinit cannot suspend, but the window must stay until UIKit has cancelled the touches in it
+                if self.enqueueReleaseEvents() {
+                    var isProcessed = false
+                    if (try? self.sendMarkerEvent { isProcessed = true }) != nil {
+                        MainRunLoop.run(until: { isProcessed }, timeout: self.settings.eventProcessingTimeout)
+                    }
+                }
+
+                self.removeFromApplication()
             }
+        }
+    }
+
+    /// Lifts the fingers, stylus and keys still down and removes the windows Hammer added. No more events
+    /// can be sent afterwards. Event generators that are not finished do this when they are released.
+    ///
+    /// - throws: `HammerError.eventProcessingTimeout` if UIKit did not process the released inputs in time.
+    public func finish() async throws {
+        guard !self.isFinished else {
+            return
+        }
+
+        if self.enqueueReleaseEvents() {
+            try await self.waitForEvents()
+        }
+
+        self.isFinished = true
+        SwiftErrorHooks.suspend {
+            self.removeFromApplication()
         }
     }
 
@@ -126,11 +182,20 @@ public final class EventGenerator {
         return Storage.latestEventId
     }
 
-    /// Sends a user interaction event.
+    /// Sends a user interaction event and waits until UIKit has processed it.
     ///
     /// - parameter event: The event to send.
-    /// - parameter wait:  If we should wait until the event has finished being sent.
-    func sendEvent(_ event: IOHIDEvent, wait: Bool) throws {
+    ///
+    /// - throws: `HammerError.eventProcessingTimeout` if UIKit did not process the event in time.
+    func sendEvent(_ event: IOHIDEvent) async throws {
+        try self.enqueueEvent(event)
+        try await self.waitForEvents()
+    }
+
+    /// Hands a user interaction event to UIKit without waiting for it to be processed.
+    ///
+    /// - parameter event: The event to send.
+    func enqueueEvent(_ event: IOHIDEvent) throws {
         guard let window = self.window as? UIWindow & UIWindowPrivate else {
             throw HammerError.unableToAccessPrivateApi(type: "UIWindow", method: "Protocol")
         }
@@ -142,23 +207,26 @@ public final class EventGenerator {
         BackBoardServices.shared.eventSetDigitizerInfo(event, window.contextId, false, false, nil, 0, 0)
 
         app.enqueue(event)
+    }
 
-        if wait {
-            try self.waitForEvents()
+    /// Throws if an event generator created after this one is still active, since their windows overlap and
+    /// touches would reach the wrong one.
+    func checkIsLatestActiveGenerator() throws {
+        if Storage.activeGenerators.last != ObjectIdentifier(self) {
+            throw HammerError.anotherEventGeneratorIsActive
         }
     }
 
-    // MARK: - Sleep
-
-    /// Sleeps the current thread until the events have finished sending.
+    /// Waits until UIKit has processed all the events sent so far.
     ///
     /// - throws: `HammerError.eventProcessingTimeout` if UIKit did not process the events in time.
-    private func waitForEvents() throws {
-        let timeout = EventGenerator.settings.eventProcessingTimeout
+    func waitForEvents() async throws {
+        let timeout = self.settings.eventProcessingTimeout
         do {
-            try self.waitUntil({ waiter in
-                try self.sendMarkerEvent { try? waiter.complete() }
-            }, timeout: timeout)
+            // UIKit reacts to some events, such as by toggling a switch, at the end of the run loop pass
+            try await self.waitForCompletion(timeout: timeout) { complete in
+                try self.sendMarkerEvent { self.afterRunLoopPass(complete) }
+            }
         } catch HammerError.waitConditionTimeout {
             throw HammerError.eventProcessingTimeout(timeout)
         }
@@ -167,17 +235,28 @@ public final class EventGenerator {
     // MARK: - Teardown
 
     /// Lifts the fingers, stylus and keys still down so UIKit does not keep them for the next test.
-    private func releaseActiveInputs() {
-        if !self.activeTouches.fingers.isEmpty {
-            try? self.cancelFingers()
+    ///
+    /// - returns: If any events were enqueued.
+    private func enqueueReleaseEvents() -> Bool {
+        var events = self.pressedKeys.map { self.keyboardEvent(key: $0, isKeyDown: false) }
+        if !self.activeTouches.fingers.isEmpty, let event = try? self.cancelFingersEvent() {
+            events.append(event)
         }
 
-        if self.activeTouches.stylus != nil {
-            try? self.cancelStylus()
+        if self.activeTouches.stylus != nil, let event = try? self.cancelStylusEvent() {
+            events.append(event)
         }
 
-        for key in self.pressedKeys {
-            try? self.sendKeyboardEvent(key: key, isKeyDown: false, validate: false, wait: true)
+        events.forEach { try? self.enqueueEvent($0) }
+        return !events.isEmpty
+    }
+
+    private func removeFromApplication() {
+        Storage.activeGenerators.removeAll { $0 == ObjectIdentifier(self) }
+        UIApplication.unregister(ObjectIdentifier(self))
+        self.debugWindow.removeFromScene()
+        if let window = self.window as? HammerWindow {
+            window.dismissContained()
         }
     }
 }

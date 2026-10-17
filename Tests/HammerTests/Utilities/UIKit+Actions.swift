@@ -1,6 +1,6 @@
 import UIKit
 
-private var kActionKey: UInt8 = 0
+nonisolated(unsafe) private var kActionKey: UInt8 = 0
 
 private final class ActionWrapper {
     private let action: () -> Void

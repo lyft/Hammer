@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 
+@MainActor
 struct TouchStorage {
     private typealias FingerStoreType = [(finger: FingerInfo, identifier: UInt32)]
     private typealias StylusStoreType = (stylus: StylusInfo, identifier: UInt32)

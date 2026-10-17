@@ -5,16 +5,16 @@ import UIKit
 private let kDefaultRadius: CGFloat = 5
 
 extension EventGenerator {
-    public static let fingerLiftDelay: TimeInterval = 0.05
-    public static let longPressHoldDelay: TimeInterval = 2.0
-    public static let multiTapInterval: TimeInterval = 0.15
-    public static let fingerMoveInterval: TimeInterval = 1 / 60
-    public static let pinchDuration: TimeInterval = 0.15
+    nonisolated public static let fingerLiftDelay: TimeInterval = 0.05
+    nonisolated public static let longPressHoldDelay: TimeInterval = 2.0
+    nonisolated public static let multiTapInterval: TimeInterval = 0.15
+    nonisolated public static let fingerMoveInterval: TimeInterval = 1 / 60
+    nonisolated public static let pinchDuration: TimeInterval = 0.15
 
-    public static let twoFingerDistance: CGFloat = 20
-    public static let rotationDistance: CGFloat = 100
-    public static let pinchLargeDistance: CGFloat = 200
-    public static let pinchSmallDistance: CGFloat = 20
+    nonisolated public static let twoFingerDistance: CGFloat = 20
+    nonisolated public static let rotationDistance: CGFloat = 100
+    nonisolated public static let pinchLargeDistance: CGFloat = 200
+    nonisolated public static let pinchSmallDistance: CGFloat = 20
 
     // MARK: - Base Actions
 
@@ -22,10 +22,12 @@ extension EventGenerator {
     ///
     /// - parameter indices:   The finger indices to touch down, must match the number of locations.
     /// - parameter locations: The locations where to touch down.
-    public func fingerDown(_ indices: [FingerIndex?] = .automatic, at locations: [HammerLocatable]) throws {
+    public func fingerDown(_ indices: [FingerIndex?] = .automatic,
+                           at locations: [HammerLocatable]) async throws
+    {
         let indices = try self.fillNextFingerIndices(indices, withExpected: locations.count)
         let locations = try locations.map { try $0.windowHitPoint(for: self) }
-        try self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
+        try await self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
             FingerInfo(fingerIndex: index, location: location, phase: .began,
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
         }), validate: true)
@@ -35,8 +37,10 @@ extension EventGenerator {
     ///
     /// - parameter index:    The finger index to touch down.
     /// - parameter location: The location where to touch down. Nil to use the center.
-    public func fingerDown(_ index: FingerIndex? = .automatic, at location: HammerLocatable? = nil) throws {
-        try self.fingerDown([index], at: [location ?? self.mainView])
+    public func fingerDown(_ index: FingerIndex? = .automatic,
+                           at location: HammerLocatable? = nil) async throws
+    {
+        try await self.fingerDown([index], at: [location ?? self.mainView])
     }
 
     /// Sends a finger up event.
@@ -44,10 +48,10 @@ extension EventGenerator {
     /// Unless specified, the finger indices will be the last fingers that touched down.
     ///
     /// - parameter indices: The finger indices to touch up.
-    public func fingerUp(_ indices: [FingerIndex?] = .automatic) throws {
+    public func fingerUp(_ indices: [FingerIndex?] = .automatic) async throws {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: 1)
         let locations = self.activeTouches.fingers(forIndices: indices).map(\.location)
-        try self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
+        try await self.sendEvent(hand: HandInfo(fingers: zip(locations, indices).map { location, index in
             return FingerInfo(fingerIndex: index, location: location, phase: .ended,
                               pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
         }), validate: true)
@@ -58,8 +62,8 @@ extension EventGenerator {
     /// Unless specified, the finger index will be the last finger that touched down.
     ///
     /// - parameter index: The finger index to touch up.
-    public func fingerUp(_ index: FingerIndex?) throws {
-        try self.fingerUp([index])
+    public func fingerUp(_ index: FingerIndex?) async throws {
+        try await self.fingerUp([index])
     }
 
     // MARK: - Tap Actions
@@ -72,14 +76,14 @@ extension EventGenerator {
     /// - parameter interval: The interval between taps, if more than one.
     public func fingerTap(_ index: FingerIndex? = .automatic, at location: HammerLocatable? = nil,
                           numberOfTimes tapCount: Int = 1,
-                          interval: TimeInterval = EventGenerator.multiTapInterval) throws
+                          interval: TimeInterval = EventGenerator.multiTapInterval) async throws
     {
         for i in 0..<tapCount {
-            try self.fingerDown(index, at: location)
-            try self.wait(EventGenerator.fingerLiftDelay)
-            try self.fingerUp(index)
+            try await self.fingerDown(index, at: location)
+            try await self.wait(EventGenerator.fingerLiftDelay)
+            try await self.fingerUp(index)
             if i < tapCount - 1 {
-                try self.wait(interval)
+                try await self.wait(interval)
             }
         }
     }
@@ -90,9 +94,9 @@ extension EventGenerator {
     /// - parameter location: The location where to tap. Nil to use the center.
     /// - parameter interval: The interval between taps.
     public func fingerDoubleTap(_ index: FingerIndex? = .automatic, at location: HammerLocatable? = nil,
-                                interval: TimeInterval = EventGenerator.multiTapInterval) throws
+                                interval: TimeInterval = EventGenerator.multiTapInterval) async throws
     {
-        try self.fingerTap(index, at: location, numberOfTimes: 2, interval: interval)
+        try await self.fingerTap(index, at: location, numberOfTimes: 2, interval: interval)
     }
 
     /// Sends a finger long press event.
@@ -101,11 +105,11 @@ extension EventGenerator {
     /// - parameter location: The location where to press. Nil to use the center.
     /// - parameter duration: The duration the touch should be on screen.
     public func fingerLongPress(_ index: FingerIndex? = .automatic, at location: HammerLocatable? = nil,
-                                duration: TimeInterval = EventGenerator.longPressHoldDelay) throws
+                                duration: TimeInterval = EventGenerator.longPressHoldDelay) async throws
     {
-        try self.fingerDown(index, at: location)
-        try self.wait(duration)
-        try self.fingerUp(index)
+        try await self.fingerDown(index, at: location)
+        try await self.wait(duration)
+        try await self.fingerUp(index)
     }
 
     // MARK: - Move Actions
@@ -116,7 +120,9 @@ extension EventGenerator {
     ///
     /// - parameter indices:   The finger indices to move, must match the number of locations.
     /// - parameter locations: The new locations of the fingers.
-    public func fingerMove(_ indices: [FingerIndex?] = .automatic, to locations: [HammerLocatable]) throws {
+    public func fingerMove(_ indices: [FingerIndex?] = .automatic,
+                           to locations: [HammerLocatable]) async throws
+    {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: locations.count)
         let locations = try locations.map { try $0.windowHitPoint(for: self) }
         let fingers = zip(locations, indices).map { location, index in
@@ -124,7 +130,7 @@ extension EventGenerator {
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
         }
 
-        try self.sendEvent(hand: HandInfo(fingers: fingers), validate: true)
+        try await self.sendEvent(hand: HandInfo(fingers: fingers), validate: true)
     }
 
     /// Sends a finger move event.
@@ -135,11 +141,11 @@ extension EventGenerator {
     /// - parameter x:       The delta value along x-axis from the current location of the finger.
     /// - parameter y:       The delta value along y-axis from the current location of the finger.
     public func fingerMove(_ indices: [FingerIndex?] = .automatic, translationX x: CGFloat, y: CGFloat,
-                           duration: TimeInterval) throws {
+                           duration: TimeInterval) async throws {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: 1)
         let fingers = self.activeTouches.fingers(forIndices: indices)
         let targetLocations = fingers.map(\.location).map { $0.offset(x: x, y: y) }
-        try self.fingerMove(indices, to: targetLocations, duration: duration)
+        try await self.fingerMove(indices, to: targetLocations, duration: duration)
     }
 
     /// Sends a finger move event.
@@ -148,8 +154,8 @@ extension EventGenerator {
     ///
     /// - parameter index:    The finger index to move.
     /// - parameter location: The new location of the finger.
-    public func fingerMove(_ index: FingerIndex? = .automatic, to location: HammerLocatable) throws {
-        try self.fingerMove([index], to: [location])
+    public func fingerMove(_ index: FingerIndex? = .automatic, to location: HammerLocatable) async throws {
+        try await self.fingerMove([index], to: [location])
     }
 
     /// Sends a finger move event, interpolating between the changes for the specified duration.
@@ -160,10 +166,10 @@ extension EventGenerator {
     /// - parameter locations: The new locations of the fingers.
     /// - parameter duration:  The time to interpolate between the changes.
     public func fingerMove(_ indices: [FingerIndex?] = .automatic, to locations: [HammerLocatable],
-                           duration: TimeInterval) throws
+                           duration: TimeInterval) async throws
     {
         guard duration > 0 else {
-            try self.fingerMove(indices, to: locations)
+            try await self.fingerMove(indices, to: locations)
             return
         }
 
@@ -171,12 +177,12 @@ extension EventGenerator {
         let locations = try locations.map { try $0.windowHitPoint(for: self) }
         let startLocations = self.activeTouches.fingers(forIndices: indices).map(\.location)
 
-        try self.performSteps(duration: duration) { progress in
+        try await self.performSteps(duration: duration) { progress in
             let nextLocations = zip(startLocations, locations).map { startLocation, endLocation in
                 return curveInterpolation(from: startLocation, to: endLocation, time: progress)
             }
 
-            try self.fingerMove(indices, to: nextLocations)
+            try await self.fingerMove(indices, to: nextLocations)
         }
     }
 
@@ -188,9 +194,9 @@ extension EventGenerator {
     /// - parameter location: The new location of the finger.
     /// - parameter duration: The time to interpolate between the changes.
     public func fingerMove(_ index: FingerIndex? = .automatic, to location: HammerLocatable,
-                           duration: TimeInterval) throws
+                           duration: TimeInterval) async throws
     {
-        try self.fingerMove([index], to: [location], duration: duration)
+        try await self.fingerMove([index], to: [location], duration: duration)
     }
 
     /// Sends a finger drag event, interpolating between the changes for the specified duration.
@@ -200,12 +206,12 @@ extension EventGenerator {
     /// - parameter endPoint:   The end location of the finger for touch up.
     /// - parameter duration:   The time to interpolate between the changes.
     public func fingerDrag(_ index: FingerIndex? = .automatic, from startPoint: HammerLocatable,
-                           to endPoint: HammerLocatable, duration: TimeInterval) throws
+                           to endPoint: HammerLocatable, duration: TimeInterval) async throws
     {
         let index = try index ?? self.nextFingerIndex()
-        try self.fingerDown(index, at: startPoint)
-        try self.fingerMove(index, to: endPoint, duration: duration)
-        try self.fingerUp(index)
+        try await self.fingerDown(index, at: startPoint)
+        try await self.fingerMove(index, to: endPoint, duration: duration)
+        try await self.fingerUp(index)
     }
 
     // MARK: - Two Finger Actions
@@ -219,11 +225,11 @@ extension EventGenerator {
     ///                       horizontal and positive angle moves clockwise.
     public func twoFingerDown(_ indices: [FingerIndex?] = .automatic, at location: HammerLocatable? = nil,
                               withDistance distance: CGFloat = EventGenerator.twoFingerDistance,
-                              angle radians: CGFloat = 0) throws
+                              angle radians: CGFloat = 0) async throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
         let location = try (location ?? self.mainView).windowHitPoint(for: self)
-        try self.fingerDown(indices, at: location.twoWayOffset(distance, angle: radians))
+        try await self.fingerDown(indices, at: location.twoWayOffset(distance, angle: radians))
     }
 
     /// Sends a two finger up event.
@@ -231,9 +237,9 @@ extension EventGenerator {
     /// Unless specified, the finger indices will be the last fingers that touched down.
     ///
     /// - parameter indices: The finger indices to touch up, must be two indices.
-    public func twoFingerUp(_ indices: [FingerIndex?] = .automatic) throws {
+    public func twoFingerUp(_ indices: [FingerIndex?] = .automatic) async throws {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: 2)
-        try self.fingerUp(indices)
+        try await self.fingerUp(indices)
     }
 
     /// Sends a two finger move event.
@@ -247,11 +253,11 @@ extension EventGenerator {
     ///                       horizontal and positive angle moves clockwise.
     public func twoFingerMove(_ indices: [FingerIndex?] = .automatic, to location: HammerLocatable,
                               withDistance distance: CGFloat = EventGenerator.twoFingerDistance,
-                              angle radians: CGFloat = 0) throws
+                              angle radians: CGFloat = 0) async throws
     {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: 2)
         let location = try location.windowHitPoint(for: self)
-        try self.fingerMove(indices, to: location.twoWayOffset(distance, angle: radians))
+        try await self.fingerMove(indices, to: location.twoWayOffset(distance, angle: radians))
     }
 
     /// Sends a two finger move event, interpolating between the changes for the specified duration.
@@ -266,10 +272,11 @@ extension EventGenerator {
     /// - parameter duration: The time to interpolate between the changes.
     public func twoFingerMove(_ indices: [FingerIndex?] = .automatic, to location: HammerLocatable,
                               withDistance distance: CGFloat = EventGenerator.twoFingerDistance,
-                              angle radians: CGFloat = 0, duration: TimeInterval) throws
+                              angle radians: CGFloat = 0, duration: TimeInterval) async throws
     {
         let location = try location.windowHitPoint(for: self)
-        try self.fingerMove(indices, to: location.twoWayOffset(distance, angle: radians), duration: duration)
+        try await self.fingerMove(indices, to: location.twoWayOffset(distance, angle: radians),
+                                  duration: duration)
     }
 
     /// Sends a two finger tap event.
@@ -281,12 +288,12 @@ extension EventGenerator {
     ///                       horizontal and positive angle moves clockwise.
     public func twoFingerTap(_ indices: [FingerIndex?] = .automatic, at location: HammerLocatable? = nil,
                              withDistance distance: CGFloat = EventGenerator.twoFingerDistance,
-                             angle radians: CGFloat = 0) throws
+                             angle radians: CGFloat = 0) async throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
-        try self.twoFingerDown(indices, at: location, withDistance: distance, angle: radians)
-        try self.wait(EventGenerator.fingerLiftDelay)
-        try self.twoFingerUp(indices)
+        try await self.twoFingerDown(indices, at: location, withDistance: distance, angle: radians)
+        try await self.wait(EventGenerator.fingerLiftDelay)
+        try await self.twoFingerUp(indices)
     }
 
     // MARK: - Pinch Actions
@@ -302,15 +309,15 @@ extension EventGenerator {
     /// - parameter duration:      The time to interpolate between the changes.
     public func fingerPinch(_ indices: [FingerIndex?] = .automatic, at location: HammerLocatable? = nil,
                             fromDistance startDistance: CGFloat, toDistance endDistance: CGFloat,
-                            angle radians: CGFloat = 0, duration: TimeInterval) throws
+                            angle radians: CGFloat = 0, duration: TimeInterval) async throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
         let location = try (location ?? self.mainView).windowHitPoint(for: self)
         let startLocations = location.twoWayOffset(startDistance, angle: radians)
         let endLocations = location.twoWayOffset(endDistance, angle: radians)
-        try self.fingerDown(indices, at: startLocations)
-        try self.fingerMove(indices, to: endLocations, duration: duration)
-        try self.fingerUp(indices)
+        try await self.fingerDown(indices, at: startLocations)
+        try await self.fingerMove(indices, to: endLocations, duration: duration)
+        try await self.fingerUp(indices)
     }
 
     /// Sends a two finger pinch event shrinking the distance between fingers and interpolating between the
@@ -320,9 +327,9 @@ extension EventGenerator {
     /// - parameter location: The center location between the two fingers.
     /// - parameter duration: The time to interpolate between the changes.
     public func fingerPinchClose(_ indices: [FingerIndex?] = .automatic, at location: HammerLocatable? = nil,
-                                 duration: TimeInterval = EventGenerator.pinchDuration) throws
+                                 duration: TimeInterval = EventGenerator.pinchDuration) async throws
     {
-        try self.fingerPinch(indices, at: location,
+        try await self.fingerPinch(indices, at: location,
                              fromDistance: EventGenerator.pinchLargeDistance,
                              toDistance: EventGenerator.pinchSmallDistance,
                              duration: duration)
@@ -335,9 +342,9 @@ extension EventGenerator {
     /// - parameter location: The center location between the two fingers.
     /// - parameter duration: The time to interpolate between the changes.
     public func fingerPinchOpen(_ indices: [FingerIndex?] = .automatic, at location: HammerLocatable? = nil,
-                                duration: TimeInterval = EventGenerator.pinchDuration) throws
+                                duration: TimeInterval = EventGenerator.pinchDuration) async throws
     {
-        try self.fingerPinch(indices, at: location,
+        try await self.fingerPinch(indices, at: location,
                              fromDistance: EventGenerator.pinchSmallDistance,
                              toDistance: EventGenerator.pinchLargeDistance,
                              duration: duration)
@@ -354,12 +361,12 @@ extension EventGenerator {
     /// - parameter radians: The angle in radians to pivot. An angle of zero is assumed to be horizontal and
     ///                      positive angle moves clockwise.
     public func fingerPivot(_ indices: [FingerIndex?] = .automatic, aroundAnchor anchor: HammerLocatable,
-                            angle radians: CGFloat) throws
+                            angle radians: CGFloat) async throws
     {
         let indices = try self.fillExistingFingerIndices(indices, withMinimum: 1)
         let anchor = try anchor.windowHitPoint(for: self)
         let locations = self.activeTouches.fingers(forIndices: indices).map(\.location)
-        try self.fingerMove(indices, to: locations.map { $0.pivot(anchor: anchor, angle: radians) })
+        try await self.fingerMove(indices, to: locations.map { $0.pivot(anchor: anchor, angle: radians) })
     }
 
     /// Sends a finger move event pivoting around an anchor and interpolating between the changes for the
@@ -373,10 +380,10 @@ extension EventGenerator {
     ///                       positive angle moves clockwise.
     /// - parameter duration: The time to interpolate between the changes.
     public func fingerPivot(_ indices: [FingerIndex?] = .automatic, aroundAnchor anchor: HammerLocatable,
-                            byAngle radians: CGFloat, duration: TimeInterval) throws
+                            byAngle radians: CGFloat, duration: TimeInterval) async throws
     {
         guard duration > 0 else {
-            try self.fingerPivot(indices, aroundAnchor: anchor, angle: radians)
+            try await self.fingerPivot(indices, aroundAnchor: anchor, angle: radians)
             return
         }
 
@@ -384,11 +391,11 @@ extension EventGenerator {
         let anchor = try anchor.windowHitPoint(for: self)
         let startLocations = self.activeTouches.fingers(forIndices: indices).map(\.location)
 
-        try self.performSteps(duration: duration) { progress in
+        try await self.performSteps(duration: duration) { progress in
             let radians = curveInterpolation(from: 0, to: radians, time: progress)
             let nextLocations = startLocations.map { $0.pivot(anchor: anchor, angle: radians) }
 
-            try self.fingerMove(indices, to: nextLocations)
+            try await self.fingerMove(indices, to: nextLocations)
         }
     }
 
@@ -406,14 +413,14 @@ extension EventGenerator {
     public func fingerRotate(_ indices: [FingerIndex?] = .automatic, at location: HammerLocatable? = nil,
                              withDistance distance: CGFloat = EventGenerator.rotationDistance,
                              fromAngle startRadians: CGFloat, toAngle endRadians: CGFloat,
-                             duration: TimeInterval) throws
+                             duration: TimeInterval) async throws
     {
         let indices = try self.fillNextFingerIndices(indices, withExpected: 2)
         let location = try (location ?? self.mainView).windowHitPoint(for: self)
-        try self.fingerDown(indices, at: location.twoWayOffset(distance, angle: startRadians))
-        try self.fingerPivot(indices, aroundAnchor: location, byAngle: endRadians - startRadians,
+        try await self.fingerDown(indices, at: location.twoWayOffset(distance, angle: startRadians))
+        try await self.fingerPivot(indices, aroundAnchor: location, byAngle: endRadians - startRadians,
                              duration: duration)
-        try self.fingerUp(indices)
+        try await self.fingerUp(indices)
     }
 
     /// Sends a finger move event rotating a specified angle and interpolating between the changes for the
@@ -427,10 +434,10 @@ extension EventGenerator {
     /// - parameter duration: The time to interpolate between the changes.
     public func fingerRotate(_ indices: [FingerIndex?] = .automatic, at location: HammerLocatable? = nil,
                              withDistance distance: CGFloat = EventGenerator.rotationDistance,
-                             angle radians: CGFloat, duration: TimeInterval) throws
+                             angle radians: CGFloat, duration: TimeInterval) async throws
     {
-        try self.fingerRotate(indices, at: location, withDistance: distance,
-                              fromAngle: 0, toAngle: radians, duration: duration)
+        try await self.fingerRotate(indices, at: location, withDistance: distance,
+                                    fromAngle: 0, toAngle: radians, duration: duration)
     }
 
     // MARK: - Event
@@ -439,11 +446,25 @@ extension EventGenerator {
     ///
     /// - parameter hand:     The event to send.
     /// - parameter validate: If the window must be ready and the locations hittable.
-    private func sendEvent(hand: HandInfo, validate: Bool) throws {
+    private func sendEvent(hand: HandInfo, validate: Bool) async throws {
         if validate {
             try self.checkPointsAreHittable(hand.fingers.map(\.location))
         }
 
+        let event = try self.handEvent(hand)
+        self.deliveredBeganTouches.removeAll()
+        try await self.sendEvent(event)
+        try self.checkTouchesWereDelivered(for: hand.fingers.filter { $0.phase == .began })
+    }
+
+    /// Creates a hand event and records the fingers' new state.
+    ///
+    /// - parameter hand: The fingers for the event.
+    ///
+    /// - throws: An error if a finger's phase does not match its current state.
+    ///
+    /// - returns: The event to send.
+    private func handEvent(_ hand: HandInfo) throws -> IOHIDEvent {
         let machTime = mach_absolute_time()
         let isTouching = hand.isTouching
 
@@ -479,19 +500,21 @@ extension EventGenerator {
                                     location: finger.phase.isTouching ? finger.location : nil)
         }
 
-        self.deliveredBeganTouches.removeAll()
-        try self.sendEvent(event, wait: true)
-        try self.checkTouchesWereDelivered(for: hand.fingers.filter { $0.phase == .began })
+        return event
     }
 
-    /// Cancels the touches of all the fingers that are down, without validating the window.
-    func cancelFingers() throws {
+    /// Creates an event that cancels the touches of all the fingers that are down.
+    ///
+    /// - throws: An error if the event could not be created.
+    ///
+    /// - returns: The event to send.
+    func cancelFingersEvent() throws -> IOHIDEvent {
         let fingers = self.activeTouches.fingers.map { finger in
             FingerInfo(fingerIndex: finger.fingerIndex, location: finger.location, phase: .cancelled,
                        pressure: 0, twist: 0, majorRadius: kDefaultRadius, minorRadius: kDefaultRadius)
         }
 
-        try self.sendEvent(hand: HandInfo(fingers: fingers), validate: false)
+        return try self.handEvent(HandInfo(fingers: fingers))
     }
 
     /// Records the touches UIKit begins delivering to any window, since a touch can land in a window

@@ -3,10 +3,11 @@ import Hammer
 import UIKit
 import XCTest
 
+@MainActor
 final class ViewControllerTests: XCTestCase {
-    func testTapInFullScreenModal() throws {
+    func testTapInFullScreenModal() async throws {
         let presentingViewController = UIViewController()
-        let eventGenerator = try EventGenerator(viewController: presentingViewController)
+        let eventGenerator = try await EventGenerator(viewController: presentingViewController)
 
         let button = UIButton()
         button.accessibilityIdentifier = "modal_button"
@@ -19,16 +20,16 @@ final class ViewControllerTests: XCTestCase {
         let expectation = XCTestExpectation(description: "Button Tapped")
         button.addHandler(forEvent: .primaryActionTriggered, action: expectation.fulfill)
 
-        try eventGenerator.waitUntilHittable("modal_button", timeout: 1)
-        try eventGenerator.fingerTap(at: "modal_button")
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+        try await eventGenerator.waitUntilHittable("modal_button", timeout: 1)
+        try await eventGenerator.fingerTap(at: "modal_button")
+        await self.fulfillment(of: [expectation], timeout: 1)
     }
 
-    func testSignIn() throws {
+    func testSignIn() async throws {
         let viewController = TestSignInViewController()
         let navigationController = UINavigationController(rootViewController: viewController)
-        let eventGenerator = try EventGenerator(viewController: navigationController)
-        try eventGenerator.waitUntilHittable("username_field", timeout: 1)
+        let eventGenerator = try await EventGenerator(viewController: navigationController)
+        try await eventGenerator.waitUntilHittable("username_field", timeout: 1)
 
         let usernameTextField = try eventGenerator.viewWithIdentifier("username_field",
                                                                       ofType: UITextField.self)
@@ -37,19 +38,19 @@ final class ViewControllerTests: XCTestCase {
         let signInButton = try eventGenerator.viewWithIdentifier("signin_button",
                                                                  ofType: UIButton.self)
 
-        try eventGenerator.fingerTap(at: "username_field")
+        try await eventGenerator.fingerTap(at: "username_field")
         XCTAssertTrue(usernameTextField.isFirstResponder)
-        try eventGenerator.keyType("GabrielUsername123")
+        try await eventGenerator.keyType("GabrielUsername123")
         XCTAssertEqual(usernameTextField.text, "GabrielUsername123")
-        try eventGenerator.keyPress(.returnOrEnter)
+        try await eventGenerator.keyPress(.returnOrEnter)
         XCTAssertTrue(passwordTextField.isFirstResponder)
         XCTAssertFalse(signInButton.isEnabled)
-        try eventGenerator.keyType("aSeCr3tP@ss!")
+        try await eventGenerator.keyType("aSeCr3tP@ss!")
         XCTAssertEqual(passwordTextField.text, "aSeCr3tP@ss!")
         XCTAssertTrue(signInButton.isEnabled)
-        try eventGenerator.keyPress(.returnOrEnter)
+        try await eventGenerator.keyPress(.returnOrEnter)
 
-        try eventGenerator.waitUntilExists("username_label", timeout: 1)
+        try await eventGenerator.waitUntilExists("username_label", timeout: 1)
         let usernameLabel = try eventGenerator.viewWithIdentifier("username_label", ofType: UILabel.self)
 
         XCTAssertEqual(usernameLabel.text, "Hello GabrielUsername123")
@@ -87,11 +88,7 @@ private final class TestSignInViewController: UIViewController, UITextFieldDeleg
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        if #available(iOS 13.0, *) {
-            self.view.backgroundColor = .systemBackground
-        } else {
-            self.view.backgroundColor = .white
-        }
+        self.view.backgroundColor = .systemBackground
 
         let stackView = UIStackView()
         stackView.axis = .vertical
@@ -177,11 +174,7 @@ private final class TestProfileViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        if #available(iOS 13.0, *) {
-            self.view.backgroundColor = .systemBackground
-        } else {
-            self.view.backgroundColor = .white
-        }
+        self.view.backgroundColor = .systemBackground
 
         let titleLabel = UILabel()
         titleLabel.text = "Hello \(self.username)"

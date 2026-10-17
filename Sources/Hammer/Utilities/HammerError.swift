@@ -1,10 +1,12 @@
 import UIKit
 
 /// https://github.com/lyft/Hammer#troubleshooting.
-public enum HammerError: Error {
+public enum HammerError: Error, @unchecked Sendable {
     case windowIsNotReadyForInteraction(reason: WindowNotReadyReason)
     case windowIsNotKey
     case eventProcessingTimeout(TimeInterval)
+    case eventGeneratorIsFinished
+    case anotherEventGeneratorIsActive
 
     case deviceDoesNotSupportTouches
     case deviceDoesNotSupportStylus
@@ -51,6 +53,13 @@ extension HammerError: CustomStringConvertible {
             return "The window must be the key window to receive keyboard events"
         case .eventProcessingTimeout(let timeout):
             return "UIKit did not process the generated event within \(timeout) seconds"
+        case .eventGeneratorIsFinished:
+            return "The event generator is finished and cannot send more events"
+        case .anotherEventGeneratorIsActive:
+            return """
+                An event generator created after this one is still active. Finish or release it before \
+                sending events with this one, and run tests that use Hammer serially.
+                """
         case .deviceDoesNotSupportTouches:
             return "Device does not support touches"
         case .deviceDoesNotSupportStylus:
@@ -100,7 +109,12 @@ extension HammerError: CustomStringConvertible {
 }
 
 extension UIView {
-    fileprivate var shortDescription: String {
-        return self.accessibilityIdentifier ?? self.description
+    // Errors can be described from any thread, but the view can only be read on the main thread
+    nonisolated fileprivate var shortDescription: String {
+        guard Thread.isMainThread else {
+            return String(describing: type(of: self))
+        }
+
+        return MainActor.assumeIsolated { self.accessibilityIdentifier ?? self.description }
     }
 }

@@ -12,8 +12,8 @@ import UIKit
 }
 
 extension UIApplication {
-    typealias HIDEventCallback = (_ event: IOHIDEvent) -> Void
-    typealias UIEventCallback = (_ event: UIEvent) -> Void
+    typealias HIDEventCallback = @MainActor (_ event: IOHIDEvent) -> Void
+    typealias UIEventCallback = @MainActor (_ event: UIEvent) -> Void
 
     private static var hidEventCallbacks = [ObjectIdentifier: HIDEventCallback]()
     private static var uiEventCallbacks = [ObjectIdentifier: UIEventCallback]()
@@ -73,6 +73,7 @@ extension UIApplication {
 }
 
 /// The queue UIKit uses to process keyboard input, such as inserting typed text.
+@MainActor
 enum KeyboardTaskQueue {
     /// Adds a task that runs once UIKit has processed all the keyboard input received so far. Runs the task
     /// right away when there is no active keyboard.
@@ -80,7 +81,7 @@ enum KeyboardTaskQueue {
     /// - parameter task: The task to run.
     ///
     /// - throws: An error if the private API is not available.
-    static func addTask(_ task: @escaping () -> Void) throws {
+    static func addTask(_ task: @escaping @MainActor () -> Void) throws {
         guard let keyboardClass = NSClassFromString("UIKeyboardImpl") as AnyObject? else {
             throw HammerError.unableToAccessPrivateApi(type: "UIKeyboardImpl", method: "Class")
         }
@@ -107,7 +108,7 @@ enum KeyboardTaskQueue {
         // The queue only moves on to the next task once this one returns execution to it
         let returnSelector = NSSelectorFromString("returnExecutionToParent")
         let block: @convention(block) (AnyObject) -> Void = { context in
-            task()
+            MainActor.assumeIsolated(task)
             _ = context.perform(returnSelector)
         }
 

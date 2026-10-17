@@ -16,6 +16,11 @@
       <li><a href="#simulating-keyboard">Simulating Keyboard</a></li>
       <li><a href="#finding-a-subview">Finding a Subview</a></li>
       <li><a href="#waiting">Waiting</a></li>
+      <li><a href="#finishing">Finishing</a></li>
+      <li><a href="#settings">Settings</a></li>
+      <li><a href="#swift-testing">Swift Testing</a></li>
+      <li><a href="#synchronous-tests">Synchronous Tests</a></li>
+      <li><a href="#upgrading-from-1x">Upgrading from 1.x</a></li>
     </ul></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
     <li><a href="#license">License</a></li>
@@ -32,12 +37,12 @@ Hammer is a touch, stylus and keyboard synthesis library for emulating user inte
 
 #### Requirements
 
-Hammer requires Swift 5.3 and iOS 11.0 or later.
+Hammer requires Swift 6.0 and iOS 17.0 or later.
 
 #### With [SwiftPM](https://swift.org/package-manager)
 
 ```swift
-.package(url: "https://github.com/lyft/Hammer.git", from: "0.13.0")
+.package(url: "https://github.com/lyft/Hammer.git", from: "2.0.0")
 ```
 
 #### With [CocoaPods](https://cocoapods.org/) (deprecated)
@@ -58,17 +63,29 @@ SwiftPM does not currently support creating applications. To use Hammer with Swi
 
 Hammer allows you to simulate fingers, stylus and keyboard events. It also provides various convenience methods to simulate higher level user interactions.
 
+Hammer runs on the main actor and its API is async, so tests that use it should be async and isolated to the main actor:
+
+```swift
+@MainActor
+final class MyViewTests: XCTestCase {
+    func testButtonTap() async throws {
+        let eventGenerator = try await EventGenerator(view: myView)
+        try await eventGenerator.fingerTap(at: "my_button")
+    }
+}
+```
+
 To be able to send events to a view you must first create an `EventGenerator`:
 
 ```swift
 // Initialize for an existing UIWindow, ensure that the window is key and visible.
-let eventGenerator = EventGenerator(window: myWindow)
+let eventGenerator = try await EventGenerator(window: myWindow)
 
 // Initialize for a UIView, automatically wrapping it in a temporary window.
-let eventGenerator = EventGenerator(view: myView)
+let eventGenerator = try await EventGenerator(view: myView)
 
 // Initialize for a UIViewController, automatically wrapping it in a temporary window.
-let eventGenerator = EventGenerator(viewController: myViewController)
+let eventGenerator = try await EventGenerator(viewController: myViewController)
 ```
 
 When simulating finger or stylus touches, there are multiple ways of specifying a touch location:
@@ -91,26 +108,26 @@ Fingers are the most common method of user interaction on iOS. Hammer supports h
 Primitive events are the basic building blocks of user interactions, they can be combined together to create full gestures. Some methods will allow you to specify a duration and will interpolate the changes during that time.
 
 ```swift
-try eventGenerator.fingerDown(at: CGPoint(x: 10, y: 10))
-try eventGenerator.fingerMove(to: CGPoint(x: 20, y: 10), duration: 0.5)
-try eventGenerator.fingerUp()
+try await eventGenerator.fingerDown(at: CGPoint(x: 10, y: 10))
+try await eventGenerator.fingerMove(to: CGPoint(x: 20, y: 10), duration: 0.5)
+try await eventGenerator.fingerUp()
 ```
 
 For convenience, Hammer provides many higher level gestures. If you don't specify a location it will automatically default to the center of the view.
 
 ```swift
-try eventGenerator.fingerTap()
-try eventGenerator.fingerDoubleTap()
-try eventGenerator.fingerLongPress()
-try eventGenerator.twoFingerTap()
+try await eventGenerator.fingerTap()
+try await eventGenerator.fingerDoubleTap()
+try await eventGenerator.fingerLongPress()
+try await eventGenerator.twoFingerTap()
 ```
 
 Many advanced gestures are also available.
 
 ```swift
-try eventGenerator.fingerDrag(from: CGPoint(x: 10, y: 10), to: CGPoint(x: 20, y: 10), duration: 0.5)
-try eventGenerator.fingerPinch(fromDistance: 100, toDistance: 50, duration: 0.5)
-try eventGenerator.fingerRotate(angle: .pi, duration: 0.5)
+try await eventGenerator.fingerDrag(from: CGPoint(x: 10, y: 10), to: CGPoint(x: 20, y: 10), duration: 0.5)
+try await eventGenerator.fingerPinch(fromDistance: 100, toDistance: 50, duration: 0.5)
+try await eventGenerator.fingerRotate(angle: .pi, duration: 0.5)
 ```
 
 ### Simulating Stylus
@@ -120,17 +137,17 @@ Stylus is available when running on an iPad. It allows for additional properties
 Similar to fingers, primitive events are the basic building blocks of stylus interactions.
 
 ```swift
-try eventGenerator.stylusDown(at: CGPoint(x: 10, y: 10), azimuth: 0, altitude: 0, pressure: 0.5)
-try eventGenerator.stylusMove(to: CGPoint(x: 20, y: 10), duration: 0.5)
-try eventGenerator.stylusUp()
+try await eventGenerator.stylusDown(at: CGPoint(x: 10, y: 10), azimuth: 0, altitude: 0, pressure: 0.5)
+try await eventGenerator.stylusMove(to: CGPoint(x: 20, y: 10), duration: 0.5)
+try await eventGenerator.stylusUp()
 ```
 
 Hammer also provides many higher level gestures for Stylus. If you don't specify a location it will automatically default to the center of the view.
 
 ```swift
-try eventGenerator.stylusTap()
-try eventGenerator.stylusDoubleTap()
-try eventGenerator.stylusLongPress()
+try await eventGenerator.stylusTap()
+try await eventGenerator.stylusDoubleTap()
+try await eventGenerator.stylusLongPress()
 ```
 
 ### Simulating Keyboard
@@ -139,22 +156,22 @@ Keyboard methods take an explicit `KeyboardKey` object or a `Character`. Charact
 
 ```swift
 // Explicit `KeyboardKey`
-try eventGenerator.keyDown(.letterA)
-try eventGenerator.keyUp(.letterA)
+try await eventGenerator.keyDown(.letterA)
+try await eventGenerator.keyUp(.letterA)
 
 // Automatic `Character` mapping
-try eventGenerator.keyDown("a")
-try eventGenerator.keyUp("a")
+try await eventGenerator.keyDown("a")
+try await eventGenerator.keyUp("a")
 
 // Convenience key down and up events
-try eventGenerator.keyPress(.letterA)
-try eventGenerator.keyPress("a")
+try await eventGenerator.keyPress(.letterA)
+try await eventGenerator.keyPress("a")
 ```
 
 To type characters or longer strings and get automatic shift wrapping you can use the `keyType()` methods.
 
 ```swift
-try eventGenerator.keyType("This will type the string as specified, including symbols!")
+try await eventGenerator.keyType("This will type the string as specified, including symbols!")
 ```
 
 ### Finding a subview
@@ -163,32 +180,93 @@ When running on a full screen app or testing navigation, specifying a CGPoint in
 
 ```swift
 let myButton = try eventGenerator.viewWithIdentifier("my_button", ofType: UIButton.self)
-try eventGenerator.fingerTap(at: myButton)
+try await eventGenerator.fingerTap(at: myButton)
 ```
 
 This method will throw an error if the view was not found in the hierarchy. If you're testing navigation or screen changes and you need to wait until the view appears, you can add a timeout. This will wait until the hierarchy has updated and return the view.
 
 ```swift
-let myButton = try eventGenerator.viewWithIdentifier("my_button", ofType: UIButton.self, timeout: 1)
-try eventGenerator.fingerTap(at: myButton)
+let myButton = try await eventGenerator.viewWithIdentifier("my_button", ofType: UIButton.self, timeout: 1)
+try await eventGenerator.fingerTap(at: myButton)
 ```
 
 You can also pass accessibility identifiers directly to the event methods.
 
 ```swift
-try eventGenerator.fingerDown(at: "my_draggable_object")
-try eventGenerator.fingerMove(to: "drop_target", duration: 0.5)
-try eventGenerator.fingerUp()
+try await eventGenerator.fingerDown(at: "my_draggable_object")
+try await eventGenerator.fingerMove(to: "drop_target", duration: 0.5)
+try await eventGenerator.fingerUp()
 ```
 
 ### Waiting
 
-You will often need to wait for the simulator to finish displaying something on the screen or for an animation to end. Hammer provides multiple methods to wait until a view is visible on screen or if a control is hittable
+You will often need to wait for the simulator to finish displaying something on the screen or for an animation to end. Hammer provides multiple methods to wait until a view is visible on screen or if a control is hittable. They check every frame, and wait up to `settings.waitTimeout` unless you pass a timeout.
 
 ```swift
-try eventGenerator.waitUntilVisible("my_label", timeout: 1)
-try eventGenerator.waitUntilHittable("my_button", timeout: 1)
+try await eventGenerator.waitUntilVisible("my_label")
+try await eventGenerator.waitUntilHittable("my_button", timeout: 1)
 ```
+
+You can also wait for any condition, or for a fixed time.
+
+```swift
+try await eventGenerator.waitUntil(viewModel.isLoaded)
+try await eventGenerator.wait(0.5)
+```
+
+### Finishing
+
+When you are done with an event generator, finish it. This lifts any fingers, stylus or keys still down, waits for UIKit to process that, and removes the windows Hammer added. An event generator that is released without finishing does the same, but it has to block the main thread to do it.
+
+```swift
+try await eventGenerator.finish()
+```
+
+### Settings
+
+`EventGenerator.settings` holds the settings every new event generator starts with, such as timeouts. Each event generator has its own copy in `eventGenerator.settings`, so a test can change it without affecting other tests.
+
+```swift
+EventGenerator.settings.waitTimeout = 5
+eventGenerator.settings.eventProcessingTimeout = 10
+```
+
+### Swift Testing
+
+Hammer works with [Swift Testing](https://developer.apple.com/xcode/swift-testing/) too. Tests that use it must run on the main actor, and should finish their event generators since Swift Testing has no tear down. Only the most recently created event generator that is not finished can send events, since their windows overlap, so tests that use Hammer must not run in parallel. `.serialized` covers one suite and the suites nested in it; tests in other suites still run in parallel unless parallel testing is turned off.
+
+```swift
+@MainActor
+@Suite(.serialized)
+struct MyViewTests {
+    @Test
+    func buttonTap() async throws {
+        let eventGenerator = try await EventGenerator(view: myView)
+        try await eventGenerator.fingerTap(at: "my_button")
+        try await eventGenerator.finish()
+    }
+}
+```
+
+### Synchronous Tests
+
+Every async method also has a synchronous version with the same name and parameters, so tests that are not async keep working. Swift picks the synchronous version when the calling code is not async.
+
+```swift
+func testButtonTap() throws {
+    let eventGenerator = try EventGenerator(view: myView)
+    try eventGenerator.fingerTap(at: "my_button")
+}
+```
+
+The synchronous versions keep the main run loop running while they wait, like `XCTestCase.wait(for:timeout:)`. Prefer async tests for new code.
+
+### Upgrading from 1.x
+
+- Make tests async and add `await`, or keep them synchronous as they are.
+- Hammer now needs Swift 6, iOS 17 and the main actor.
+- Waits check every frame, so `checkInterval` is gone.
+- Timeouts are optional and default to `settings.waitTimeout`.
 
 ## Troubleshooting
 
