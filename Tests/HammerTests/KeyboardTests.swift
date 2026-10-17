@@ -2,77 +2,78 @@
 import UIKit
 import XCTest
 
+@MainActor
 final class KeyboardTests: XCTestCase {
-    func testTypeOnTextField() throws {
+    func testTypeOnTextField() async throws {
         let view = UITextField()
         view.setSize(width: 300)
         view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyType("abc")
+        try await eventGenerator.keyType("abc")
         XCTAssertEqual(view.text, "abc")
     }
 
-    func testTypeOnAutocapitalizedTextField() throws {
+    func testTypeOnAutocapitalizedTextField() async throws {
         let view = UITextField()
         view.setSize(width: 300)
         view.disableTextSuggestions()
         view.autocapitalizationType = .sentences
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
-        try eventGenerator.keyType("be")
+        try await eventGenerator.keyType("be")
         XCTAssertEqual(view.text, "Be")
     }
 
-    func testKeyOnTextField() throws {
+    func testKeyOnTextField() async throws {
         let view = UITextField()
         view.setSize(width: 300)
         view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyDown("a")
-        try eventGenerator.keyUp("a")
+        try await eventGenerator.keyDown("a")
+        try await eventGenerator.keyUp("a")
         XCTAssertEqual(view.text, "a")
     }
 
-    func testUppercaseCharacters() throws {
+    func testUppercaseCharacters() async throws {
         let keys = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
         let view = UITextField()
         view.setSize(width: 300)
         view.disableTextSuggestions()
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyType(keys)
+        try await eventGenerator.keyType(keys)
         XCTAssertEqual(view.text, keys)
     }
 
-    func testLowercaseCharacters() throws {
+    func testLowercaseCharacters() async throws {
         let keys = "abcdefghijklmnopqrstuvwxyz"
 
         let view = UITextField()
@@ -80,72 +81,72 @@ final class KeyboardTests: XCTestCase {
         view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyType(keys)
+        try await eventGenerator.keyType(keys)
         XCTAssertEqual(view.text, keys)
     }
 
-    func testNumberCharacters() throws {
+    func testNumberCharacters() async throws {
         let keys = "0123456789"
 
         let view = UITextField()
         view.setSize(width: 300)
         view.disableTextSuggestions()
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyType(keys)
+        try await eventGenerator.keyType(keys)
         XCTAssertEqual(view.text, keys)
     }
 
-    func testSymbolCharacters() throws {
+    func testSymbolCharacters() async throws {
         let keys = "-=,./;'[]\\"
 
         let view = UITextField()
         view.setSize(width: 300)
         view.disableTextSuggestions()
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyType(keys)
+        try await eventGenerator.keyType(keys)
         XCTAssertEqual(view.text, keys)
     }
 
-    func testShiftCharacters() throws {
+    func testShiftCharacters() async throws {
         let keys = "!@#$%^&*()_+{}|:\"<>?~"
 
         let view = UITextField()
         view.setSize(width: 300)
         view.disableTextSuggestions()
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyType(keys)
+        try await eventGenerator.keyType(keys)
         XCTAssertEqual(view.text, keys)
     }
 
-    func testSpaceCharacter() throws {
+    func testSpaceCharacter() async throws {
         let keys = "a a"
 
         let view = UITextField()
@@ -153,18 +154,18 @@ final class KeyboardTests: XCTestCase {
         view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyType(keys)
+        try await eventGenerator.keyType(keys)
         XCTAssertEqual(view.text, keys)
     }
 
-    func testNewlineCharacters() throws {
+    func testNewlineCharacters() async throws {
         let keys = "a\na\ra"
         let result = "a\na\na"
 
@@ -173,18 +174,18 @@ final class KeyboardTests: XCTestCase {
         view.disableTextSuggestions()
         view.autocapitalizationType = .none
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isFirstResponder)
 
         XCTAssertEqual(view.text, "")
-        try eventGenerator.keyType(keys)
+        try await eventGenerator.keyType(keys)
         XCTAssertEqual(view.text, result)
     }
 
-    func testEnsureKeyWindowError() throws {
+    func testEnsureKeyWindowError() async throws {
         let view = UITextField()
         view.setSize(width: 300)
         view.disableTextSuggestions()
@@ -204,11 +205,11 @@ final class KeyboardTests: XCTestCase {
         window.isHidden = false
         defer { window.removeFromScene() }
 
-        let eventGenerator = try EventGenerator(window: window)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(window: window)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
         do {
-            try eventGenerator.keyType("a")
+            try await eventGenerator.keyType("a")
             XCTFail("Expected error")
         } catch HammerError.windowIsNotKey {
             // Success

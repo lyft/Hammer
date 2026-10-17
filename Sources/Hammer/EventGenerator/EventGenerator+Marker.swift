@@ -23,7 +23,7 @@ extension EventGenerator {
         IOHID.shared.eventSetIntegerValue(markerEvent, IOHID.EventField.VendorDefined.data.rawValue,
                                           Int(eventId))
 
-        try self.sendEvent(markerEvent, wait: false)
+        try self.enqueueEvent(markerEvent)
     }
 
     static func markerEventReceived(_ event: IOHIDEvent) {

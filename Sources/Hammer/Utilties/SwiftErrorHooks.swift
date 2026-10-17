@@ -10,7 +10,7 @@ private let kHookNames: [String] = ["_swift_willThrow", "_swift_willThrowTypedIm
 enum SwiftErrorHooks {
     private typealias Hook = UnsafeMutablePointer<UnsafeRawPointer?>
 
-    private static let hooks: [Hook] = kHookNames.compactMap { name in
+    nonisolated(unsafe) private static let hooks: [Hook] = kHookNames.compactMap { name in
         dlsym(UnsafeMutableRawPointer(bitPattern: -2), name)?.assumingMemoryBound(to: UnsafeRawPointer?.self)
     }
 

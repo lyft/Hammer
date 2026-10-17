@@ -16,11 +16,7 @@ final class HammerWindow: UIWindow {
         super.init(frame: UIScreen.main.bounds)
         self.rootViewController = self.hammerViewController
 
-        if #available(iOS 13.0, *) {
-            self.backgroundColor = .systemBackground
-        } else {
-            self.backgroundColor = .white
-        }
+        self.backgroundColor = .systemBackground
     }
 
     @available(*, unavailable)
@@ -104,10 +100,6 @@ extension UIWindow {
     }
 
     func addToMainSceneIfNeeded(file: StaticString = #file, line: UInt = #line) {
-        guard #available(iOS 13.0, *) else {
-            return
-        }
-
         guard self.windowScene == nil else {
             return
         }
@@ -122,9 +114,7 @@ extension UIWindow {
     func removeFromScene(removeViewController: Bool = true) {
         self.isHidden = true
 
-        if #available(iOS 13.0, *) {
-            self.windowScene = nil
-        }
+        self.windowScene = nil
 
         if removeViewController {
             self.rootViewController = nil
@@ -132,7 +122,6 @@ extension UIWindow {
     }
 }
 
-@available(iOS 13.0, *)
 private extension UIScene {
     static var mainOrFirstConnectedScene: UIWindowScene? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }

@@ -2,9 +2,10 @@ import Hammer
 import UIKit
 import XCTest
 
+@MainActor
 // swiftlint:disable:next type_body_length
 final class HandTests: XCTestCase {
-    func testButtonTap() throws {
+    func testButtonTap() async throws {
         let view = UIButton()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
@@ -12,24 +13,24 @@ final class HandTests: XCTestCase {
         let expectation = XCTestExpectation(description: "Button Tapped")
         view.addHandler(forEvent: .primaryActionTriggered, action: expectation.fulfill)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
-        try eventGenerator.fingerTap()
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
+        try await eventGenerator.fingerTap()
 
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+        await self.fulfillment(of: [expectation], timeout: 1)
     }
 
-    func testButtonTapOnHidden() throws {
+    func testButtonTapOnHidden() async throws {
         let view = UIButton()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         view.isHidden = true
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.wait(0.5)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.wait(0.5)
 
         do {
-            try eventGenerator.fingerTap()
+            try await eventGenerator.fingerTap()
             XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotVisible {
             // Success
@@ -38,17 +39,17 @@ final class HandTests: XCTestCase {
         }
     }
 
-    func testButtonTapOnMinimumAlpha() throws {
+    func testButtonTapOnMinimumAlpha() async throws {
         let view = UIButton()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         view.alpha = 0.0001
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.wait(0.5)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.wait(0.5)
 
         do {
-            try eventGenerator.fingerTap()
+            try await eventGenerator.fingerTap()
             XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotVisible {
             // Success
@@ -57,17 +58,17 @@ final class HandTests: XCTestCase {
         }
     }
 
-    func testButtonTapOnNonInteractive() throws {
+    func testButtonTapOnNonInteractive() async throws {
         let view = UIButton()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
         view.isUserInteractionEnabled = false
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.wait(0.5)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.wait(0.5)
 
         do {
-            try eventGenerator.fingerTap()
+            try await eventGenerator.fingerTap()
             XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotHittable {
             // Success
@@ -76,7 +77,7 @@ final class HandTests: XCTestCase {
         }
     }
 
-    func testButtonTapInsideOfBounds() throws {
+    func testButtonTapInsideOfBounds() async throws {
         let containerView = UIView()
         containerView.setSize(width: 100, height: 100)
         containerView.backgroundColor = .blue
@@ -90,14 +91,14 @@ final class HandTests: XCTestCase {
         let expectation = XCTestExpectation(description: "Button Tapped")
         view.addHandler(forEvent: .primaryActionTriggered, action: expectation.fulfill)
 
-        let eventGenerator = try EventGenerator(view: containerView)
-        try eventGenerator.waitUntilHittable(view, timeout: 1)
-        try eventGenerator.fingerTap(at: view)
+        let eventGenerator = try await EventGenerator(view: containerView)
+        try await eventGenerator.waitUntilHittable(view, timeout: 1)
+        try await eventGenerator.fingerTap(at: view)
 
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+        await self.fulfillment(of: [expectation], timeout: 1)
     }
 
-    func testButtonTapOutOfBounds() throws {
+    func testButtonTapOutOfBounds() async throws {
         let containerView = UIView()
         containerView.setSize(width: 100, height: 100)
         containerView.backgroundColor = .blue
@@ -108,11 +109,11 @@ final class HandTests: XCTestCase {
         containerView.addSubview(view)
         view.setOrigin(x: 0, y: 100)
 
-        let eventGenerator = try EventGenerator(view: containerView)
-        try eventGenerator.wait(0.5)
+        let eventGenerator = try await EventGenerator(view: containerView)
+        try await eventGenerator.wait(0.5)
 
         do {
-            try eventGenerator.fingerTap(at: view)
+            try await eventGenerator.fingerTap(at: view)
             XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotHittable {
             // Success
@@ -121,7 +122,7 @@ final class HandTests: XCTestCase {
         }
     }
 
-    func testButtonTapOutOfBoundsClipped() throws {
+    func testButtonTapOutOfBoundsClipped() async throws {
         let containerView = UIView()
         containerView.setSize(width: 100, height: 100)
         containerView.backgroundColor = .blue
@@ -133,11 +134,11 @@ final class HandTests: XCTestCase {
         containerView.addSubview(view)
         view.setOrigin(x: 0, y: 100)
 
-        let eventGenerator = try EventGenerator(view: containerView)
-        try eventGenerator.wait(0.5)
+        let eventGenerator = try await EventGenerator(view: containerView)
+        try await eventGenerator.wait(0.5)
 
         do {
-            try eventGenerator.fingerTap(at: view)
+            try await eventGenerator.fingerTap(at: view)
             XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotVisible {
             // Success
@@ -146,7 +147,7 @@ final class HandTests: XCTestCase {
         }
     }
 
-    func testButtonTapOnNonInteractiveSuperview() throws {
+    func testButtonTapOnNonInteractiveSuperview() async throws {
         let view = UIButton()
         view.setSize(width: 100, height: 100)
         view.accessibilityIdentifier = "my_button"
@@ -158,11 +159,11 @@ final class HandTests: XCTestCase {
         containerView.isUserInteractionEnabled = false
         containerView.addSubview(view)
 
-        let eventGenerator = try EventGenerator(view: containerView)
-        try eventGenerator.wait(0.5)
+        let eventGenerator = try await EventGenerator(view: containerView)
+        try await eventGenerator.wait(0.5)
 
         do {
-            try eventGenerator.fingerTap(at: "my_button")
+            try await eventGenerator.fingerTap(at: "my_button")
             XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotHittable {
             // Success
@@ -171,7 +172,7 @@ final class HandTests: XCTestCase {
         }
     }
 
-    func testButtonTapOnCoveredButton() throws {
+    func testButtonTapOnCoveredButton() async throws {
         let containerView = UIView()
         containerView.setSize(width: 100, height: 100)
 
@@ -184,11 +185,11 @@ final class HandTests: XCTestCase {
         coverView.setSize(width: 100, height: 100)
         containerView.addSubview(coverView)
 
-        let eventGenerator = try EventGenerator(view: containerView)
-        try eventGenerator.wait(0.5)
+        let eventGenerator = try await EventGenerator(view: containerView)
+        try await eventGenerator.wait(0.5)
 
         do {
-            try eventGenerator.fingerTap(at: "my_button")
+            try await eventGenerator.fingerTap(at: "my_button")
             XCTFail("Button should not be tappable")
         } catch HammerError.viewIsNotHittable {
             // Success
@@ -197,7 +198,7 @@ final class HandTests: XCTestCase {
         }
     }
 
-    func testButtonHighlight() throws {
+    func testButtonHighlight() async throws {
         let view = UIButton()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
@@ -208,22 +209,21 @@ final class HandTests: XCTestCase {
         let touchUpExpectation = XCTestExpectation(description: "Button Touch Up")
         view.addHandler(forEvent: .touchUpInside, action: touchUpExpectation.fulfill)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
         XCTAssertFalse(view.isHighlighted)
-        try eventGenerator.fingerDown()
-        try eventGenerator.wait(0.3)
+        try await eventGenerator.fingerDown()
+        try await eventGenerator.wait(0.3)
         XCTAssertTrue(view.isHighlighted)
-        try eventGenerator.fingerUp()
-        try eventGenerator.wait(0.2)
+        try await eventGenerator.fingerUp()
+        try await eventGenerator.wait(0.2)
         XCTAssertFalse(view.isHighlighted)
 
-        XCTAssertEqual(XCTWaiter.wait(for: [touchDownExpectation, touchUpExpectation], timeout: 1),
-                       .completed)
+        await self.fulfillment(of: [touchDownExpectation, touchUpExpectation], timeout: 1)
     }
 
-    func testViewTapGesture() throws {
+    func testViewTapGesture() async throws {
         let view = UIView()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
@@ -233,14 +233,14 @@ final class HandTests: XCTestCase {
         recognizer.addHandler(forState: .recognized, action: expectation.fulfill)
         view.addGestureRecognizer(recognizer)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
-        try eventGenerator.fingerTap()
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
+        try await eventGenerator.fingerTap()
 
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+        await self.fulfillment(of: [expectation], timeout: 1)
     }
 
-    func testViewDoubleTapGesture() throws {
+    func testViewDoubleTapGesture() async throws {
         let view = UIView()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
@@ -251,14 +251,14 @@ final class HandTests: XCTestCase {
         recognizer.addHandler(forState: .recognized, action: expectation.fulfill)
         view.addGestureRecognizer(recognizer)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
-        try eventGenerator.fingerDoubleTap()
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
+        try await eventGenerator.fingerDoubleTap()
 
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed)
+        await self.fulfillment(of: [expectation], timeout: 3)
     }
 
-    func testViewTwoFingerTapGesture() throws {
+    func testViewTwoFingerTapGesture() async throws {
         let view = UIView()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
@@ -269,14 +269,14 @@ final class HandTests: XCTestCase {
         recognizer.addHandler(forState: .recognized, action: expectation.fulfill)
         view.addGestureRecognizer(recognizer)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
-        try eventGenerator.twoFingerTap()
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
+        try await eventGenerator.twoFingerTap()
 
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed)
+        await self.fulfillment(of: [expectation], timeout: 3)
     }
 
-    func testViewLongPressGesture() throws {
+    func testViewLongPressGesture() async throws {
         let view = UIView()
         view.setSize(width: 100, height: 100)
         view.backgroundColor = .green
@@ -286,14 +286,14 @@ final class HandTests: XCTestCase {
         recognizer.addHandler(forState: .recognized, action: expectation.fulfill)
         view.addGestureRecognizer(recognizer)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
-        try eventGenerator.fingerLongPress()
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
+        try await eventGenerator.fingerLongPress()
 
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed)
+        await self.fulfillment(of: [expectation], timeout: 3)
     }
 
-    func testViewRotationGesture() throws {
+    func testViewRotationGesture() async throws {
         let view = UIView()
         view.setSize(width: 300, height: 300)
         view.backgroundColor = .green
@@ -303,22 +303,22 @@ final class HandTests: XCTestCase {
         recognizer.addHandler(forState: .recognized, action: expectation.fulfill)
         view.addGestureRecognizer(recognizer)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
-        try eventGenerator.fingerRotate(angle: .pi, duration: 0.2)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
+        try await eventGenerator.fingerRotate(angle: .pi, duration: 0.2)
 
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed)
+        await self.fulfillment(of: [expectation], timeout: 3)
     }
 
-    func testTwoFingerDownAtAngle() throws {
+    func testTwoFingerDownAtAngle() async throws {
         let view = TouchTestView()
         view.isMultipleTouchEnabled = true
         view.setSize(width: 300, height: 300)
         view.backgroundColor = .green
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
-        try eventGenerator.twoFingerDown(withDistance: 100, angle: .pi / 2)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
+        try await eventGenerator.twoFingerDown(withDistance: 100, angle: .pi / 2)
 
         let locations = view.touches.map { $0.location(in: view) }.sorted { $0.y < $1.y }
         XCTAssertEqual(locations.count, 2)
@@ -327,85 +327,85 @@ final class HandTests: XCTestCase {
         XCTAssertEqual(locations.last?.x ?? 0, 150, accuracy: 0.5)
         XCTAssertEqual(locations.last?.y ?? 0, 200, accuracy: 0.5)
 
-        try eventGenerator.twoFingerUp()
+        try await eventGenerator.twoFingerUp()
     }
 
-    func testSwitchToggle() throws {
+    func testSwitchToggle() async throws {
         let view = UISwitch()
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
         let expectation = XCTestExpectation(description: "Button Value Changed")
         view.addHandler(forEvent: .valueChanged, action: expectation.fulfill)
 
         XCTAssertFalse(view.isOn)
-        try eventGenerator.fingerTap()
+        try await eventGenerator.fingerTap()
         XCTAssertTrue(view.isOn)
 
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 1), .completed)
+        await self.fulfillment(of: [expectation], timeout: 1)
     }
 
-    func testSwitchToggleOnOff() throws {
+    func testSwitchToggleOnOff() async throws {
         let view = UISwitch()
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
         XCTAssertFalse(view.isOn)
-        try eventGenerator.fingerDown(at: view.frame.center.offset(x: -20, y: 0))
-        try eventGenerator.fingerMove(to: view.frame.center.offset(x: 40, y: 0), duration: 0.5)
-        try eventGenerator.fingerUp()
+        try await eventGenerator.fingerDown(at: view.frame.center.offset(x: -20, y: 0))
+        try await eventGenerator.fingerMove(to: view.frame.center.offset(x: 40, y: 0), duration: 0.5)
+        try await eventGenerator.fingerUp()
         XCTAssertTrue(view.isOn)
-        try eventGenerator.fingerDown(at: view.frame.center.offset(x: 20, y: 0))
-        try eventGenerator.fingerMove(to: view.frame.center.offset(x: -40, y: 0), duration: 0.5)
-        try eventGenerator.fingerUp()
+        try await eventGenerator.fingerDown(at: view.frame.center.offset(x: 20, y: 0))
+        try await eventGenerator.fingerMove(to: view.frame.center.offset(x: -40, y: 0), duration: 0.5)
+        try await eventGenerator.fingerUp()
         XCTAssertFalse(view.isOn)
     }
 
-    func testScrollViewDrag() throws {
+    func testScrollViewDrag() async throws {
         let view = PatternScrollView()
         view.setSize(width: 300, height: 300)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
         XCTAssertEqual(view.contentOffset, CGPoint(x: 0, y: 0))
-        try eventGenerator.fingerDrag(from: view.frame.center.offset(x: 40, y: 100),
+        try await eventGenerator.fingerDrag(from: view.frame.center.offset(x: 40, y: 100),
                                       to: view.frame.center.offset(x: -40, y: -100),
                                       duration: 1)
         XCTAssertEqual(view.contentOffset, CGPoint(x: 75, y: 190), accuracy: 10)
     }
 
-    func testScrollViewDragWithTranslation() throws {
+    func testScrollViewDragWithTranslation() async throws {
         let view = PatternScrollView()
         view.setSize(width: 300, height: 300)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
         XCTAssertEqual(view.contentOffset, CGPoint(x: 0, y: 0))
-        try eventGenerator.fingerDown(at: view.frame.center.offset(x: 40, y: 100))
-        try eventGenerator.fingerMove(translationX: -80, y: -200, duration: 1)
+        try await eventGenerator.fingerDown(at: view.frame.center.offset(x: 40, y: 100))
+        try await eventGenerator.fingerMove(translationX: -80, y: -200, duration: 1)
         XCTAssertEqual(view.contentOffset, CGPoint(x: 75, y: 190), accuracy: 10)
     }
 
-    func testScrollViewPinch() throws {
+    func testScrollViewPinch() async throws {
         let view = PatternScrollView()
         view.setSize(width: 300, height: 300)
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(timeout: 1)
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
 
-        try eventGenerator.wait(0.3)
+        try await eventGenerator.wait(0.3)
         XCTAssertEqual(view.zoomScale, 1)
-        try eventGenerator.fingerPinchOpen(duration: 1)
-        try eventGenerator.wait(0.3)
+        try await eventGenerator.fingerPinchOpen(duration: 1)
+        try await eventGenerator.wait(0.3)
         XCTAssertEqual(view.zoomScale, 6.9, accuracy: 1)
-        try eventGenerator.fingerPinchClose(duration: 1)
-        try eventGenerator.wait(0.3)
+        try await eventGenerator.fingerPinchClose(duration: 1)
+        try await eventGenerator.wait(0.3)
         XCTAssertEqual(view.zoomScale, 1, accuracy: 0.1)
     }
 
-    func testOffsetLocation() throws {
+    func testOffsetLocation() async throws {
         let view = UIStackView()
         view.axis = .horizontal
 
@@ -422,16 +422,16 @@ final class HandTests: XCTestCase {
             view.addArrangedSubview(button)
         }
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(view.subviews[0], timeout: 1)
-        try eventGenerator.fingerTap(at: OffsetLocation(x: -100, y: 0))
-        try eventGenerator.fingerTap(at: OffsetLocation(x: 0, y: 0))
-        try eventGenerator.fingerTap(at: OffsetLocation(x: 100, y: 0))
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(view.subviews[0], timeout: 1)
+        try await eventGenerator.fingerTap(at: OffsetLocation(x: -100, y: 0))
+        try await eventGenerator.fingerTap(at: OffsetLocation(x: 0, y: 0))
+        try await eventGenerator.fingerTap(at: OffsetLocation(x: 100, y: 0))
 
-        XCTAssertEqual(XCTWaiter.wait(for: expectations, timeout: 1, enforceOrder: true), .completed)
+        await self.fulfillment(of: expectations, timeout: 1, enforceOrder: true)
     }
 
-    func testRelativeLocation() throws {
+    func testRelativeLocation() async throws {
         let view = UIStackView()
         view.axis = .horizontal
 
@@ -448,12 +448,12 @@ final class HandTests: XCTestCase {
             view.addArrangedSubview(button)
         }
 
-        let eventGenerator = try EventGenerator(view: view)
-        try eventGenerator.waitUntilHittable(view.subviews[0], timeout: 1)
-        try eventGenerator.fingerTap(at: RelativeLocation(x: 0.2, y: 0.5))
-        try eventGenerator.fingerTap(at: RelativeLocation(x: 0.5, y: 0.5))
-        try eventGenerator.fingerTap(at: RelativeLocation(x: 0.8, y: 0.5))
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(view.subviews[0], timeout: 1)
+        try await eventGenerator.fingerTap(at: RelativeLocation(x: 0.2, y: 0.5))
+        try await eventGenerator.fingerTap(at: RelativeLocation(x: 0.5, y: 0.5))
+        try await eventGenerator.fingerTap(at: RelativeLocation(x: 0.8, y: 0.5))
 
-        XCTAssertEqual(XCTWaiter.wait(for: expectations, timeout: 1, enforceOrder: true), .completed)
+        await self.fulfillment(of: expectations, timeout: 1, enforceOrder: true)
     }
 }

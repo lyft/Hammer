@@ -1,6 +1,6 @@
 import UIKit
 
-public enum FingerIndex: UInt32, CaseIterable {
+public enum FingerIndex: UInt32, CaseIterable, Sendable {
     case rightThumb = 1
     case rightIndex = 2
     case rightMiddle = 3
@@ -15,6 +15,7 @@ public enum FingerIndex: UInt32, CaseIterable {
 
     public static let automatic: FingerIndex? = nil
 
+    @MainActor
     static let defaultOrder = Array(FingerIndex.allCases.prefix(UIDevice.current.maxNumberOfFingers))
 }
 

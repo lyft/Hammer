@@ -78,23 +78,10 @@ extension EventGenerator {
     /// - returns: The view.
     public func viewWithIdentifier(_ accessibilityIdentifier: String,
                                    timeout: TimeInterval,
-                                   checkInterval: TimeInterval = 0.1) throws -> UIView
+                                   checkInterval: TimeInterval = 0.1) async throws -> UIView
     {
-        do {
-            return try self.waitUntilExists({
-                do {
-                    return try self.viewWithIdentifier(accessibilityIdentifier)
-                } catch HammerError.unableToFindView {
-                    return nil
-                } catch {
-                    throw error
-                }
-            }(), timeout: timeout, checkInterval: checkInterval)
-        } catch HammerError.waitConditionTimeout {
-            throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
-        } catch {
-            throw error
-        }
+        try await self.viewWithIdentifier(accessibilityIdentifier, ofType: UIView.self,
+                                          timeout: timeout, checkInterval: checkInterval)
     }
 
     /// Searches the view's subviews recursively for the first one that has the specified identifier. If the
@@ -112,22 +99,30 @@ extension EventGenerator {
     /// - returns: The view.
     public func viewWithIdentifier<T: UIView>(_ accessibilityIdentifier: String, ofType type: T.Type,
                                               timeout: TimeInterval,
-                                              checkInterval: TimeInterval = 0.1) throws -> T
+                                              checkInterval: TimeInterval = 0.1) async throws -> T
     {
         do {
-            return try self.waitUntilExists({
-                do {
-                    return try self.viewWithIdentifier(accessibilityIdentifier, ofType: type)
-                } catch HammerError.unableToFindView {
-                    return nil
-                } catch {
-                    throw error
-                }
-            }(), timeout: timeout, checkInterval: checkInterval)
+            return try await self.waitUntilExists(try self.existingView(accessibilityIdentifier, type),
+                                                  timeout: timeout, checkInterval: checkInterval)
         } catch HammerError.waitConditionTimeout {
             throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
-        } catch {
-            throw error
+        }
+    }
+
+    /// Searches for the view with the specified identifier, returning nil instead of throwing when it is not
+    /// in the hierarchy yet.
+    ///
+    /// - parameter accessibilityIdentifier: The identifier to match.
+    /// - parameter type:                    The type of the view.
+    ///
+    /// - throws: An error if the view is of an invalid type.
+    ///
+    /// - returns: The view, or nil if it is not in the hierarchy.
+    private func existingView<T: UIView>(_ accessibilityIdentifier: String, _ type: T.Type) throws -> T? {
+        do {
+            return try self.viewWithIdentifier(accessibilityIdentifier, ofType: type)
+        } catch HammerError.unableToFindView {
+            return nil
         }
     }
 

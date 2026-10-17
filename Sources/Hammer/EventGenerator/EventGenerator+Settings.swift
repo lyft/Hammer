@@ -2,10 +2,11 @@ import Foundation
 
 extension EventGenerator {
     /// Shared setting values for all event generators
+    @MainActor
     public static var settings = Settings()
 
     /// Shared setting values for all event generators
-    public struct Settings {
+    public struct Settings: Sendable {
         /// The delay to wait after activating the accessibility engine.
         public var accessibilityActivateDelay: TimeInterval = 0.02
 

@@ -66,4 +66,9 @@ extension UIView {
             height.map { self.heightAnchor.constraint(equalToConstant: $0) },
         ].compactMap { $0 })
     }
+
+    func withSize(width: CGFloat, height: CGFloat) -> Self {
+        self.setSize(width: width, height: height)
+        return self
+    }
 }

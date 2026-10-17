@@ -1,7 +1,7 @@
 import UIKit
 
 /// https://github.com/lyft/Hammer#troubleshooting.
-public enum HammerError: Error {
+public enum HammerError: Error, @unchecked Sendable {
     case windowIsNotReadyForInteraction(reason: WindowNotReadyReason)
     case windowIsNotKey
     case eventProcessingTimeout(TimeInterval)
@@ -100,7 +100,12 @@ extension HammerError: CustomStringConvertible {
 }
 
 extension UIView {
-    fileprivate var shortDescription: String {
-        return self.accessibilityIdentifier ?? self.description
+    // Errors can be described from any thread, but the view can only be read on the main thread
+    nonisolated fileprivate var shortDescription: String {
+        guard Thread.isMainThread else {
+            return String(describing: type(of: self))
+        }
+
+        return MainActor.assumeIsolated { self.accessibilityIdentifier ?? self.description }
     }
 }

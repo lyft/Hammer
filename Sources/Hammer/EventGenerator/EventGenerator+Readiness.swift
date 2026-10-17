@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// The reason a window is not ready to receive user interaction events.
-public enum WindowNotReadyReason: Equatable {
+public enum WindowNotReadyReason: Equatable, Sendable {
     /// The application is ignoring interaction events, usually during a transition.
     case applicationIsIgnoringInteractionEvents
 
@@ -100,14 +100,12 @@ extension EventGenerator {
             return .rootViewControllerIsTransitioning
         }
 
-        if #available(iOS 13.0, *) {
-            guard let scene = self.window.windowScene else {
-                return .windowHasNoScene
-            }
+        guard let scene = self.window.windowScene else {
+            return .windowHasNoScene
+        }
 
-            if scene.activationState != .foregroundActive {
-                return .sceneIsNotForegroundActive(activationState: scene.activationState.name)
-            }
+        if scene.activationState != .foregroundActive {
+            return .sceneIsNotForegroundActive(activationState: scene.activationState.name)
         }
 
         if let hammerWindow = self.window as? HammerWindow, !hammerWindow.viewControllerHasAppeared {
@@ -130,10 +128,10 @@ extension EventGenerator {
     ///
     /// - throws: `HammerError.windowIsNotReadyForInteraction` with the check that did not pass.
     public func waitUntilWindowIsReady(timeout: TimeInterval = EventGenerator.settings.windowReadyTimeout)
-        throws
+        async throws
     {
-        var deadline = Date(timeIntervalSinceNow: timeout)
-        let remaining = { max(deadline.timeIntervalSinceNow, 0) }
+        var deadline = ContinuousClock.now + .seconds(timeout)
+        let remaining = { max((deadline - .now).timeInterval, 0) }
 
         while let reason = self.windowNotReadyReason {
             if remaining() == 0 {
@@ -141,36 +139,39 @@ extension EventGenerator {
             }
 
             // Checking every frame lets the generator start as soon as the window appears
-            try self.wait(min(EventGenerator.fingerMoveInterval, remaining()))
+            try await self.wait(min(EventGenerator.fingerMoveInterval, remaining()))
         }
 
+        // Inputs a previous event generator released when it was deinitialized must not reach this one
+        try await self.waitForEvents()
+
         // The accessibility warm up is a fixed delay, so it does not count against the timeout
-        let accessibilityStart = Date()
-        try self.waitUntilAccessibilityActivate()
-        deadline.addTimeInterval(Date().timeIntervalSince(accessibilityStart))
+        let accessibilityStart = ContinuousClock.now
+        try await self.waitUntilAccessibilityActivate()
+        deadline += .now - accessibilityStart
 
         if EventGenerator.settings.waitForFrameRender {
-            try self.waitUntilReady(.frameWasNotRendered) {
-                try self.waitUntilFrameIsRendered(timeout: remaining())
+            try await self.waitUntilReady(.frameWasNotRendered) {
+                try await self.waitUntilFrameIsRendered(timeout: remaining())
             }
         }
 
         if EventGenerator.settings.waitForAnimations {
-            try self.waitUntilReady(.animationsAreRunning) {
-                try self.waitUntilAnimationsAreFinished(timeout: remaining())
+            try await self.waitUntilReady(.animationsAreRunning) {
+                try await self.waitUntilAnimationsAreFinished(timeout: remaining())
             }
         }
 
-        try self.waitUntilReady(.runLoopIsBusy) {
-            try self.waitUntilRunloopIsFlushed(timeout: remaining())
+        try await self.waitUntilReady(.runLoopIsBusy) {
+            try await self.waitUntilRunloopIsFlushed(timeout: remaining())
         }
     }
 
     /// Waits until animations are finished.
     ///
     /// - parameter timeout: The maximum time to wait for the window to be ready.
-    public func waitUntilAnimationsAreFinished(timeout: TimeInterval) throws {
-        try self.waitUntil(!self.hasRunningAnimations, timeout: timeout)
+    public func waitUntilAnimationsAreFinished(timeout: TimeInterval) async throws {
+        try await self.waitUntil(!self.hasRunningAnimations, timeout: timeout)
     }
 
     /// Returns if the view or any of its subviews has running animations.
@@ -201,15 +202,15 @@ extension EventGenerator {
 
     // MARK: - Private
 
-    private func waitUntilReady(_ reason: WindowNotReadyReason, wait: () throws -> Void) throws {
+    private func waitUntilReady(_ reason: WindowNotReadyReason, wait: () async throws -> Void) async throws {
         do {
-            try wait()
+            try await wait()
         } catch HammerError.waitConditionTimeout {
             throw HammerError.windowIsNotReadyForInteraction(reason: reason)
         }
     }
 
-    private func waitUntilAccessibilityActivate() throws {
+    private func waitUntilAccessibilityActivate() async throws {
         guard EventGenerator.settings.forceActivateAccessibilityEngine else {
             return
         }
@@ -229,7 +230,7 @@ extension EventGenerator {
             print("Activating accessibility engine and waiting 0.1s")
         }
 
-        try self.wait(
+        try await self.wait(
             simAccessibilityActivated
             ? EventGenerator.settings.accessibilityActivateDelay // Default: 0.02s
             : EventGenerator.settings.accessibilityActivateFirstTimeDelay // Default: 5.0s
@@ -242,7 +243,6 @@ extension EventGenerator {
     }
 }
 
-@available(iOS 13.0, *)
 extension UIScene.ActivationState {
     fileprivate var name: String {
         switch self {
@@ -261,6 +261,7 @@ extension UIScene.ActivationState {
 }
 
 // Bypasses deprecation warning for `isIgnoringInteractionEvents`
+@MainActor
 private protocol UIApplicationDeprecated {
     var isIgnoringInteractionEvents: Bool { get }
 }

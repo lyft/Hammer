@@ -14,21 +14,21 @@ extension EventGenerator {
     /// - parameter altitude: The altitude of the stylus in radians where 0 is straight down.
     /// - parameter pressure: The pressure of the touch, from 0 to 1.
     public func stylusDown(at location: HammerLocatable? = nil,
-                           azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) throws
+                           azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) async throws
     {
         let location = try (location ?? self.mainView).windowHitPoint(for: self)
-        try self.sendEvent(stylus: StylusInfo(location: location, phase: .began,
+        try await self.sendEvent(stylus: StylusInfo(location: location, phase: .began,
                                               pressure: pressure, twist: 0,
                                               altitude: altitude, azimuth: azimuth), validate: true)
     }
 
     /// Sends a stylus up event.
-    public func stylusUp() throws {
+    public func stylusUp() async throws {
         guard let location = self.activeTouches.stylus?.location else {
             throw HammerError.touchForStylusDoesNotExist
         }
 
-        try self.sendEvent(stylus: StylusInfo(location: location, phase: .ended, pressure: 0, twist: 0,
+        try await self.sendEvent(stylus: StylusInfo(location: location, phase: .ended, pressure: 0, twist: 0,
                                               altitude: 0, azimuth: 0), validate: true)
     }
 
@@ -44,14 +44,14 @@ extension EventGenerator {
     /// - parameter pressure: The pressure of the touch, from 0 to 1.
     public func stylusTap(at location: HammerLocatable? = nil, numberOfTimes tapCount: Int,
                           interval: TimeInterval = EventGenerator.multiTapInterval,
-                          azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) throws
+                          azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) async throws
     {
         for i in 0..<tapCount {
-            try self.stylusDown(at: location, azimuth: azimuth, altitude: altitude, pressure: pressure)
-            try self.wait(EventGenerator.fingerLiftDelay)
-            try self.stylusUp()
+            try await self.stylusDown(at: location, azimuth: azimuth, altitude: altitude, pressure: pressure)
+            try await self.wait(EventGenerator.fingerLiftDelay)
+            try await self.stylusUp()
             if i < tapCount - 1 {
-                try self.wait(interval)
+                try await self.wait(interval)
             }
         }
     }
@@ -63,9 +63,9 @@ extension EventGenerator {
     /// - parameter altitude: The altitude of the stylus in radians where 0 is straight down.
     /// - parameter pressure: The pressure of the touch, from 0 to 1.
     public func stylusTap(at location: HammerLocatable? = nil,
-                          azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) throws
+                          azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) async throws
     {
-        try self.stylusTap(at: location, numberOfTimes: 1,
+        try await self.stylusTap(at: location, numberOfTimes: 1,
                            azimuth: azimuth, altitude: altitude, pressure: pressure)
     }
 
@@ -76,9 +76,10 @@ extension EventGenerator {
     /// - parameter altitude: The altitude of the stylus in radians where 0 is straight down.
     /// - parameter pressure: The pressure of the touch, from 0 to 1.
     public func stylusDoubleTap(at location: HammerLocatable? = nil,
-                                azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) throws
+                                azimuth: CGFloat = 0, altitude: CGFloat = 0,
+                                pressure: CGFloat = 0) async throws
     {
-        try self.stylusTap(at: location, numberOfTimes: 2,
+        try await self.stylusTap(at: location, numberOfTimes: 2,
                            azimuth: azimuth, altitude: altitude, pressure: pressure)
     }
 
@@ -91,11 +92,11 @@ extension EventGenerator {
     /// - parameter duration: The duration the touch should be on screen.
     public func stylusLongPress(at location: HammerLocatable? = nil,
                                 azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0,
-                                duration: TimeInterval = EventGenerator.longPressHoldDelay) throws
+                                duration: TimeInterval = EventGenerator.longPressHoldDelay) async throws
     {
-        try self.stylusDown(at: location, azimuth: azimuth, altitude: altitude, pressure: pressure)
-        try self.wait(duration)
-        try self.stylusUp()
+        try await self.stylusDown(at: location, azimuth: azimuth, altitude: altitude, pressure: pressure)
+        try await self.wait(duration)
+        try await self.stylusUp()
     }
 
     // MARK: - Move Actions
@@ -107,11 +108,12 @@ extension EventGenerator {
     /// - parameter altitude: The altitude of the stylus in radians where 0 is straight down.
     /// - parameter pressure: The pressure of the touch, from 0 to 1.
     public func stylusMove(to location: HammerLocatable,
-                           azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) throws
+                           azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0) async throws
     {
         let location = try location.windowHitPoint(for: self)
-        try self.sendEvent(stylus: StylusInfo(location: location, phase: .moved, pressure: pressure, twist: 0,
-                                              altitude: altitude, azimuth: azimuth), validate: true)
+        let stylus = StylusInfo(location: location, phase: .moved, pressure: pressure, twist: 0,
+                                altitude: altitude, azimuth: azimuth)
+        try await self.sendEvent(stylus: stylus, validate: true)
     }
 
     /// Sends a stylus move event, interpolating between the changes for the specified duration.
@@ -123,7 +125,7 @@ extension EventGenerator {
     /// - parameter duration: The time to interpolate between the changes.
     public func stylusMove(to location: HammerLocatable,
                            azimuth: CGFloat = 0, altitude: CGFloat = 0, pressure: CGFloat = 0,
-                           duration: TimeInterval) throws
+                           duration: TimeInterval) async throws
     {
         guard let existingStylus = self.activeTouches.stylus else {
             throw HammerError.touchForStylusDoesNotExist
@@ -136,38 +138,53 @@ extension EventGenerator {
         let startAltitude = existingStylus.altitude
         let startPressure = existingStylus.pressure
 
-        try self.performSteps(duration: duration) { progress in
+        try await self.performSteps(duration: duration) { progress in
             let nextLocation = curveInterpolation(from: startLocation, to: location, time: progress)
             let nextAzimuth = curveInterpolation(from: startAzimuth, to: azimuth, time: progress)
             let nextAltitude = curveInterpolation(from: startAltitude, to: altitude, time: progress)
             let nextPressure = curveInterpolation(from: startPressure, to: pressure, time: progress)
 
-            try self.stylusMove(to: nextLocation, azimuth: nextAzimuth,
+            try await self.stylusMove(to: nextLocation, azimuth: nextAzimuth,
                                 altitude: nextAltitude, pressure: nextPressure)
         }
     }
 
     // MARK: - Event
 
-    /// Cancels the stylus touch, without validating the window.
-    func cancelStylus() throws {
+    /// Creates an event that cancels the stylus touch.
+    ///
+    /// - throws: `HammerError.touchForStylusDoesNotExist` if the stylus is not down.
+    ///
+    /// - returns: The event to send.
+    func cancelStylusEvent() throws -> IOHIDEvent {
         guard let stylus = self.activeTouches.stylus else {
             throw HammerError.touchForStylusDoesNotExist
         }
 
-        try self.sendEvent(stylus: StylusInfo(location: stylus.location, phase: .cancelled, pressure: 0,
-                                              twist: 0, altitude: 0, azimuth: 0), validate: false)
+        return try self.stylusEvent(StylusInfo(location: stylus.location, phase: .cancelled, pressure: 0,
+                                               twist: 0, altitude: 0, azimuth: 0))
     }
 
     /// Sends a stylus event.
     ///
     /// - parameter stylus:   The event to send.
     /// - parameter validate: If the window must be ready and the location hittable.
-    private func sendEvent(stylus: StylusInfo, validate: Bool) throws {
+    private func sendEvent(stylus: StylusInfo, validate: Bool) async throws {
         if validate {
             try self.checkPointsAreHittable([stylus.location])
         }
 
+        try await self.sendEvent(self.stylusEvent(stylus))
+    }
+
+    /// Creates a stylus event and records the stylus' new state.
+    ///
+    /// - parameter stylus: The stylus for the event.
+    ///
+    /// - throws: An error if the stylus phase does not match its current state.
+    ///
+    /// - returns: The event to send.
+    private func stylusEvent(_ stylus: StylusInfo) throws -> IOHIDEvent {
         let machTime = mach_absolute_time()
         let isTouching = stylus.phase.isTouching
 
@@ -199,7 +216,7 @@ extension EventGenerator {
 
         self.debugWindow.update(stylusLocation: stylus.phase.isTouching ? stylus.location : nil)
 
-        try self.sendEvent(event, wait: true)
+        return event
     }
 
     private func identifier(for stylus: StylusInfo) throws -> UInt32 {

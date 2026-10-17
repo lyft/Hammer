@@ -1,11 +1,13 @@
 name: Hammer
 options:
   bundleIdPrefix: com.lyft
+settings:
+  SWIFT_VERSION: "6.0"
 targets:
   Hammer:
     type: framework
     platform: iOS
-    deploymentTarget: "15.0"
+    deploymentTarget: "17.0"
     sources: Sources/Hammer
     settings:
       ENABLE_TESTING_SEARCH_PATHS: true
@@ -18,7 +20,7 @@ targets:
   HammerTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "15.0"
+    deploymentTarget: "17.0"
     sources: Tests/HammerTests
     dependencies:
       - target: Hammer
@@ -26,5 +28,5 @@ targets:
   TestHost:
     type: application
     platform: iOS
-    deploymentTarget: "15.0"
+    deploymentTarget: "17.0"
     sources: TestHost

@@ -1,11 +1,11 @@
-// swift-tools-version:5.3
+// swift-tools-version:6.0
 
 import PackageDescription
 
 let package = Package(
     name: "Hammer",
     platforms: [
-        .iOS(.v12),
+        .iOS(.v17),
     ],
     products: [
         .library(name: "Hammer", targets: ["Hammer"]),
@@ -17,5 +17,6 @@ let package = Package(
         ),
         // Disabled because SPM does not support running on TestHost yet
         // .testTarget(name: "HammerTests", dependencies: ["Hammer"]),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )

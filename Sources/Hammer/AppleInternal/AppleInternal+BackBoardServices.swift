@@ -4,7 +4,7 @@ import Darwin
 private let kBackBoardServicesPath
     = "/System/Library/PrivateFrameworks/BackBoardServices.framework/BackBoardServices"
 
-struct BackBoardServices {
+struct BackBoardServices: Sendable {
     typealias CHIDEventSetDigitizerInfo = @convention(c) (
         _ digitizerEvent: IOHIDEvent, _ contextID: UInt32, _ systemGestureIsPossible: Bool,
         _ isSystemGestureStateChangeEvent: Bool, _ displayUUID: CFString?,
