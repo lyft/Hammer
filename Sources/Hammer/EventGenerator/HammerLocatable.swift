@@ -33,7 +33,7 @@ extension UIViewController: HammerLocatable {
 
 extension String: HammerLocatable {
     public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
-        return try eventGenerator.viewWithIdentifier(self).windowHitPoint(for: eventGenerator)
+        return try eventGenerator.windowHitPoint(forIdentifier: self)
     }
 }
 

@@ -44,6 +44,12 @@ extension UIDevice {
 }
 
 extension UIViewController {
+    convenience init(wrapping viewController: UIViewController, alignment: EventGenerator.WrappingAlignment) {
+        self.init(wrapping: viewController.view, alignment: alignment)
+        self.addChild(viewController)
+        viewController.didMove(toParent: self)
+    }
+
     convenience init(wrapping view: UIView, alignment: EventGenerator.WrappingAlignment) {
         self.init(nibName: nil, bundle: nil)
         view.translatesAutoresizingMaskIntoConstraints = false

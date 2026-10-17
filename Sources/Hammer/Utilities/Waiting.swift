@@ -50,7 +50,7 @@ extension EventGenerator {
         }
     }
 
-    /// Waits for a view with the specified identifier to exist within the specified time.
+    /// Waits for a view or SwiftUI element with the specified identifier to exist within the specified time.
     ///
     /// - parameter accessibilityIdentifier: The identifier of the view to wait for.
     /// - parameter timeout:                 The maximum time to wait, or nil to use `settings.waitTimeout`.
@@ -59,8 +59,7 @@ extension EventGenerator {
     public func waitUntilExists(_ accessibilityIdentifier: String,
                                 timeout: TimeInterval? = nil) async throws
     {
-        try await self.waitUntilExists(try? self.viewWithIdentifier(accessibilityIdentifier),
-                                       timeout: timeout)
+        try await self.waitUntil(self.viewExists(accessibilityIdentifier), timeout: timeout)
     }
 
     /// Waits for a view with the specified identifier to be visible within the specified time.
