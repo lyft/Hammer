@@ -156,8 +156,8 @@ extension EventGenerator {
 
     /// Runs the steps over the duration, each on its own frame, with the progress of each step from 0 to 1.
     ///
-    /// Steps are never skipped or sent together when the main thread falls behind, so gesture recognizers
-    /// see the whole path.
+    /// Steps are never skipped or sent within the same frame when the main thread falls behind, so gesture
+    /// recognizers see the whole path.
     ///
     /// - parameter duration: The time to spread the steps over.
     /// - parameter step:     The closure to run for each step, the last one with a progress of 1.
@@ -165,14 +165,19 @@ extension EventGenerator {
     /// - throws: An error if a step throws or no frame renders.
     func performSteps(duration: TimeInterval, step: (TimeInterval) async throws -> Void) async throws {
         let stepCount = max(Int((duration / EventGenerator.fingerMoveInterval).rounded(.up)), 1)
-        let start = ContinuousClock.now
+        let frames = FrameTracker.shared
+        let start = CACurrentMediaTime()
+        var lastStepFrame: Int?
         for index in 1...stepCount {
             let progress = TimeInterval(index) / TimeInterval(stepCount)
-            let stepTime = start + .seconds(duration * progress)
-            repeat {
-                try await self.waitUntilFrameIsRendered(timeout: self.settings.eventProcessingTimeout)
-            } while ContinuousClock.now < stepTime
+            let stepTime = start + duration * progress
 
+            // UIKit handles events once per frame, so each step goes out on the first frame due at its time
+            while frames.frameCount == lastStepFrame || frames.nextFrameTime < stepTime {
+                try await self.waitUntilFrameIsRendered(timeout: self.settings.eventProcessingTimeout)
+            }
+
+            lastStepFrame = frames.frameCount
             try await step(progress)
         }
     }
