@@ -121,7 +121,17 @@ extension EventGenerator {
         }
     }
 
-    /// Returns if the specified view is visible.
+    /// Returns if a view or SwiftUI element with the specified identifier exists.
+    ///
+    /// - parameter accessibilityIdentifier: The identifier to check.
+    ///
+    /// - returns: If the view or element exists
+    public func viewExists(_ accessibilityIdentifier: String) -> Bool {
+        return (try? self.viewWithIdentifier(accessibilityIdentifier)) != nil
+            || self.accessibilityElement(withIdentifier: accessibilityIdentifier) != nil
+    }
+
+    /// Returns if the specified view or SwiftUI element is visible.
     ///
     /// NOTE: This will also return false if the view for the accessibility identifier is not found.
     ///
@@ -130,11 +140,15 @@ extension EventGenerator {
     ///
     /// - returns: If the view is visible
     public func viewIsVisible(_ accessibilityIdentifier: String, visibility: Visibility = .partial) -> Bool {
-        guard let view = try? self.viewWithIdentifier(accessibilityIdentifier) else {
+        if let view = try? self.viewWithIdentifier(accessibilityIdentifier) {
+            return self.viewIsVisible(view, visibility: visibility)
+        }
+
+        guard let element = self.accessibilityElement(withIdentifier: accessibilityIdentifier) else {
             return false
         }
 
-        return self.viewIsVisible(view, visibility: visibility)
+        return self.elementIsVisible(element, visibility: visibility)
     }
 
     /// Returns if the specified view is visible.
@@ -166,21 +180,31 @@ extension EventGenerator {
         return self.window.bounds.contains(point)
     }
 
-    /// Returns if the specified view is hittable.
+    /// Returns if the specified view or SwiftUI element is hittable.
     ///
     /// NOTE: This will also return false if the view for the accessibility identifier is not found.
     ///
     /// - parameter accessibilityIdentifier: The identifier to check.
     /// - parameter point:                   A point to check if hittable in the view's coordinate space. If
-    ///                                      nil, it will use the center of the view's visible area.
+    ///                                      nil, it will use the center of the view's visible area, or the
+    ///                                      activation point of a SwiftUI element.
     ///
     /// - returns: If the view is hittable
     public func viewIsHittable(_ accessibilityIdentifier: String, atPoint point: CGPoint? = nil) -> Bool {
-        guard let view = try? self.viewWithIdentifier(accessibilityIdentifier) else {
+        if let view = try? self.viewWithIdentifier(accessibilityIdentifier) {
+            return self.viewIsHittable(view, atPoint: point)
+        }
+
+        guard let element = self.accessibilityElement(withIdentifier: accessibilityIdentifier),
+              self.elementIsVisible(element, visibility: .partial)
+        else {
             return false
         }
 
-        return self.viewIsHittable(view, atPoint: point)
+        let elementOrigin = element.frame(in: self.window).origin
+        let windowPoint = point.map { CGPoint(x: elementOrigin.x + $0.x, y: elementOrigin.y + $0.y) }
+            ?? self.internalWindowHitPoint(forElement: element)
+        return self.elementIsHittable(element, atWindowPoint: windowPoint)
     }
 
     /// Returns if the specified view is hittable.
@@ -289,6 +313,96 @@ extension EventGenerator {
         }
 
         return self.internalWindowHitPoint(forView: view)
+    }
+
+    /// Returns a valid hittable point for the view or SwiftUI element with the specified identifier.
+    ///
+    /// - parameter accessibilityIdentifier: The identifier of the view or element to hit.
+    ///
+    /// - throws: And error if the view or element is not found, not visible or not hittable.
+    ///
+    /// - returns: The hittable point in window coordinates
+    public func windowHitPoint(forIdentifier accessibilityIdentifier: String) throws -> CGPoint {
+        if let view = try? self.viewWithIdentifier(accessibilityIdentifier) {
+            return try self.windowHitPoint(forView: view)
+        }
+
+        try self.checkWindowIsReady()
+
+        guard let element = self.accessibilityElement(withIdentifier: accessibilityIdentifier) else {
+            throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
+        }
+
+        guard self.elementIsVisible(element, visibility: .partial) else {
+            throw HammerError.elementIsNotVisible(identifier: accessibilityIdentifier)
+        }
+
+        let windowPoint = self.internalWindowHitPoint(forElement: element)
+        guard self.elementIsHittable(element, atWindowPoint: windowPoint) else {
+            throw HammerError.elementIsNotHittable(identifier: accessibilityIdentifier)
+        }
+
+        return windowPoint
+    }
+
+    /// Returns if touches at the point reach the view the SwiftUI element belongs to.
+    ///
+    /// - parameter element:     The element to check.
+    /// - parameter windowPoint: The point in window coordinates.
+    ///
+    /// - returns: If the element is hittable at the point
+    private func elementIsHittable(_ element: AccessibilityElement,
+                                   atWindowPoint windowPoint: CGPoint) -> Bool
+    {
+        let containerView = element.containerView
+        let point = containerView.convert(windowPoint, from: self.window)
+        return self.viewIsHittable(containerView, atPoint: point)
+    }
+
+    /// Returns if the SwiftUI element is visible, including within the views that clip it.
+    ///
+    /// - parameter element:    The element to check.
+    /// - parameter visibility: How determine if the element is visible.
+    ///
+    /// - returns: If the element is visible
+    private func elementIsVisible(_ element: AccessibilityElement, visibility: Visibility) -> Bool {
+        guard self.viewIsVisible(element.containerView) else {
+            return false
+        }
+
+        return self.visibleBounds(of: element.containerView)
+            .isVisible(element.frame(in: self.window), visibility: visibility)
+    }
+
+    /// Returns the part of the window the view's content can show in, after its ancestors clip it.
+    ///
+    /// - parameter view: The view to check.
+    ///
+    /// - returns: The visible bounds in window coordinates
+    private func visibleBounds(of view: UIView) -> CGRect {
+        var bounds = self.window.bounds
+        var currentView: UIView? = view
+        while let clippingView = currentView, clippingView !== self.window {
+            if clippingView.clipsToBounds {
+                bounds = bounds.intersection(clippingView.convert(clippingView.bounds, to: self.window))
+            }
+
+            currentView = clippingView.superview
+        }
+
+        return bounds
+    }
+
+    /// Returns the point that taps the SwiftUI element without any validation, such as a toggle's switch.
+    ///
+    /// - parameter element: The element to hit
+    ///
+    /// - returns: A possible hittable point in window coordinates
+    private func internalWindowHitPoint(forElement element: AccessibilityElement) -> CGPoint {
+        let activationPoint = element.activationPoint(in: self.window)
+        let visibleFrame = self.visibleBounds(of: element.containerView)
+            .intersection(element.frame(in: self.window))
+        return visibleFrame.contains(activationPoint) ? activationPoint : visibleFrame.center
     }
 
     /// Returns a possible hittable point in the specified view without any validation.

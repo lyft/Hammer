@@ -86,6 +86,9 @@ let eventGenerator = try await EventGenerator(view: myView)
 
 // Initialize for a UIViewController, automatically wrapping it in a temporary window.
 let eventGenerator = try await EventGenerator(viewController: myViewController)
+
+// Initialize for a SwiftUI view, automatically hosting it in a temporary window.
+let eventGenerator = try await EventGenerator(view: MySwiftUIView())
 ```
 
 When simulating finger or stylus touches, there are multiple ways of specifying a touch location:
@@ -93,7 +96,7 @@ When simulating finger or stylus touches, there are multiple ways of specifying 
 1. Default: If you don't specify a location it will use the center of the screen.
 2. Point: A CGPoint in screen coordinates.
 3. View: A reference to a UIView or UIViewController, the location will be the center of the visible part of the view.
-4. Identifier: An accessibility identifier string of a view, the location will be the center of the visible part of the view.
+4. Identifier: An accessibility identifier string of a view or SwiftUI element, the location will be the center of the visible part of the view, or the activation point of the SwiftUI element.
 
 By default, Hammer will display simulated touches over the view. You can change this behavior for your event generator.
 
@@ -197,6 +200,23 @@ try await eventGenerator.fingerDown(at: "my_draggable_object")
 try await eventGenerator.fingerMove(to: "drop_target", duration: 0.5)
 try await eventGenerator.fingerUp()
 ```
+
+### SwiftUI
+
+SwiftUI views don't create a UIView for every element, so Hammer finds them through their accessibility elements instead. Give the elements you want to interact with an accessibility identifier and use it as the location, or to wait for them.
+
+```swift
+Toggle("Notifications", isOn: $isOn)
+    .accessibilityIdentifier("notifications_toggle")
+```
+
+```swift
+let eventGenerator = try await EventGenerator(view: SettingsView())
+try await eventGenerator.fingerTap(at: "notifications_toggle")
+try await eventGenerator.waitUntilVisible("saved_label")
+```
+
+A tap on an element uses its activation point, so a toggle is tapped on its switch. An element scrolled out of view is not visible, and tapping it throws.
 
 ### Waiting
 
