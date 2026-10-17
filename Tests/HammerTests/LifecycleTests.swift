@@ -88,6 +88,20 @@ final class LifecycleTests: XCTestCase {
         }
     }
 
+    func testOlderEventGeneratorThrowsWhileNewerIsActive() async throws {
+        let olderGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
+        let newerGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
+
+        do {
+            try await olderGenerator.fingerTap()
+            XCTFail("The older event generator should not send events")
+        } catch HammerError.anotherEventGeneratorIsActive {
+        }
+
+        try await newerGenerator.finish()
+        try await olderGenerator.fingerTap()
+    }
+
     func testSettingsArePerEventGenerator() async throws {
         let eventGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
         eventGenerator.settings.waitTimeout = 0.1

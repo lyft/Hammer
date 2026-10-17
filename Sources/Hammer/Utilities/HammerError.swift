@@ -6,6 +6,7 @@ public enum HammerError: Error, @unchecked Sendable {
     case windowIsNotKey
     case eventProcessingTimeout(TimeInterval)
     case eventGeneratorIsFinished
+    case anotherEventGeneratorIsActive
 
     case deviceDoesNotSupportTouches
     case deviceDoesNotSupportStylus
@@ -54,6 +55,11 @@ extension HammerError: CustomStringConvertible {
             return "UIKit did not process the generated event within \(timeout) seconds"
         case .eventGeneratorIsFinished:
             return "The event generator is finished and cannot send more events"
+        case .anotherEventGeneratorIsActive:
+            return """
+                An event generator created after this one is still active. Finish or release it before \
+                sending events with this one, and run tests that use Hammer serially.
+                """
         case .deviceDoesNotSupportTouches:
             return "Device does not support touches"
         case .deviceDoesNotSupportStylus:

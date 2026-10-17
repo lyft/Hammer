@@ -121,6 +121,8 @@ extension EventGenerator {
             throw HammerError.eventGeneratorIsFinished
         }
 
+        try self.checkIsLatestActiveGenerator()
+
         if let reason = self.windowNotReadyReason {
             throw HammerError.windowIsNotReadyForInteraction(reason: reason)
         }

@@ -94,12 +94,12 @@ private final class HammerViewController: UIViewController {
 }
 
 extension UIWindow {
-    func makeVisibleAndKey(file: StaticString = #file, line: UInt = #line) {
+    func makeVisibleAndKey(file: StaticString = #fileID, line: UInt = #line) {
         self.addToMainSceneIfNeeded(file: file, line: line)
         self.makeKeyAndVisible()
     }
 
-    func addToMainSceneIfNeeded(file: StaticString = #file, line: UInt = #line) {
+    func addToMainSceneIfNeeded(file: StaticString = #fileID, line: UInt = #line) {
         guard self.windowScene == nil else {
             return
         }
@@ -113,7 +113,6 @@ extension UIWindow {
 
     func removeFromScene(removeViewController: Bool = true) {
         self.isHidden = true
-
         self.windowScene = nil
 
         if removeViewController {

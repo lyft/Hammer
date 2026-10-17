@@ -179,16 +179,14 @@ extension EventGenerator {
 
     // MARK: - System waiting
 
-    /// Waits for the main runloop is flushed and all scheduled tasks have executed.
+    /// Waits until the main run loop finishes its current pass, so the work scheduled so far has run.
     ///
     /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
     ///
     /// - throws: An error if the runloop is not flushed within the specified time.
     public func waitUntilRunloopIsFlushed(timeout: TimeInterval? = nil) async throws {
         try await self.waitForCompletion(timeout: timeout ?? self.settings.waitTimeout) { complete in
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated(complete)
-            }
+            self.afterRunLoopPass(complete)
         }
     }
 

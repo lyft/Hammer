@@ -5,6 +5,9 @@ import UIKit
 @MainActor
 private enum Storage {
     static var latestEventId: UInt32 = 0
+
+    /// The event generators that are not finished, oldest first.
+    static var activeGenerators = [ObjectIdentifier]()
 }
 
 /// Class for generating fake User Interaction events.
@@ -60,6 +63,7 @@ public final class EventGenerator {
         self.window.layoutIfNeeded()
         self.debugWindow.frame = self.window.frame
 
+        Storage.activeGenerators.append(ObjectIdentifier(self))
         UIApplication.swizzle()
         UIApplication.register(ObjectIdentifier(self), hidEventCallback: { event in
             EventGenerator.markerEventReceived(event)
@@ -205,6 +209,14 @@ public final class EventGenerator {
         app.enqueue(event)
     }
 
+    /// Throws if an event generator created after this one is still active, since their windows overlap and
+    /// touches would reach the wrong one.
+    func checkIsLatestActiveGenerator() throws {
+        if Storage.activeGenerators.last != ObjectIdentifier(self) {
+            throw HammerError.anotherEventGeneratorIsActive
+        }
+    }
+
     /// Waits until UIKit has processed all the events sent so far.
     ///
     /// - throws: `HammerError.eventProcessingTimeout` if UIKit did not process the events in time.
@@ -240,6 +252,7 @@ public final class EventGenerator {
     }
 
     private func removeFromApplication() {
+        Storage.activeGenerators.removeAll { $0 == ObjectIdentifier(self) }
         UIApplication.unregister(ObjectIdentifier(self))
         self.debugWindow.removeFromScene()
         if let window = self.window as? HammerWindow {
