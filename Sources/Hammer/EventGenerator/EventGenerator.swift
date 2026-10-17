@@ -182,8 +182,9 @@ public final class EventGenerator {
     func waitForEvents() async throws {
         let timeout = EventGenerator.settings.eventProcessingTimeout
         do {
+            // UIKit reacts to some events, such as by toggling a switch, at the end of the run loop pass
             try await self.waitForCompletion(timeout: timeout) { complete in
-                try self.sendMarkerEvent(withCompletionBlock: complete)
+                try self.sendMarkerEvent { self.afterRunLoopPass(complete) }
             }
         } catch HammerError.waitConditionTimeout {
             throw HammerError.eventProcessingTimeout(timeout)

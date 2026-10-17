@@ -224,6 +224,19 @@ extension EventGenerator {
         }
     }
 
+    /// Calls the closure once the main run loop finishes its current pass, after UIKit's own work at the end
+    /// of the pass, such as updating gesture recognizers.
+    ///
+    /// - parameter body: The closure to call.
+    func afterRunLoopPass(_ body: @escaping @MainActor () -> Void) {
+        let activities = CFRunLoopActivity([.beforeWaiting, .exit]).rawValue
+        let observer = CFRunLoopObserverCreateWithHandler(nil, activities, false, CFIndex.max) { _, _ in
+            MainActor.assumeIsolated(body)
+        }
+
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+    }
+
     /// Waits until the closure passed to `start` is called.
     ///
     /// - parameter timeout: The maximum time to wait for the completion.
