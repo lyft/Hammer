@@ -1,9 +1,15 @@
 import Foundation
+import os
+
+// Tests set this from any context, such as a nonisolated `setUp`
+private let kSettings = OSAllocatedUnfairLock(initialState: EventGenerator.Settings())
 
 extension EventGenerator {
     /// The settings each new event generator starts with.
-    @MainActor
-    public static var settings = Settings()
+    nonisolated public static var settings: Settings {
+        get { kSettings.withLock { $0 } }
+        set { kSettings.withLock { $0 = newValue } }
+    }
 
     /// Setting values for event generators
     public struct Settings: Sendable {
