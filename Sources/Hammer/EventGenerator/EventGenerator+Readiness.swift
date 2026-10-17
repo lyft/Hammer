@@ -117,6 +117,10 @@ extension EventGenerator {
 
     /// Throws if the window is not ready to receive user interaction events.
     func checkWindowIsReady() throws {
+        guard !self.isFinished else {
+            throw HammerError.eventGeneratorIsFinished
+        }
+
         if let reason = self.windowNotReadyReason {
             throw HammerError.windowIsNotReadyForInteraction(reason: reason)
         }

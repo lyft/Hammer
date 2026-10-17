@@ -274,11 +274,11 @@ extension EventGenerator {
     ///
     /// - returns: If the view is hittable
     public func windowHitPoint(forView view: UIView) throws -> CGPoint {
+        try self.checkWindowIsReady()
+
         guard view.isDescendant(of: self.window) else {
             throw HammerError.viewIsNotInHierarchy(view)
         }
-
-        try self.checkWindowIsReady()
 
         guard self.viewIsVisible(view) else {
             throw HammerError.viewIsNotVisible(view)

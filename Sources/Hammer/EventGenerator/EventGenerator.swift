@@ -34,7 +34,7 @@ public final class EventGenerator {
     var pressedKeys = Set<KeyboardKey>()
     var debugWindow = DebugVisualizerWindow()
     var isAccessibilityActivated = false
-    private var isFinished = false
+    private(set) var isFinished = false
 
     /// The touches UIKit began delivering to the window since the last event was sent.
     var deliveredBeganTouches = [UITouch]()
@@ -192,10 +192,6 @@ public final class EventGenerator {
     ///
     /// - parameter event: The event to send.
     func enqueueEvent(_ event: IOHIDEvent) throws {
-        guard !self.isFinished else {
-            throw HammerError.eventGeneratorIsFinished
-        }
-
         guard let window = self.window as? UIWindow & UIWindowPrivate else {
             throw HammerError.unableToAccessPrivateApi(type: "UIWindow", method: "Protocol")
         }
