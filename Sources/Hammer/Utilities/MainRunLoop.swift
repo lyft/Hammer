@@ -12,9 +12,9 @@ enum MainRunLoop {
     /// - returns: If the condition became true.
     @discardableResult
     static func run(until condition: () -> Bool, timeout: TimeInterval?) -> Bool {
-        let deadline = timeout.map { ContinuousClock.now + .seconds($0) }
+        let deadline = timeout.map(Deadline.init(timeout:))
         while !condition() {
-            if let deadline, ContinuousClock.now >= deadline {
+            if let deadline, deadline.hasPassed {
                 return false
             }
 

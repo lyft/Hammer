@@ -36,13 +36,13 @@ extension EventGenerator {
                                    timeout: TimeInterval? = nil) async throws -> T
     {
         let timeout = timeout ?? self.settings.waitTimeout
-        let deadline = ContinuousClock.now + .seconds(timeout)
+        let deadline = Deadline(timeout: timeout)
         while true {
             if let element = try exists() {
                 return element
             }
 
-            if ContinuousClock.now >= deadline {
+            if deadline.hasPassed {
                 throw HammerError.waitConditionTimeout(timeout)
             }
 
@@ -210,9 +210,9 @@ extension EventGenerator {
     /// - parameter deadline: The latest time to wait until.
     ///
     /// - throws: `CancellationError` if the task is cancelled while waiting.
-    func waitForNextFrame(before deadline: ContinuousClock.Instant) async throws {
+    func waitForNextFrame(before deadline: Deadline) async throws {
         do {
-            try await self.waitUntilFrameIsRendered(timeout: max((deadline - .now).timeInterval, 0))
+            try await self.waitUntilFrameIsRendered(timeout: deadline.remaining)
         } catch HammerError.waitConditionTimeout {
             return
         }
@@ -233,7 +233,7 @@ extension EventGenerator {
 
     /// Waits until the closure passed to `start` is called.
     ///
-    /// - parameter timeout: The maximum time to wait for the completion.
+    /// - parameter timeout: The maximum app time to wait for the completion.
     /// - parameter start:   Starts the work, receiving the closure to call once it completes.
     ///
     /// - throws: `HammerError.waitConditionTimeout` if the completion was not called in time,
@@ -244,6 +244,20 @@ extension EventGenerator {
         try Task.checkCancellation()
 
         let completion = Completion()
+        let deadline = Deadline(timeout: timeout)
+        func scheduleTimeout() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + deadline.remaining) {
+                MainActor.assumeIsolated {
+                    // A stall while waiting moves the deadline later
+                    guard deadline.hasPassed else {
+                        return scheduleTimeout()
+                    }
+
+                    completion.resume(with: .failure(HammerError.waitConditionTimeout(timeout)))
+                }
+            }
+        }
+
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 completion.continuation = continuation
@@ -254,11 +268,7 @@ extension EventGenerator {
                     return
                 }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-                    MainActor.assumeIsolated {
-                        completion.resume(with: .failure(HammerError.waitConditionTimeout(timeout)))
-                    }
-                }
+                scheduleTimeout()
             }
         } onCancel: {
             Task { @MainActor in
@@ -276,11 +286,5 @@ private final class Completion {
     func resume(with result: Result<Void, Error>) {
         self.continuation?.resume(with: result)
         self.continuation = nil
-    }
-}
-
-extension Duration {
-    var timeInterval: TimeInterval {
-        TimeInterval(self.components.seconds) + TimeInterval(self.components.attoseconds) * 1e-18
     }
 }

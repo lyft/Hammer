@@ -12,6 +12,9 @@ extension EventGenerator {
     }
 
     /// Setting values for event generators
+    ///
+    /// Timeouts leave out the time the main thread is stalled without running, such as on an overloaded CI
+    /// machine, so they only count the time the app had to respond.
     public struct Settings: Sendable {
         /// The delay to wait after activating the accessibility engine.
         public var accessibilityActivateDelay: TimeInterval = 0.02

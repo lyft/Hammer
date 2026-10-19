@@ -135,11 +135,9 @@ extension EventGenerator {
     ///
     /// - throws: `HammerError.windowIsNotReadyForInteraction` with the check that did not pass.
     public func waitUntilWindowIsReady(timeout: TimeInterval? = nil) async throws {
-        var deadline = ContinuousClock.now + .seconds(timeout ?? self.settings.windowReadyTimeout)
-        let remaining = { max((deadline - .now).timeInterval, 0) }
-
+        var deadline = Deadline(timeout: timeout ?? self.settings.windowReadyTimeout)
         while let reason = self.windowNotReadyReason {
-            if remaining() == 0 {
+            if deadline.hasPassed {
                 throw HammerError.windowIsNotReadyForInteraction(reason: reason)
             }
 
@@ -148,24 +146,24 @@ extension EventGenerator {
         }
 
         // The accessibility warm up is a fixed delay, so it does not count against the timeout
-        let accessibilityStart = ContinuousClock.now
+        let accessibilityStart = FrameTracker.shared.appTime
         try await self.waitUntilAccessibilityActivate()
-        deadline += .now - accessibilityStart
+        deadline.extend(by: FrameTracker.shared.appTime - accessibilityStart)
 
         if self.settings.waitForFrameRender {
             try await self.waitUntilReady(.frameWasNotRendered) {
-                try await self.waitUntilFrameIsRendered(timeout: remaining())
+                try await self.waitUntilFrameIsRendered(timeout: deadline.remaining)
             }
         }
 
         if self.settings.waitForAnimations {
             try await self.waitUntilReady(.animationsAreRunning) {
-                try await self.waitUntilAnimationsAreFinished(timeout: remaining())
+                try await self.waitUntilAnimationsAreFinished(timeout: deadline.remaining)
             }
         }
 
         try await self.waitUntilReady(.runLoopIsBusy) {
-            try await self.waitUntilRunloopIsFlushed(timeout: remaining())
+            try await self.waitUntilRunloopIsFlushed(timeout: deadline.remaining)
         }
     }
 

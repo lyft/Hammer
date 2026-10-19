@@ -122,4 +122,36 @@ final class WaitingTests: XCTestCase {
 
         await self.fulfillment(of: [expectation], timeout: 1)
     }
+
+    func testTimeoutLeavesOutBlockedMainThread() async throws {
+        let eventGenerator = try await EventGenerator(view: UIView())
+
+        var isDone = false
+        DispatchQueue.main.async {
+            usleep(1_000_000)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isDone = true
+            }
+        }
+
+        try await eventGenerator.waitUntil(isDone, timeout: 0.5)
+    }
+
+    func testTimeoutCountsBusyMainThread() async throws {
+        let eventGenerator = try await EventGenerator(view: UIView())
+
+        var isDone = false
+        DispatchQueue.main.async {
+            let end = CACurrentMediaTime() + 1
+            while CACurrentMediaTime() < end {}
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isDone = true
+            }
+        }
+
+        do {
+            try await eventGenerator.waitUntil(isDone, timeout: 0.5)
+            XCTFail("Time the main thread is busy should count against the timeout")
+        } catch HammerError.waitConditionTimeout {}
+    }
 }

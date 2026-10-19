@@ -220,7 +220,7 @@ A tap on an element uses its activation point, so a toggle is tapped on its swit
 
 ### Waiting
 
-You will often need to wait for the simulator to finish displaying something on the screen or for an animation to end. Hammer provides multiple methods to wait until a view is visible on screen or if a control is hittable. They check every frame, and wait up to `settings.waitTimeout` unless you pass a timeout.
+You will often need to wait for the simulator to finish displaying something on the screen or for an animation to end. Hammer provides multiple methods to wait until a view is visible on screen or if a control is hittable. They check every frame, and wait up to `settings.waitTimeout` unless you pass a timeout. Timeouts leave out the time the main thread is stalled without running, such as on an overloaded CI machine, so they only count the time the app had to respond.
 
 ```swift
 try await eventGenerator.waitUntilVisible("my_label")
