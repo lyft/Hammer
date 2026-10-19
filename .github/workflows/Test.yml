@@ -12,6 +12,8 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
+      - name: Load simulators
+        run: xcrun simctl list devices available
       - name: Install iOS 17 simulator
         run: |
           set -o pipefail
