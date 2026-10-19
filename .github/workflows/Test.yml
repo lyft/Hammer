@@ -1,53 +1,9 @@
 name: Test
 on:
   pull_request:
-  push:
-    branches:
-    - main
 jobs:
-  test_ipad:
-    name: Test-iPad
-    runs-on: xcode-27
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Force Xcode 27.0
-        run: sudo xcode-select -switch /Applications/Xcode_27.0.app
-      - name: Make project
-        run: make generate
-      - name: Load simulators
-        run: xcrun simctl list devices available
-      - name: Run tests
-        run: make test-iPad
-      - name: Upload test results
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-iPad.xcresult
-          path: build/test-iPad.xcresult
-  test_iphone:
-    name: Test-iPhone
-    runs-on: xcode-27
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Force Xcode 27.0
-        run: sudo xcode-select -switch /Applications/Xcode_27.0.app
-      - name: Make project
-        run: make generate
-      - name: Load simulators
-        run: xcrun simctl list devices available
-      - name: Run tests
-        run: make test-iPhone
-      - name: Upload test results
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-iPhone.xcresult
-          path: build/test-iPhone.xcresult
-  test_iphone_ios17:
-    name: Test-iPhone-iOS17
-    # Xcode 27 can no longer download the iOS 17 simulator
+  trace_iphone_ios17:
+    name: Trace-iPhone-iOS17
     runs-on: macos-26
     steps:
       - name: Checkout
@@ -56,18 +12,44 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_26.6.app
       - name: Make project
         run: make generate
-      - name: Load simulators
-        run: xcrun simctl list devices available
       - name: Install iOS 17 simulator
-        # The download progress is printed as a new line per update outside a terminal
         run: |
           set -o pipefail
           xcodebuild -downloadPlatform iOS -buildVersion 17.5 | sed '/^Downloading/d'
-      - name: Run tests
-        run: make test-iPhone-iOS17
-      - name: Upload test results
-        if: failure()
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild -project Hammer.xcodeproj -scheme Hammer \
+            -destination "platform=iOS Simulator,name=iPhone 15,OS=17.5" \
+            build-for-testing CODE_SIGNING_ALLOWED=NO | xcbeautify
+      - name: Run the first tests three times on the same simulator
+        run: |
+          mkdir -p build/trace
+          for run in 1 2 3; do
+            if [ "$run" = 1 ]; then
+              (
+                for _ in $(seq 1 600); do
+                  pid=$(pgrep -n TestHost) && break
+                  sleep 0.1
+                done
+                echo "sampling TestHost pid $pid"
+                sample "$pid" 30 1 -file build/trace/sample-run1.txt > /dev/null 2>&1
+              ) &
+            fi
+
+            echo "::group::Run $run"
+            xcodebuild -project Hammer.xcodeproj -scheme Hammer \
+              -destination "platform=iOS Simulator,name=iPhone 15,OS=17.5" \
+              -only-testing:HammerTests/DragTests -only-testing:HammerTests/HandTests \
+              test-without-building CODE_SIGNING_ALLOWED=NO > "build/trace/run$run.log" 2>&1 || true
+            grep -E "HAMMERTRACE|Test Case .*(passed|failed)|error:|Activating accessibility" "build/trace/run$run.log" \
+              | sed -E 's/^.*HAMMERTRACE /TRACE /' | head -400
+            echo "::endgroup::"
+          done
+          wait
+      - name: Upload traces
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-iPhone-iOS17.xcresult
-          path: build/test-iPhone-iOS17.xcresult
+          name: trace-iPhone-iOS17
+          path: build/trace

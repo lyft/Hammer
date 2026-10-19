@@ -11,6 +11,8 @@ final class FrameTracker {
     /// The number of frames rendered so far.
     private(set) var frameCount = 0
 
+    private var lastFrameTime: CFTimeInterval = 0
+
     /// When the next frame is due, in `CACurrentMediaTime` seconds.
     private(set) var nextFrameTime: CFTimeInterval = 0
 
@@ -30,6 +32,12 @@ final class FrameTracker {
 
     @objc
     private func displayLinkCallback() {
+        let now = CACurrentMediaTime()
+        if self.lastFrameTime > 0, now - self.lastFrameTime > 0.05 {
+            Trace.log(String(format: "frame gap %.3fs", now - self.lastFrameTime))
+        }
+
+        self.lastFrameTime = now
         self.frameCount += 1
         self.nextFrameTime = self.displayLink?.targetTimestamp ?? 0
 

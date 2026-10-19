@@ -58,6 +58,8 @@ public final class EventGenerator {
     /// - parameter window:   The window to receive events.
     /// - parameter mainView: The view that was used to create the event generator
     init(window: UIWindow, mainView: UIView) {
+        _ = Trace.watchdog
+        Trace.log("init generator")
         self.window = window
         self.mainView = mainView
         self.window.layoutIfNeeded()
@@ -66,6 +68,7 @@ public final class EventGenerator {
         Storage.activeGenerators.append(ObjectIdentifier(self))
         UIApplication.swizzle()
         UIApplication.register(ObjectIdentifier(self), hidEventCallback: { event in
+            Trace.log("hid received type=\(IOHID.shared.eventGetType(event))")
             EventGenerator.markerEventReceived(event)
         }, uiEventCallback: { [weak self] event in
             self?.eventDispatched(event)
@@ -205,6 +208,7 @@ public final class EventGenerator {
         }
 
         BackBoardServices.shared.eventSetDigitizerInfo(event, window.contextId, false, false, nil, 0, 0)
+        Trace.log("enqueue type=\(IOHID.shared.eventGetType(event))")
 
         app.enqueue(event)
     }
@@ -225,9 +229,16 @@ public final class EventGenerator {
         do {
             // UIKit reacts to some events, such as by toggling a switch, at the end of the run loop pass
             try await self.waitForCompletion(timeout: timeout) { complete in
-                try self.sendMarkerEvent { self.afterRunLoopPass(complete) }
+                try self.sendMarkerEvent {
+                    Trace.log("marker received")
+                    self.afterRunLoopPass {
+                        Trace.log("after run loop pass")
+                        complete()
+                    }
+                }
             }
         } catch HammerError.waitConditionTimeout {
+            Trace.log("event processing timeout")
             throw HammerError.eventProcessingTimeout(timeout)
         }
     }

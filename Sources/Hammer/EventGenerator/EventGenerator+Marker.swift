@@ -8,6 +8,7 @@ extension EventGenerator {
 
     func sendMarkerEvent(withCompletionBlock completion: @escaping CompletionHandler) throws {
         let eventId = self.nextEventId()
+        Trace.log("marker sent id=\(eventId)")
         EventGenerator.markerCallbacks[eventId] = completion
 
         let eventIdBytes = withUnsafeBytes(of: Int(eventId), Array.init)

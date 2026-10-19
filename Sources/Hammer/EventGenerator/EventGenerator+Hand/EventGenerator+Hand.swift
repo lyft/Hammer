@@ -522,6 +522,7 @@ extension EventGenerator {
     ///
     /// - parameter event: The event UIKit is about to dispatch.
     func eventDispatched(_ event: UIEvent) {
+        Trace.log("ui event dispatched type=\(event.type.rawValue)")
         guard event.type == .touches else {
             return
         }

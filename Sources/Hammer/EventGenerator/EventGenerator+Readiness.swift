@@ -138,7 +138,10 @@ extension EventGenerator {
         var deadline = ContinuousClock.now + .seconds(timeout ?? self.settings.windowReadyTimeout)
         let remaining = { max((deadline - .now).timeInterval, 0) }
 
+        Trace.log("readiness start")
+        defer { Trace.log("readiness end") }
         while let reason = self.windowNotReadyReason {
+            Trace.log("not ready: \(reason)")
             if remaining() == 0 {
                 throw HammerError.windowIsNotReadyForInteraction(reason: reason)
             }
@@ -217,6 +220,8 @@ extension EventGenerator {
             return
         }
 
+        Trace.log("accessibility activate start")
+        defer { Trace.log("accessibility activate end") }
         UIApplication.shared.accessibilityActivate()
         if self.isAccessibilityActivated {
             return
