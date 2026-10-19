@@ -24,13 +24,21 @@ jobs:
           xcodebuild -project Hammer.xcodeproj -scheme Hammer \
             -destination "platform=iOS Simulator,name=iPhone 15,OS=17.5" \
             build-for-testing CODE_SIGNING_ALLOWED=NO | xcbeautify
-      - name: Run the first tests three times on the same simulator
+      - name: Start load logging
         run: |
           mkdir -p build/trace
+          nohup bash -c 'while true; do echo "== $(date +%H:%M:%S) $(uptime | sed "s/.*load/load/")"; ps -A -o %cpu=,comm= | sort -rn | head -8; sleep 3; done' > build/trace/load.txt 2>&1 &
+      - name: Boot the simulator and wait for it
+        run: |
+          udid=$(xcrun simctl list devices "iOS 17.5" | grep -m1 "iPhone 15 (" | grep -oE "[0-9A-F-]{36}")
+          echo "booting $udid"
+          time xcrun simctl bootstatus "$udid" -b
+          uptime
+      - name: Run the first tests three times on the same simulator
+        run: |
           for run in 1 2 3; do
             if [ "$run" = 1 ]; then
               sample TestHost 45 5 -wait -mayDie -file build/trace/sample-run1.txt > build/trace/sample-run1.out 2>&1 &
-              (for _ in $(seq 1 120); do date "+%H:%M:%S"; uptime; sleep 1; done) > build/trace/load-run1.txt &
             fi
 
             echo "::group::Run $run"
