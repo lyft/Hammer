@@ -29,14 +29,8 @@ jobs:
           mkdir -p build/trace
           for run in 1 2 3; do
             if [ "$run" = 1 ]; then
-              (
-                for _ in $(seq 1 600); do
-                  pid=$(pgrep -n TestHost) && break
-                  sleep 0.1
-                done
-                echo "sampling TestHost pid $pid"
-                sample "$pid" 30 1 -file build/trace/sample-run1.txt > /dev/null 2>&1
-              ) &
+              sample TestHost 45 5 -wait -mayDie -file build/trace/sample-run1.txt > build/trace/sample-run1.out 2>&1 &
+              (for _ in $(seq 1 120); do date "+%H:%M:%S"; uptime; sleep 1; done) > build/trace/load-run1.txt &
             fi
 
             echo "::group::Run $run"
