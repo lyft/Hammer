@@ -459,12 +459,25 @@ extension EventGenerator {
 
     /// Creates a hand event and records the fingers' new state.
     ///
-    /// - parameter hand: The fingers for the event.
+    /// Fingers that are down but not in the event are added as stationary, since UIKit ends any touch
+    /// that a hand event leaves out.
+    ///
+    /// - parameter hand: The fingers that changed.
     ///
     /// - throws: An error if a finger's phase does not match its current state.
     ///
     /// - returns: The event to send.
     private func handEvent(_ hand: HandInfo) throws -> IOHIDEvent {
+        let changedIndices = hand.fingers.map(\.fingerIndex)
+        let stationaryFingers = self.activeTouches.fingers
+            .filter { !changedIndices.contains($0.fingerIndex) }
+            .map { finger in
+                FingerInfo(fingerIndex: finger.fingerIndex, location: finger.location, phase: .stationary,
+                           pressure: finger.pressure, twist: finger.twist,
+                           majorRadius: finger.majorRadius, minorRadius: finger.minorRadius)
+            }
+        let hand = HandInfo(fingers: hand.fingers + stationaryFingers)
+
         let machTime = mach_absolute_time()
         let isTouching = hand.isTouching
 
@@ -487,7 +500,7 @@ extension EventGenerator {
                 finger.eventMask.rawValue,
                 finger.location.x, finger.location.y, 0,
                 finger.pressure, finger.twist,
-                isTouching, isTouching,
+                finger.isTouching, finger.isTouching,
                 kIOHIDEventOptionNone)
 
             IOHID.shared.eventSetFloatValue(subEvent, IOHID.EventField.Digitizer.majorRadius.rawValue,

@@ -330,6 +330,31 @@ final class HandTests: XCTestCase {
         try await eventGenerator.twoFingerUp()
     }
 
+    func testFingerUpKeepsOtherFingersDown() async throws {
+        let view = TouchTestView()
+        view.isMultipleTouchEnabled = true
+        view.setSize(width: 300, height: 300)
+        view.backgroundColor = .green
+
+        let eventGenerator = try await EventGenerator(view: view)
+        try await eventGenerator.waitUntilHittable(timeout: 1)
+        try await eventGenerator.fingerDown([.rightThumb, .rightIndex],
+                                            at: [OffsetLocation(x: -50, y: 0), OffsetLocation(x: 50, y: 0)])
+        try await eventGenerator.fingerUp(.rightThumb)
+
+        let touches = view.touches.sorted { $0.location(in: view).x < $1.location(in: view).x }
+        XCTAssertEqual(touches.count, 2)
+        XCTAssertEqual(touches.first?.phase, .ended)
+        XCTAssertEqual(touches.last?.phase, .stationary)
+
+        try await eventGenerator.fingerMove(.rightIndex, to: OffsetLocation(x: 100, y: 0))
+        XCTAssertEqual(touches.last?.phase, .moved)
+        XCTAssertEqual(touches.last?.location(in: view).x ?? 0, 250, accuracy: 0.5)
+
+        try await eventGenerator.fingerUp(.rightIndex)
+        XCTAssertEqual(touches.last?.phase, .ended)
+    }
+
     func testSwitchToggle() async throws {
         let view = UISwitch()
         let eventGenerator = try await EventGenerator(view: view)
