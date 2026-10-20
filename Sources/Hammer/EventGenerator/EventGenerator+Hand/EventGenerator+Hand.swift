@@ -3,6 +3,7 @@ import Foundation
 import UIKit
 
 private let kDefaultRadius: CGFloat = 5
+private let kScreenEdgeDistance: CGFloat = 1
 
 extension EventGenerator {
     nonisolated public static let fingerLiftDelay: TimeInterval = 0.05
@@ -10,11 +11,13 @@ extension EventGenerator {
     nonisolated public static let multiTapInterval: TimeInterval = 0.15
     nonisolated public static let fingerMoveInterval: TimeInterval = 1 / 60
     nonisolated public static let pinchDuration: TimeInterval = 0.15
+    nonisolated public static let swipeDuration: TimeInterval = 0.2
 
     nonisolated public static let twoFingerDistance: CGFloat = 20
     nonisolated public static let rotationDistance: CGFloat = 100
     nonisolated public static let pinchLargeDistance: CGFloat = 200
     nonisolated public static let pinchSmallDistance: CGFloat = 20
+    nonisolated public static let swipeDistance: CGFloat = 200
 
     // MARK: - Base Actions
 
@@ -212,6 +215,49 @@ extension EventGenerator {
         try await self.fingerDown(index, at: startPoint)
         try await self.fingerMove(index, to: endPoint, duration: duration)
         try await self.fingerUp(index)
+    }
+
+    // MARK: - Swipe Actions
+
+    /// Sends a finger swipe event, interpolating between the changes for the specified duration.
+    ///
+    /// - parameter index:     The finger index to use for the swipe.
+    /// - parameter location:  The center location of the swipe. Nil to use the center.
+    /// - parameter direction: The direction the finger moves, swiping up scrolls the content down.
+    /// - parameter distance:  The distance the finger moves.
+    /// - parameter duration:  The time to interpolate between the changes.
+    public func fingerSwipe(_ index: FingerIndex? = .automatic, at location: HammerLocatable? = nil,
+                            direction: SwipeDirection, distance: CGFloat = EventGenerator.swipeDistance,
+                            duration: TimeInterval = EventGenerator.swipeDuration) async throws
+    {
+        let location = try (location ?? self.mainView).windowHitPoint(for: self)
+        let vector = direction.vector
+        let startPoint = location.offset(x: -vector.dx * distance / 2, y: -vector.dy * distance / 2)
+        let endPoint = location.offset(x: vector.dx * distance / 2, y: vector.dy * distance / 2)
+        try await self.fingerDrag(index, from: startPoint, to: endPoint, duration: duration)
+    }
+
+    /// Sends a finger swipe event from the edge of the screen, like the swipe to go back in a navigation
+    /// controller, interpolating between the changes for the specified duration.
+    ///
+    /// - parameter index:     The finger index to use for the swipe.
+    /// - parameter direction: The direction the finger moves, starting from the opposite edge of the screen.
+    ///                        Swiping right starts from the left edge.
+    /// - parameter distance:  The distance the finger moves.
+    /// - parameter duration:  The time to interpolate between the changes.
+    public func fingerEdgeSwipe(_ index: FingerIndex? = .automatic, direction: SwipeDirection,
+                                distance: CGFloat = EventGenerator.swipeDistance,
+                                duration: TimeInterval = EventGenerator.swipeDuration) async throws
+    {
+        // Start inside the screen so the touch is hittable and still counts as an edge touch
+        let screenBounds = self.window.convert(self.window.screen.bounds,
+                                               from: self.window.screen.coordinateSpace)
+            .insetBy(dx: kScreenEdgeDistance, dy: kScreenEdgeDistance)
+        let vector = direction.vector
+        let startPoint = CGPoint(x: screenBounds.midX - vector.dx * screenBounds.width / 2,
+                                 y: screenBounds.midY - vector.dy * screenBounds.height / 2)
+        let endPoint = startPoint.offset(x: vector.dx * distance, y: vector.dy * distance)
+        try await self.fingerDrag(index, from: startPoint, to: endPoint, duration: duration)
     }
 
     // MARK: - Two Finger Actions
@@ -481,10 +527,15 @@ extension EventGenerator {
 
         for finger in hand.fingers {
             let identifier = try self.identifier(for: finger)
+            var eventMask = finger.eventMask
+            if finger.phase == .began && self.isAtScreenEdge(finger.location) {
+                eventMask.insert(.fromEdgeTip)
+            }
+
             let subEvent = IOHID.shared.createDigitizerFingerEvent(
                 kCFAllocatorDefault, machTime,
                 identifier, finger.fingerIndex.rawValue,
-                finger.eventMask.rawValue,
+                eventMask.rawValue,
                 finger.location.x, finger.location.y, 0,
                 finger.pressure, finger.twist,
                 isTouching, isTouching,
@@ -501,6 +552,18 @@ extension EventGenerator {
         }
 
         return event
+    }
+
+    /// Returns if a location is at the edge of the screen, where touches start edge swipes.
+    ///
+    /// - parameter location: The location in window coordinates.
+    private func isAtScreenEdge(_ location: CGPoint) -> Bool {
+        let screenBounds = self.window.screen.bounds
+        let screenLocation = self.window.convert(location, to: self.window.screen.coordinateSpace)
+        return screenLocation.x - screenBounds.minX <= kScreenEdgeDistance
+            || screenBounds.maxX - screenLocation.x <= kScreenEdgeDistance
+            || screenLocation.y - screenBounds.minY <= kScreenEdgeDistance
+            || screenBounds.maxY - screenLocation.y <= kScreenEdgeDistance
     }
 
     /// Creates an event that cancels the touches of all the fingers that are down.
