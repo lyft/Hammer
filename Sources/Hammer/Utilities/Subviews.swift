@@ -14,34 +14,26 @@ extension EventGenerator {
         case full
     }
 
-    /// Searches the view's subviews recursively for the first one that has the specified identifier.
+    /// Searches the view's subviews recursively for the one that has the specified identifier.
     ///
     /// NOTE: This uses a level order traversal with complexity O(n), where n is number of nodes in the tree.
     ///
     /// - parameter accessibilityIdentifier: The identifier to match.
     ///
-    /// - throws: And error if the view is not found.
+    /// - throws: And error if the view is not found, or if multiple views match and
+    ///           `throwOnMultipleMatches` is set.
     ///
     /// - returns: The view.
     public func viewWithIdentifier(_ accessibilityIdentifier: String) throws -> UIView {
-        var queue: [UIView] = [self.window]
-        while !queue.isEmpty {
-            let levelQueue = queue
-            queue = []
-
-            for node in levelQueue {
-                if node.accessibilityIdentifier == accessibilityIdentifier {
-                    return node
-                }
-
-                queue.append(contentsOf: node.subviews)
-            }
+        let query = AccessibilityQuery(identifier: accessibilityIdentifier)
+        guard let view = try self.accessibilityElement(matching: query, viewsOnly: true)?.view else {
+            throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
         }
 
-        throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
+        return view
     }
 
-    /// Searches the view's subviews recursively for the first one that has the specified identifier.
+    /// Searches the view's subviews recursively for the one that has the specified identifier.
     ///
     /// NOTE: This uses a level order traversal with complexity O(n), where n is number of nodes in the tree.
     ///
@@ -64,7 +56,7 @@ extension EventGenerator {
         }
     }
 
-    /// Searches the view's subviews recursively for the first one that has the specified identifier. If the
+    /// Searches the view's subviews recursively for the one that has the specified identifier. If the
     /// view does not exist it will check again every frame until the specified timeout.
     ///
     /// NOTE: This uses a level order traversal with complexity O(n), where n is number of nodes in the tree.
@@ -81,7 +73,7 @@ extension EventGenerator {
         try await self.viewWithIdentifier(accessibilityIdentifier, ofType: UIView.self, timeout: timeout)
     }
 
-    /// Searches the view's subviews recursively for the first one that has the specified identifier. If the
+    /// Searches the view's subviews recursively for the one that has the specified identifier. If the
     /// view does not exist it will check again every frame until the specified timeout.
     ///
     /// NOTE: This uses a level order traversal with complexity O(n), where n is number of nodes in the tree.
@@ -127,8 +119,16 @@ extension EventGenerator {
     ///
     /// - returns: If the view or element exists
     public func viewExists(_ accessibilityIdentifier: String) -> Bool {
-        return (try? self.viewWithIdentifier(accessibilityIdentifier)) != nil
-            || self.accessibilityElement(withIdentifier: accessibilityIdentifier) != nil
+        return self.elementExists(.identifier(accessibilityIdentifier))
+    }
+
+    /// Returns if a view or accessibility element that matches the query exists.
+    ///
+    /// - parameter query: The query to match.
+    ///
+    /// - returns: If the view or element exists
+    public func elementExists(_ query: AccessibilityQuery) -> Bool {
+        return !self.accessibilityElements(matching: query).isEmpty
     }
 
     /// Returns if the specified view or SwiftUI element is visible.
@@ -140,15 +140,24 @@ extension EventGenerator {
     ///
     /// - returns: If the view is visible
     public func viewIsVisible(_ accessibilityIdentifier: String, visibility: Visibility = .partial) -> Bool {
-        if let view = try? self.viewWithIdentifier(accessibilityIdentifier) {
-            return self.viewIsVisible(view, visibility: visibility)
-        }
+        return self.elementIsVisible(.identifier(accessibilityIdentifier), visibility: visibility)
+    }
 
-        guard let element = self.accessibilityElement(withIdentifier: accessibilityIdentifier) else {
+    /// Returns if the view or accessibility element that matches the query is visible.
+    ///
+    /// NOTE: This will also return false if no element matches, or if multiple elements match and
+    /// `throwOnMultipleMatches` is set.
+    ///
+    /// - parameter query:      The query to match.
+    /// - parameter visibility: How determine if the element is visible.
+    ///
+    /// - returns: If the element is visible
+    public func elementIsVisible(_ query: AccessibilityQuery, visibility: Visibility = .partial) -> Bool {
+        guard let element = try? self.accessibilityElement(matching: query) else {
             return false
         }
 
-        return self.elementIsVisible(element, visibility: visibility)
+        return self.isVisible(element, visibility: visibility)
     }
 
     /// Returns if the specified view is visible.
@@ -191,20 +200,40 @@ extension EventGenerator {
     ///
     /// - returns: If the view is hittable
     public func viewIsHittable(_ accessibilityIdentifier: String, atPoint point: CGPoint? = nil) -> Bool {
-        if let view = try? self.viewWithIdentifier(accessibilityIdentifier) {
+        let query = AccessibilityQuery(identifier: accessibilityIdentifier)
+        guard let element = try? self.accessibilityElement(matching: query) else {
+            return false
+        }
+
+        if let view = element.view {
             return self.viewIsHittable(view, atPoint: point)
         }
 
-        guard let element = self.accessibilityElement(withIdentifier: accessibilityIdentifier),
-              self.elementIsVisible(element, visibility: .partial)
-        else {
+        guard self.isVisible(element, visibility: .partial) else {
             return false
         }
 
         let elementOrigin = element.frame(in: self.window).origin
         let windowPoint = point.map { CGPoint(x: elementOrigin.x + $0.x, y: elementOrigin.y + $0.y) }
             ?? self.internalWindowHitPoint(forElement: element)
-        return self.elementIsHittable(element, atWindowPoint: windowPoint)
+        return self.isHittable(element, atWindowPoint: windowPoint)
+    }
+
+    /// Returns if the view or accessibility element that matches the query is hittable, at the center of a
+    /// view's visible area or at the activation point of an element that is not a view.
+    ///
+    /// NOTE: This will also return false if no element matches, or if multiple elements match and
+    /// `throwOnMultipleMatches` is set.
+    ///
+    /// - parameter query: The query to match.
+    ///
+    /// - returns: If the element is hittable
+    public func elementIsHittable(_ query: AccessibilityQuery) -> Bool {
+        guard let element = try? self.accessibilityElement(matching: query) else {
+            return false
+        }
+
+        return self.isHittable(element)
     }
 
     /// Returns if the specified view is hittable.
@@ -323,49 +352,83 @@ extension EventGenerator {
     ///
     /// - returns: The hittable point in window coordinates
     public func windowHitPoint(forIdentifier accessibilityIdentifier: String) throws -> CGPoint {
+        do {
+            return try self.windowHitPoint(for: .identifier(accessibilityIdentifier))
+        } catch HammerError.unableToFindElement {
+            throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
+        }
+    }
+
+    /// Returns a valid hittable point for the view or accessibility element that matches the query, the
+    /// center of a view's visible area or the activation point of an element that is not a view.
+    ///
+    /// - parameter query: The query to match.
+    ///
+    /// - throws: And error if the element is not found, not visible or not hittable, or if multiple elements
+    ///           match and `throwOnMultipleMatches` is set.
+    ///
+    /// - returns: The hittable point in window coordinates
+    public func windowHitPoint(for query: AccessibilityQuery) throws -> CGPoint {
         try self.checkWindowIsReady()
 
-        if let view = try? self.viewWithIdentifier(accessibilityIdentifier) {
+        guard let element = try self.accessibilityElement(matching: query) else {
+            throw HammerError.unableToFindElement(query: query)
+        }
+
+        if let view = element.view {
             return try self.windowHitPoint(forView: view)
         }
 
-        guard let element = self.accessibilityElement(withIdentifier: accessibilityIdentifier) else {
-            throw HammerError.unableToFindView(identifier: accessibilityIdentifier)
-        }
-
-        guard self.elementIsVisible(element, visibility: .partial) else {
-            throw HammerError.elementIsNotVisible(identifier: accessibilityIdentifier)
+        guard self.isVisible(element, visibility: .partial) else {
+            throw HammerError.elementIsNotVisible(query: query)
         }
 
         let windowPoint = self.internalWindowHitPoint(forElement: element)
-        guard self.elementIsHittable(element, atWindowPoint: windowPoint) else {
-            throw HammerError.elementIsNotHittable(identifier: accessibilityIdentifier)
+        guard self.isHittable(element, atWindowPoint: windowPoint) else {
+            throw HammerError.elementIsNotHittable(query: query)
         }
 
         return windowPoint
     }
 
-    /// Returns if touches at the point reach the view the SwiftUI element belongs to.
+    /// Returns if the view or element is hittable, at the center of a view's visible area or at the
+    /// activation point of an element that is not a view.
+    ///
+    /// - parameter element: The element to check.
+    ///
+    /// - returns: If the element is hittable
+    func isHittable(_ element: AccessibilityElement) -> Bool {
+        if let view = element.view {
+            return self.viewIsHittable(view)
+        }
+
+        return self.isVisible(element, visibility: .partial)
+            && self.isHittable(element, atWindowPoint: self.internalWindowHitPoint(forElement: element))
+    }
+
+    /// Returns if touches at the point reach the view the element belongs to.
     ///
     /// - parameter element:     The element to check.
     /// - parameter windowPoint: The point in window coordinates.
     ///
     /// - returns: If the element is hittable at the point
-    private func elementIsHittable(_ element: AccessibilityElement,
-                                   atWindowPoint windowPoint: CGPoint) -> Bool
-    {
+    private func isHittable(_ element: AccessibilityElement, atWindowPoint windowPoint: CGPoint) -> Bool {
         let containerView = element.containerView
         let point = containerView.convert(windowPoint, from: self.window)
         return self.viewIsHittable(containerView, atPoint: point)
     }
 
-    /// Returns if the SwiftUI element is visible, including within the views that clip it.
+    /// Returns if the view or element is visible, including within the views that clip it.
     ///
     /// - parameter element:    The element to check.
     /// - parameter visibility: How determine if the element is visible.
     ///
     /// - returns: If the element is visible
-    private func elementIsVisible(_ element: AccessibilityElement, visibility: Visibility) -> Bool {
+    func isVisible(_ element: AccessibilityElement, visibility: Visibility) -> Bool {
+        if let view = element.view {
+            return self.viewIsVisible(view, visibility: visibility)
+        }
+
         guard self.viewIsVisible(element.containerView) else {
             return false
         }

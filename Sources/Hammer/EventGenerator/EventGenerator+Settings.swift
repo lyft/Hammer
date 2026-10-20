@@ -40,5 +40,8 @@ extension EventGenerator {
 
         /// The maximum time the waiting methods wait when they are not given a timeout.
         public var waitTimeout: TimeInterval = 3
+
+        /// If finding a view or element throws when multiple elements match, instead of using the first one.
+        public var throwOnMultipleMatches: Bool = true
     }
 }

@@ -108,6 +108,18 @@ extension EventGenerator {
         }
     }
 
+    public func waitUntilExists(_ query: AccessibilityQuery, timeout: TimeInterval? = nil) throws {
+        try self.runSynchronously { try await self.waitUntilExists(query, timeout: timeout) }
+    }
+
+    public func waitUntilVisible(_ query: AccessibilityQuery, visibility: Visibility = .partial,
+                                 timeout: TimeInterval? = nil) throws
+    {
+        try self.runSynchronously {
+            try await self.waitUntilVisible(query, visibility: visibility, timeout: timeout)
+        }
+    }
+
     public func waitUntilVisible(_ view: UIView, visibility: Visibility = .partial,
                                  timeout: TimeInterval? = nil) throws
     {
@@ -132,6 +144,10 @@ extension EventGenerator {
         try self.runSynchronously {
             try await self.waitUntilHittable(accessibilityIdentifier, timeout: timeout)
         }
+    }
+
+    public func waitUntilHittable(_ query: AccessibilityQuery, timeout: TimeInterval? = nil) throws {
+        try self.runSynchronously { try await self.waitUntilHittable(query, timeout: timeout) }
     }
 
     public func waitUntilHittable(_ view: UIView, timeout: TimeInterval? = nil) throws {

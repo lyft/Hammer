@@ -59,10 +59,21 @@ extension EventGenerator {
     public func waitUntilExists(_ accessibilityIdentifier: String,
                                 timeout: TimeInterval? = nil) async throws
     {
-        try await self.waitUntil(self.viewExists(accessibilityIdentifier), timeout: timeout)
+        try await self.waitUntilExists(.identifier(accessibilityIdentifier), timeout: timeout)
     }
 
-    /// Waits for a view with the specified identifier to be visible within the specified time.
+    /// Waits for a view or accessibility element that matches the query to exist within the specified time.
+    ///
+    /// - parameter query:   The query of the element to wait for.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
+    ///
+    /// - throws: An error if the element does not exist after the specified time.
+    public func waitUntilExists(_ query: AccessibilityQuery, timeout: TimeInterval? = nil) async throws {
+        try await self.waitUntil(self.elementExists(query), timeout: timeout)
+    }
+
+    /// Waits for a view or SwiftUI element with the specified identifier to be visible within the specified
+    /// time.
     ///
     /// - parameter accessibilityIdentifier: The identifier of the view to wait for.
     /// - parameter visibility:              How determine if the view is visible.
@@ -72,7 +83,24 @@ extension EventGenerator {
     public func waitUntilVisible(_ accessibilityIdentifier: String, visibility: Visibility = .partial,
                                  timeout: TimeInterval? = nil) async throws
     {
-        try await self.waitUntil(self.viewIsVisible(accessibilityIdentifier, visibility: visibility),
+        try await self.waitUntilVisible(.identifier(accessibilityIdentifier), visibility: visibility,
+                                        timeout: timeout)
+    }
+
+    /// Waits for a view or accessibility element that matches the query to be visible within the specified
+    /// time.
+    ///
+    /// - parameter query:      The query of the element to wait for.
+    /// - parameter visibility: How determine if the element is visible.
+    /// - parameter timeout:    The maximum time to wait, or nil to use `settings.waitTimeout`.
+    ///
+    /// - throws: An error if the element is not visible after the specified time, or if multiple elements
+    ///           match and `throwOnMultipleMatches` is set.
+    public func waitUntilVisible(_ query: AccessibilityQuery, visibility: Visibility = .partial,
+                                 timeout: TimeInterval? = nil) async throws
+    {
+        try await self.waitUntil(try self.accessibilityElement(matching: query)
+                                    .map { self.isVisible($0, visibility: visibility) } ?? false,
                                  timeout: timeout)
     }
 
@@ -112,7 +140,8 @@ extension EventGenerator {
         try await self.waitUntil(self.pointIsVisible(point), timeout: timeout)
     }
 
-    /// Waits for a view with the specified identifier to be hittable within the specified time.
+    /// Waits for a view or SwiftUI element with the specified identifier to be hittable within the specified
+    /// time.
     ///
     /// - parameter accessibilityIdentifier: The identifier of the view to wait for.
     /// - parameter timeout:                 The maximum time to wait, or nil to use `settings.waitTimeout`.
@@ -121,7 +150,20 @@ extension EventGenerator {
     public func waitUntilHittable(_ accessibilityIdentifier: String,
                                   timeout: TimeInterval? = nil) async throws
     {
-        try await self.waitUntil(self.viewIsHittable(accessibilityIdentifier), timeout: timeout)
+        try await self.waitUntilHittable(.identifier(accessibilityIdentifier), timeout: timeout)
+    }
+
+    /// Waits for a view or accessibility element that matches the query to be hittable within the specified
+    /// time.
+    ///
+    /// - parameter query:   The query of the element to wait for.
+    /// - parameter timeout: The maximum time to wait, or nil to use `settings.waitTimeout`.
+    ///
+    /// - throws: An error if the element is not hittable after the specified time, or if multiple elements
+    ///           match and `throwOnMultipleMatches` is set.
+    public func waitUntilHittable(_ query: AccessibilityQuery, timeout: TimeInterval? = nil) async throws {
+        try await self.waitUntil(try self.accessibilityElement(matching: query).map(self.isHittable) ?? false,
+                                 timeout: timeout)
     }
 
     /// Waits for a view to be hittable within the specified time.
