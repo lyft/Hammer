@@ -32,6 +32,8 @@ public enum HammerError: Error, @unchecked Sendable {
     case pointIsNotHittable(CGPoint)
 
     case unableToFindView(identifier: String)
+    case elementIsNotVisible(identifier: String)
+    case elementIsNotHittable(identifier: String)
     case invalidViewType(identifier: String, type: String, expected: String)
     case waitConditionTimeout(TimeInterval)
 
@@ -94,6 +96,10 @@ extension HammerError: CustomStringConvertible {
             return "Point is not hittable: \(point)"
         case .unableToFindView(let identifier):
             return "Unable to find view: \"\(identifier)\""
+        case .elementIsNotVisible(let identifier):
+            return "Element is not visible: \"\(identifier)\""
+        case .elementIsNotHittable(let identifier):
+            return "Element is not hittable: \"\(identifier)\""
         case .invalidViewType(let identifier, let type, let expected):
             return "Invalid type for view: \"\(identifier)\", got \"\(type)\" expected \"\(expected)\""
         case .waitConditionTimeout(let timeout):

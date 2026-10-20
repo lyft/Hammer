@@ -1,3 +1,4 @@
+import SwiftUI
 import UIKit
 
 // Synchronous versions of the async API, for tests that are not async. Swift picks these in synchronous
@@ -15,6 +16,13 @@ extension EventGenerator {
 
     public convenience init(view: UIView, alignment: WrappingAlignment = .center) throws {
         self.init(window: EventGenerator.window(for: view, alignment: alignment), mainView: view)
+        try self.runSynchronously { try await self.waitUntilWindowIsReady() }
+    }
+
+    public convenience init(view: some View, alignment: WrappingAlignment = .center) throws {
+        let hostingController = EventGenerator.hostingController(for: view)
+        self.init(window: EventGenerator.window(for: hostingController, alignment: alignment),
+                  mainView: hostingController.view)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
