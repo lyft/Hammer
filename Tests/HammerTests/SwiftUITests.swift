@@ -51,6 +51,43 @@ final class SwiftUITests: XCTestCase {
         XCTAssertFalse(eventGenerator.viewIsVisible("row-0"))
     }
 
+    func testTapGesture() async throws {
+        var tapCount = 0
+        let eventGenerator = try await EventGenerator(view: Text("Tap me")
+            .onTapGesture { tapCount += 1 }
+            .accessibilityIdentifier("text"))
+
+        try await eventGenerator.fingerTap(at: "text")
+        try await eventGenerator.waitUntil(tapCount == 1)
+    }
+
+    func testLongPressGesture() async throws {
+        var isPressed = false
+        let eventGenerator = try await EventGenerator(view: Text("Press me")
+            .onLongPressGesture { isPressed = true }
+            .accessibilityIdentifier("text"))
+
+        try await eventGenerator.fingerLongPress(at: "text")
+        try await eventGenerator.waitUntil(isPressed)
+    }
+
+    func testTransparentElementIsNotFound() async throws {
+        let eventGenerator = try await EventGenerator(view: VStack {
+            Text("Visible")
+            Button("Transparent") {}
+                .opacity(0)
+                .accessibilityIdentifier("button")
+        })
+
+        XCTAssertFalse(eventGenerator.viewExists("button"))
+        do {
+            try await eventGenerator.fingerTap(at: "button")
+            XCTFail("Tapping a transparent element should throw")
+        } catch HammerError.unableToFindView(let identifier) {
+            XCTAssertEqual(identifier, "button")
+        }
+    }
+
     func testSynchronousButtonTap() throws {
         let model = TestModel()
         let eventGenerator = try EventGenerator(view: TestView(model: model))

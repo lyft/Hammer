@@ -216,7 +216,7 @@ try await eventGenerator.fingerTap(at: "notifications_toggle")
 try await eventGenerator.waitUntilVisible("saved_label")
 ```
 
-A tap on an element uses its activation point, so a toggle is tapped on its switch. An element scrolled out of view is not visible, and tapping it throws.
+A tap on an element uses its activation point, so a toggle is tapped on its switch. An element scrolled out of view is not visible, and tapping it throws. Accessibility doesn't say if an element is hidden with `.hidden()` or almost transparent, so Hammer treats those as visible.
 
 ### Waiting
 
