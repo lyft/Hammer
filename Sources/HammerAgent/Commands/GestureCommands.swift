@@ -22,7 +22,8 @@ struct TapCommand: AgentCommand {
 
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
         guard arguments.count > 0 else {
-            throw AgentError.invalidArguments("The count must be at least 1")
+            throw AgentError.invalidArguments("Invalid count \(arguments.count), expected 1 or more",
+                                              hint: "Use 1 for a tap and 2 for a double tap")
         }
 
         let location = try arguments.target.location(in: context)
@@ -73,7 +74,9 @@ struct SwipeArguments: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let directionName = try container.decode(String.self, forKey: .direction)
         guard let direction = SwipeDirection.allCases.first(where: { "\($0)" == directionName }) else {
-            throw AgentError.invalidArguments("Unknown direction \"\(directionName)\"")
+            let names = SwipeDirection.allCases.map { "\($0)" }
+            throw AgentError.invalidArguments("Unknown direction \"\(directionName)\"",
+                                              hint: "Use one of \(names.joined(separator: ", "))")
         }
 
         self.direction = direction
@@ -141,7 +144,10 @@ struct DragCommand: AgentCommand {
         guard let start = try arguments.start.location(in: context),
               let end = try arguments.end.location(in: context)
         else {
-            throw AgentError.invalidArguments("Pass where the drag starts and where it ends, with to_")
+            throw AgentError.invalidArguments("The drag needs where it starts and where it ends", hint: """
+                Pass the start as ref, identifier, label, value, traits or x and y, and the end with the \
+                same arguments prefixed with to_, such as to_ref or to_x and to_y
+                """)
         }
 
         try await context.eventGenerator().fingerDrag(from: start, to: end, duration: arguments.duration)

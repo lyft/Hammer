@@ -10,6 +10,11 @@ struct WaitForCommand: AgentCommand {
         case visible
         case hittable
         case gone
+
+        /// The state the element did not reach, to explain a timeout.
+        var expectedState: String {
+            return self == .exists ? "found" : self.rawValue
+        }
     }
 
     struct Arguments: Decodable {
@@ -36,16 +41,27 @@ struct WaitForCommand: AgentCommand {
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
         let query = try arguments.target.requiredQuery()
         let eventGenerator = try await context.eventGenerator()
-        switch arguments.condition {
-        case .exists:
-            try await eventGenerator.waitUntilExists(query, timeout: arguments.timeout)
-        case .visible:
-            try await eventGenerator.waitUntilVisible(query, timeout: arguments.timeout)
-        case .hittable:
-            try await eventGenerator.waitUntilHittable(query, timeout: arguments.timeout)
-        case .gone:
-            try await eventGenerator.waitUntil(!eventGenerator.elementExists(query),
-                                               timeout: arguments.timeout)
+        do {
+            switch arguments.condition {
+            case .exists:
+                try await eventGenerator.waitUntilExists(query, timeout: arguments.timeout)
+            case .visible:
+                try await eventGenerator.waitUntilVisible(query, timeout: arguments.timeout)
+            case .hittable:
+                try await eventGenerator.waitUntilHittable(query, timeout: arguments.timeout)
+            case .gone:
+                try await eventGenerator.waitUntil(!eventGenerator.elementExists(query),
+                                                   timeout: arguments.timeout)
+            }
+        } catch HammerError.waitConditionTimeout {
+            let exists = eventGenerator.elementExists(query)
+            throw AgentError.failed("""
+                The element with \(query) was not \(arguments.condition.expectedState) after \
+                \(arguments.timeout) seconds, and it \(exists ? "exists" : "does not exist")
+                """, hint: """
+                Take a screenshot or call describe to see the current state, then wait for a different \
+                element or pass a longer timeout
+                """)
         }
 
         return NoOutput()

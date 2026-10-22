@@ -17,8 +17,9 @@ struct HTTPResponse: Sendable {
         self.body = body
     }
 
-    init(status: Int, error: String) {
-        self.init(status: status, body: (try? JSONEncoder().encode(AgentErrorBody(error: error))) ?? Data())
+    init(status: Int, error: String, hint: String? = nil) {
+        let body = AgentErrorBody(error: error, hint: hint)
+        self.init(status: status, body: (try? JSONEncoder().encode(body)) ?? Data())
     }
 
     var serialized: Data {

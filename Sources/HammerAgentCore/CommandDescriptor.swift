@@ -11,6 +11,9 @@ public struct CommandDescriptor: Codable, Equatable, Sendable {
     /// The parameters of the command's arguments object.
     public var parameters: [Parameter]
 
+    /// Typical uses of the command, to show agents and people how to call it.
+    public var examples: [Example]
+
     /// The parameter names clients use for their own options, such as the `hammer` tool's `--output`.
     public static let reservedParameterNames: Set<String> = ["output", "port"]
 
@@ -19,10 +22,27 @@ public struct CommandDescriptor: Codable, Equatable, Sendable {
     /// - parameter name:       The name clients call the command with, in snake case.
     /// - parameter summary:    What the command does.
     /// - parameter parameters: The parameters of the command's arguments object.
-    public init(name: String, summary: String, parameters: [Parameter] = []) {
+    /// - parameter examples:   Typical uses of the command.
+    public init(name: String, summary: String, parameters: [Parameter] = [], examples: [Example] = []) {
         self.name = name
         self.summary = summary
         self.parameters = parameters
+        self.examples = examples
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case summary
+        case parameters
+        case examples
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.summary = try container.decode(String.self, forKey: .summary)
+        self.parameters = try container.decodeIfPresent([Parameter].self, forKey: .parameters) ?? []
+        self.examples = try container.decodeIfPresent([Example].self, forKey: .examples) ?? []
     }
 
     /// The JSON schema of the command's arguments object.
@@ -39,6 +59,24 @@ public struct CommandDescriptor: Codable, Equatable, Sendable {
 }
 
 extension CommandDescriptor {
+    /// A typical use of a command.
+    public struct Example: Codable, Equatable, Sendable {
+        /// What the example does.
+        public var summary: String
+
+        /// The arguments object.
+        public var arguments: [String: JSONValue]
+
+        /// Creates an example.
+        ///
+        /// - parameter summary:   What the example does.
+        /// - parameter arguments: The arguments object.
+        public init(_ summary: String, _ arguments: [String: JSONValue] = [:]) {
+            self.summary = summary
+            self.arguments = arguments
+        }
+    }
+
     /// A parameter of a command.
     public struct Parameter: Codable, Equatable, Sendable {
         /// The name of the argument.

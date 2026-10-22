@@ -6,12 +6,6 @@ import HammerAgentCore
 /// Tools are listed from the app when it is running, so the commands it registers appear as tools, and
 /// from the builtin commands when it is not, so the client can start before the app.
 struct MCPServer {
-    private static let instructions = """
-        Drives the iOS app that runs Hammer's agent, from inside the app. Call describe to find elements \
-        and target them by identifier, label, value or traits rather than coordinates. Every gesture \
-        waits for the app to process it; use wait_for after one that starts a transition.
-        """
-
     let client: AgentClient
 
     func run() async throws {
@@ -47,22 +41,15 @@ struct MCPServer {
                 "protocolVersion": params["protocolVersion"] ?? "2025-06-18",
                 "capabilities": ["tools": [:]],
                 "serverInfo": ["name": "hammer", "version": "1.0.0"],
-                "instructions": .string(Self.instructions),
+                "instructions": .string(AgentGuide.overview(style: .tools)),
             ]
         case "ping":
             return [:]
         case "tools/list":
-            let commands: [CommandDescriptor]
-            do {
-                commands = try await self.client.commandsOrBuiltins()
-            } catch {
-                throw MCPError(code: -32603, message: String(describing: error))
-            }
-
-            let tools = commands.map { command -> JSONValue in
+            let tools = await self.client.catalog().commands.map { command -> JSONValue in
                 [
                     "name": .string(command.name),
-                    "description": .string(command.summary),
+                    "description": .string(Self.toolDescription(for: command)),
                     "inputSchema": command.argumentsSchema,
                 ]
             }
@@ -83,7 +70,8 @@ struct MCPServer {
         do {
             output = try await self.client.run(name, arguments: arguments)
         } catch {
-            let content: JSONValue = ["type": "text", "text": .string(String(describing: error))]
+            let hint = (error as? ClientError)?.hint.map { "\nhint: \($0)" } ?? ""
+            let content: JSONValue = ["type": "text", "text": .string("error: \(error)\(hint)")]
             return ["content": [content], "isError": true]
         }
 
@@ -98,6 +86,15 @@ struct MCPServer {
 
         let text = String(bytes: output, encoding: .utf8) ?? ""
         return ["content": [["type": "text", "text": .string(text == "{}" ? "Done" : text)]]]
+    }
+
+    private static func toolDescription(for command: CommandDescriptor) -> String {
+        guard !command.examples.isEmpty else {
+            return command.summary
+        }
+
+        let examples = command.examples.map { "- \($0.summary): `\(command.call($0, style: .tools))`" }
+        return ([command.summary, "", "Examples:"] + examples).joined(separator: "\n")
     }
 
     private func write(_ message: JSONValue) {

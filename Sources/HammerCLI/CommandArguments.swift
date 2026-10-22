@@ -1,8 +1,10 @@
 import Foundation
 import HammerAgentCore
 
+/// A command line that is invalid, such as an unknown command or argument.
 struct UsageError: Error, CustomStringConvertible {
     let description: String
+    var hint: String?
 }
 
 extension CommandDescriptor {
@@ -12,7 +14,8 @@ extension CommandDescriptor {
     ///
     /// - parameter options: The options after the command name.
     ///
-    /// - throws: A `UsageError` if an option is unknown or its value does not match the type.
+    /// - throws: A `UsageError` if an option is unknown, its value does not match the type, or a required
+    ///           one is missing.
     ///
     /// - returns: The arguments object.
     func arguments(from options: [String]) throws -> [String: JSONValue] {
@@ -27,8 +30,12 @@ extension CommandDescriptor {
 
             let parts = token.split(separator: "=", maxSplits: 1).map(String.init)
             let option = parts[0]
-            guard option.hasPrefix("--"), let parameter = self.parameter(forOption: option) else {
-                throw UsageError(description: "Unknown option \(option) for \(self.commandLineName)")
+            guard let parameter = self.parameters.first(where: { $0.optionName == option }) else {
+                let suggestion = closestMatch(to: option, in: self.parameters.map(\.optionName))
+                    .map { ", did you mean \($0)?" } ?? ""
+                throw UsageError(
+                    description: "Unknown argument \(option) for \(self.commandLineName)\(suggestion)",
+                    hint: self.helpHint)
             }
 
             let value: String
@@ -39,10 +46,17 @@ extension CommandDescriptor {
             } else if let next = remaining.popFirst() {
                 value = next
             } else {
-                throw UsageError(description: "Missing value for \(option)")
+                throw UsageError(
+                    description: "Missing value for \(option), expected \(parameter.type.expectation)",
+                    hint: self.helpHint)
             }
 
-            let converted = try parameter.type.value(from: value, option: option)
+            guard let converted = parameter.type.parse(value) else {
+                throw UsageError(description: """
+                    Invalid value "\(value)" for \(option), expected \(parameter.type.expectation)
+                    """, hint: self.helpHint)
+            }
+
             if case .array(let values) = converted, case .array(let existing) = arguments[parameter.name] {
                 arguments[parameter.name] = .array(existing + values)
             } else {
@@ -51,85 +65,36 @@ extension CommandDescriptor {
         }
 
         if readsStandardInput {
-            arguments.merge(try Self.standardInputArguments()) { option, _ in option }
+            arguments.merge(try self.standardInputArguments()) { option, _ in option }
         }
 
-        if let missing = self.parameters.first(where: { $0.isRequired && arguments[$0.name] == nil }) {
-            throw UsageError(
-                description: "Missing option \(missing.optionName) for \(self.commandLineName)")
+        do {
+            try self.validate(arguments, style: .commandLine)
+        } catch let error as ArgumentsError {
+            throw UsageError(description: error.description, hint: self.helpHint)
         }
 
         return arguments
     }
 
-    /// The help text for the command.
-    var usage: String {
-        let options = self.parameters.map { parameter in
-            let required = parameter.isRequired ? " (required)" : ""
-            let option = "  \(parameter.optionName) <\(parameter.type.placeholder)>\(required)"
-            return "\(option)\n      \(parameter.summary)"
-        }
-
-        let header = ["hammer \(self.commandLineName) [options]", "", self.summary]
-        return (header + (options.isEmpty ? [] : [""] + options)).joined(separator: "\n")
+    /// Points to the command's help, to show next to a usage error.
+    var helpHint: String {
+        return "Run `hammer help \(self.commandLineName)` to see its arguments and examples"
     }
 
-    /// The name of the command on the command line, such as `type-text` for `type_text`.
-    var commandLineName: String {
-        return self.name.replacingOccurrences(of: "_", with: "-")
-    }
-
-    private func parameter(forOption option: String) -> Parameter? {
-        return self.parameters.first { $0.optionName == option }
-    }
-
-    private static func standardInputArguments() throws -> [String: JSONValue] {
+    private func standardInputArguments() throws -> [String: JSONValue] {
         let data = FileHandle.standardInput.readDataToEndOfFile()
         guard let arguments = try? JSONDecoder().decode([String: JSONValue].self, from: data) else {
-            throw UsageError(description: "Standard input must be a JSON object of arguments")
+            throw UsageError(description: #"Standard input must be a JSON object, like {"x": 10}"#,
+                             hint: self.helpHint)
         }
 
         return arguments
-    }
-}
-
-extension CommandDescriptor.Parameter {
-    /// The option for the parameter, such as `--to-identifier` for `to_identifier`.
-    var optionName: String {
-        return "--" + self.name.replacingOccurrences(of: "_", with: "-")
     }
 }
 
 extension CommandDescriptor.ParameterType {
-    fileprivate var placeholder: String {
-        switch self {
-        case .string:
-            return "text"
-        case .integer:
-            return "integer"
-        case .number:
-            return "number"
-        case .boolean:
-            return "true|false"
-        case .stringList:
-            return "a,b,..."
-        case .choice(let values):
-            return values.joined(separator: "|")
-        case .json:
-            return "json"
-        }
-    }
-
-    fileprivate func value(from string: String, option: String) throws -> JSONValue {
-        guard let value = self.parse(string) else {
-            throw UsageError(
-                description: "Invalid value \"\(string)\" for \(option), expected \(self.placeholder)")
-        }
-
-        return value
-    }
-
-    private func parse(_ string: String) -> JSONValue? {
+    fileprivate func parse(_ string: String) -> JSONValue? {
         switch self {
         case .string:
             return .string(string)

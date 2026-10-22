@@ -46,7 +46,9 @@ final class ElementReferences {
         guard let entry = self.entries[ref], let object = entry.object,
               let containerView = entry.containerView
         else {
-            throw AgentError.invalidArguments("Unknown ref \"\(ref)\", call describe to get the current refs")
+            throw AgentError.invalidArguments("""
+                Unknown ref "\(ref)", its element is gone or the ref is not from describe
+                """, hint: "Call describe to get the current refs")
         }
 
         return AccessibilityElement(object: object, containerView: containerView)

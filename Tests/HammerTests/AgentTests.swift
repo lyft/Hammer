@@ -115,8 +115,18 @@ final class AgentTests: XCTestCase {
 
         let (data, status) = try await self.run("tap", ["identifer": "sign_in"])
         XCTAssertEqual(status, 400)
+        let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
+        XCTAssertEqual(body.error, #"Unknown argument "identifer" for tap, did you mean "identifier"?"#)
+        XCTAssertTrue(body.hint?.contains("identifier: a string") == true, body.hint ?? "")
+    }
+
+    func testRejectsInvalidArgumentValues() async throws {
+        try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
+
+        let (data, status) = try await self.run("swipe", ["direction": "upward"])
+        XCTAssertEqual(status, 400)
         XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).error,
-                       #"Unknown argument "identifer""#)
+                       #"Invalid value "upward" for "direction", expected one of up, down, left, right"#)
     }
 
     func testReportsCommandErrors() async throws {
@@ -124,7 +134,25 @@ final class AgentTests: XCTestCase {
 
         let (data, status) = try await self.run("tap", ["identifier": "missing"])
         XCTAssertEqual(status, 500)
-        XCTAssertTrue(try JSONDecoder().decode(AgentErrorBody.self, from: data).error.contains("missing"))
+        let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
+        XCTAssertTrue(body.error.contains("missing"), body.error)
+        XCTAssertTrue(body.hint?.contains("describe") == true, body.hint ?? "")
+    }
+
+    func testSuggestsCommandForTypo() async throws {
+        let (data, status) = try await self.request("POST", AgentEndpoint.commandPath("tapp"))
+        XCTAssertEqual(status, 404)
+        XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).error,
+                       #"Unknown command "tapp", did you mean tap?"#)
+    }
+
+    func testBuiltinExamplesAreValid() throws {
+        for command in BuiltinCommands.all {
+            for example in command.examples {
+                XCTAssertNoThrow(try command.validate(example.arguments),
+                                 "\(command.name): \(example.summary)")
+            }
+        }
     }
 
     func testRunsRegisteredCommand() async throws {

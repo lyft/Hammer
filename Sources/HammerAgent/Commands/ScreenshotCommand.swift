@@ -12,7 +12,8 @@ struct ScreenshotCommand: AgentCommand {
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> AgentImage {
         let scale = arguments.scale ?? 1
         guard scale > 0 && scale <= 4 else {
-            throw AgentError.invalidArguments("The scale must be greater than 0 and at most 4")
+            throw AgentError.invalidArguments("Invalid scale \(scale), expected a number above 0 and up to 4",
+                                              hint: "Use 1 for points or the device's scale, such as 3")
         }
 
         let window = try await context.eventGenerator().window

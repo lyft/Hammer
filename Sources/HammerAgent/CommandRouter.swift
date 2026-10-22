@@ -6,7 +6,7 @@ import HammerAgentCore
 final class CommandRouter {
     private struct Registration {
         let descriptor: CommandDescriptor
-        let run: @MainActor (Data, AgentContext) async throws -> Data
+        let run: @MainActor ([String: JSONValue], AgentContext) async throws -> Data
     }
 
     private var registrations = [String: Registration]()
@@ -28,29 +28,11 @@ final class CommandRouter {
         }
 
         let descriptor = command.descriptor
-        self.registrations[name] = Registration(descriptor: descriptor) { body, context in
-            let arguments = try Self.decodeArguments(Command.Arguments.self, from: body, for: descriptor)
+        self.registrations[name] = Registration(descriptor: descriptor) { object, context in
+            let arguments = try JSONValue.object(object).decode(as: Command.Arguments.self)
             let encoder = JSONEncoder()
             encoder.outputFormatting = .sortedKeys
             return try encoder.encode(try await command.run(arguments, in: context))
-        }
-    }
-
-    /// Decodes the arguments, rejecting the ones the command does not declare so typos are not ignored.
-    private static func decodeArguments<Arguments: Decodable>(_ type: Arguments.Type, from body: Data,
-                                                              for descriptor: CommandDescriptor) throws
-        -> Arguments
-    {
-        do {
-            let object = body.isEmpty ? [:] : try JSONDecoder().decode([String: JSONValue].self, from: body)
-            let names = Set(descriptor.parameters.map(\.name))
-            if let unknown = object.keys.sorted().first(where: { !names.contains($0) }) {
-                throw AgentError.invalidArguments("Unknown argument \"\(unknown)\"")
-            }
-
-            return try JSONValue.object(object).decode(as: type)
-        } catch let error as DecodingError {
-            throw AgentError.invalidArguments(error.argumentsMessage)
         }
     }
 
@@ -61,7 +43,9 @@ final class CommandRouter {
         case ("POST", let path) where path.hasPrefix(AgentEndpoint.commandPath("")):
             let name = String(path.dropFirst(AgentEndpoint.commandPath("").count))
             guard let registration = self.registrations[name] else {
-                return HTTPResponse(status: 404, error: "Unknown command \"\(name)\"")
+                let suggestion = closestMatch(to: name, in: self.order).map { ", did you mean \($0)?" } ?? ""
+                return HTTPResponse(status: 404, error: "Unknown command \"\(name)\"\(suggestion)",
+                                    hint: "The commands are \(self.order.joined(separator: ", "))")
             }
 
             let context = AgentContext(references: self.references)
@@ -74,15 +58,32 @@ final class CommandRouter {
     private static func run(_ registration: Registration, body: Data,
                             in context: AgentContext) async -> HTTPResponse
     {
+        let descriptor = registration.descriptor
         do {
-            let output = try await registration.run(body, context)
+            // Arguments are checked against the descriptor first, so every command reports mistakes the same
+            let arguments = try Self.argumentsObject(from: body, for: descriptor)
+            try descriptor.validate(arguments)
+            let output = try await registration.run(arguments, context)
             try await context.finish()
             return HTTPResponse(status: 200, body: output)
         } catch {
             try? await context.finish()
-            let status = if case AgentError.invalidArguments = error { 400 } else { 500 }
-            return HTTPResponse(status: status, error: String(describing: error))
+            return ErrorReport(error, for: descriptor).response
         }
+    }
+
+    private static func argumentsObject(from body: Data, for descriptor: CommandDescriptor) throws
+        -> [String: JSONValue]
+    {
+        guard !body.isEmpty else {
+            return [:]
+        }
+
+        guard let object = try? JSONDecoder().decode([String: JSONValue].self, from: body) else {
+            throw ArgumentsError("The arguments must be a JSON object", hint: descriptor.argumentsHint)
+        }
+
+        return object
     }
 
     private func serially(_ operation: @escaping @MainActor () async -> HTTPResponse) async -> HTTPResponse {
@@ -94,24 +95,5 @@ final class CommandRouter {
 
         self.lastRun = Task { _ = await task.value }
         return await task.value
-    }
-}
-
-extension DecodingError {
-    fileprivate var argumentsMessage: String {
-        switch self {
-        case .keyNotFound(let key, _):
-            return "Missing argument \"\(key.stringValue)\""
-        case .typeMismatch(_, let context), .valueNotFound(_, let context):
-            let name = context.codingPath.map(\.stringValue).joined(separator: ".")
-            return "Invalid argument \"\(name)\": \(context.debugDescription)"
-        case .dataCorrupted(let context) where context.codingPath.isEmpty:
-            return "The arguments must be a JSON object: \(context.debugDescription)"
-        case .dataCorrupted(let context):
-            let name = context.codingPath.map(\.stringValue).joined(separator: ".")
-            return "Invalid argument \"\(name)\": \(context.debugDescription)"
-        @unknown default:
-            return String(describing: self)
-        }
     }
 }

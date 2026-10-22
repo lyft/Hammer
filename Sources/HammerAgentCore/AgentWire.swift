@@ -40,8 +40,12 @@ public struct AgentErrorBody: Codable, Sendable {
     /// What went wrong.
     public var error: String
 
-    public init(error: String) {
+    /// How to fix it, such as the command to call first, for the agent or person that sent the request.
+    public var hint: String?
+
+    public init(error: String, hint: String? = nil) {
         self.error = error
+        self.hint = hint
     }
 }
 

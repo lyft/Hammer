@@ -92,20 +92,33 @@ public final class AgentContext {
     }
 }
 
-/// An error a command reports to the client.
+/// An error a command reports to the client, with a hint on how to fix it.
 public enum AgentError: Error, CustomStringConvertible {
-    /// The arguments do not match the command's parameters.
-    case invalidArguments(String)
+    /// The arguments do not make sense together or refer to something that does not exist.
+    case invalidArguments(String, hint: String? = nil)
+
+    /// The command could not do what was asked.
+    case failed(String, hint: String? = nil)
 
     /// The app has no foreground key window to send events to.
     case noKeyWindow
 
     public var description: String {
         switch self {
-        case .invalidArguments(let message):
+        case .invalidArguments(let message, _), .failed(let message, _):
             return message
         case .noKeyWindow:
             return "The app has no key window in the foreground"
+        }
+    }
+
+    /// How to fix the error.
+    public var hint: String? {
+        switch self {
+        case .invalidArguments(_, let hint), .failed(_, let hint):
+            return hint
+        case .noKeyWindow:
+            return "Bring the app to the foreground, it may be in the background or still launching"
         }
     }
 }

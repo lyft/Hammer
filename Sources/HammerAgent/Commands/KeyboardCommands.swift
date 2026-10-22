@@ -45,7 +45,13 @@ struct PressKeyCommand: AgentCommand {
         } else if arguments.key.count == 1, let character = arguments.key.first {
             try await eventGenerator.keyPress(character)
         } else {
-            throw AgentError.invalidArguments("Unknown key \"\(arguments.key)\"")
+            let names = KeyboardKey.allCases.map { "\($0)" }
+            let suggestion = closestMatch(to: arguments.key, in: names)
+                .map { ", did you mean \($0)?" } ?? ""
+            throw AgentError.invalidArguments("Unknown key \"\(arguments.key)\"\(suggestion)", hint: """
+                Pass a single character or a key name, such as returnOrEnter, escape, deleteOrBackspace, \
+                tab, spacebar, arrowUp, arrowDown, arrowLeft or arrowRight
+                """)
         }
 
         return NoOutput()

@@ -39,7 +39,10 @@ struct Target: Decodable {
         let traitNames = try decode([String].self, "traits") ?? []
         let traits = try traitNames.reduce(into: UIAccessibilityTraits()) { traits, name in
             guard let trait = UIAccessibilityTraits(name: name) else {
-                throw AgentError.invalidArguments("Unknown accessibility trait \"\(name)\"")
+                let names = UIAccessibilityTraits.allNames
+                let suggestion = closestMatch(to: name, in: names).map { ", did you mean \($0)?" } ?? ""
+                throw AgentError.invalidArguments("Unknown accessibility trait \"\(name)\"\(suggestion)",
+                                                  hint: "The traits are \(names.joined(separator: ", "))")
             }
 
             traits.formUnion(trait)
@@ -58,12 +61,16 @@ struct Target: Decodable {
         case (.none, .none):
             self.point = nil
         default:
-            throw AgentError.invalidArguments("Pass both \(prefix)x and \(prefix)y")
+            throw AgentError.invalidArguments(
+                "Only one of \(prefix)x and \(prefix)y was passed",
+                hint: "Pass both, in window points like the frames from describe")
         }
 
         if [self.ref != nil, self.query != nil, self.point != nil].filter({ $0 }).count > 1 {
-            throw AgentError.invalidArguments("""
-                Pass only one of \(prefix)ref, an element query, or \(prefix)x and \(prefix)y
+            throw AgentError.invalidArguments("The target has more than one of a ref, a query and a point",
+                                              hint: """
+                Pass only one: \(prefix)ref, or any of \(prefix)identifier, \(prefix)label, \(prefix)value \
+                and \(prefix)traits, or \(prefix)x and \(prefix)y
                 """)
         }
     }
@@ -87,7 +94,10 @@ struct Target: Decodable {
     /// - throws: An error if the target is not a query.
     func requiredQuery() throws -> AccessibilityQuery {
         guard let query = self.query else {
-            throw AgentError.invalidArguments("Pass an identifier, label, value or traits")
+            throw AgentError.invalidArguments("This command needs an element to look for", hint: """
+                Pass any of identifier, label, value and traits. Refs and points are not supported here \
+                since the element may not exist yet
+                """)
         }
 
         return query

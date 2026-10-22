@@ -34,6 +34,11 @@ extension UIAccessibilityTraits {
         self = trait
     }
 
+    /// The names of every trait.
+    static var allNames: [String] {
+        return Self.named.map(\.name)
+    }
+
     /// The names of the traits it contains.
     var names: [String] {
         return Self.named.filter { self.contains($0.trait) }.map(\.name)
