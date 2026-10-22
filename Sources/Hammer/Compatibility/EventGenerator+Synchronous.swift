@@ -5,26 +5,24 @@ import UIKit
 // code and the async versions in async code.
 extension EventGenerator {
     public convenience init(window: UIWindow) throws {
-        self.init(window: window, mainView: window)
+        self.init(host: .existing(window), mainView: window)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
     public convenience init(viewController: UIViewController) throws {
-        let (window, presentedWindow) = EventGenerator.window(for: viewController)
-        self.init(window: window, mainView: viewController.view, presentedWindow: presentedWindow)
+        self.init(host: EventGenerator.host(for: viewController), mainView: viewController.view)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
     public convenience init(view: UIView, alignment: WrappingAlignment = .center) throws {
-        let (window, presentedWindow) = EventGenerator.window(for: view, alignment: alignment)
-        self.init(window: window, mainView: view, presentedWindow: presentedWindow)
+        self.init(host: EventGenerator.host(for: view, alignment: alignment), mainView: view)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
     public convenience init(view: some View, alignment: WrappingAlignment = .center) throws {
         let hostingController = EventGenerator.hostingController(for: view)
-        let window = EventGenerator.window(for: hostingController, alignment: alignment)
-        self.init(window: window, mainView: hostingController.view, presentedWindow: window)
+        self.init(host: EventGenerator.host(for: hostingController, alignment: alignment),
+                  mainView: hostingController.view)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
