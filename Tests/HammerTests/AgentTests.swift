@@ -178,6 +178,83 @@ final class AgentTests: XCTestCase {
                        ["greeting": "Hello Hammer"])
     }
 
+    func testTapTogglesSwitch() async throws {
+        let toggle = UISwitch()
+        toggle.accessibilityIdentifier = "wifi"
+        try await self.present(toggle)
+
+        let (_, status) = try await self.run("tap", ["identifier": "wifi"])
+        XCTAssertEqual(status, 200)
+        XCTAssertTrue(toggle.isOn)
+    }
+
+    func testLongPress() async throws {
+        let view = UIView()
+        view.accessibilityIdentifier = "pressable"
+        view.setSize(width: 200, height: 200)
+        let recognizer = UILongPressGestureRecognizer()
+        view.addGestureRecognizer(recognizer)
+        var beganCount = 0
+        recognizer.addHandler(forState: .began) { beganCount += 1 }
+        try await self.present(view)
+
+        let (_, status) = try await self.run("long_press", ["identifier": "pressable", "duration": 1])
+        XCTAssertEqual(status, 200)
+        XCTAssertEqual(beganCount, 1)
+    }
+
+    func testSwipeScrollsContent() async throws {
+        let scrollView = PatternScrollView()
+        scrollView.accessibilityIdentifier = "scroll"
+        scrollView.setSize(width: 300, height: 300)
+        try await self.present(scrollView)
+
+        let (_, status) = try await self.run("swipe", ["identifier": "scroll", "direction": "up"])
+        XCTAssertEqual(status, 200)
+        XCTAssertGreaterThan(scrollView.contentOffset.y, 0)
+        XCTAssertEqual(scrollView.contentOffset.x, 0)
+    }
+
+    func testEdgeSwipeNavigatesBack() async throws {
+        let navigationController = UINavigationController()
+        navigationController.viewControllers = [UIViewController(), UIViewController()]
+        let hostEventGenerator = try await EventGenerator(viewController: navigationController)
+        self.hostEventGenerator = hostEventGenerator
+
+        let (_, status) = try await self.run("edge_swipe", ["direction": "right"])
+        XCTAssertEqual(status, 200)
+        try await hostEventGenerator.waitUntil(navigationController.viewControllers.count == 1, timeout: 1)
+    }
+
+    func testDragMovesFingerBetweenTargets() async throws {
+        let view = TouchTestView()
+        view.accessibilityIdentifier = "canvas"
+        view.setSize(width: 300, height: 300)
+        try await self.present(view)
+
+        let center = view.convert(CGPoint(x: 150, y: 150), to: nil)
+        let (_, status) = try await self.run("drag", [
+            "identifier": "canvas", "to_x": .number(center.x + 100), "to_y": .number(center.y),
+        ])
+        XCTAssertEqual(status, 200)
+        let touch = try XCTUnwrap(view.endedTouches.first)
+        XCTAssertEqual(touch.location(in: view), CGPoint(x: 250, y: 150), accuracy: 1)
+    }
+
+    func testPressKeyDeletesText() async throws {
+        let textField = UITextField()
+        textField.accessibilityIdentifier = "name"
+        textField.disableTextSuggestions()
+        textField.autocapitalizationType = .none
+        textField.setSize(width: 200, height: 40)
+        try await self.present(textField)
+
+        _ = try await self.run("type_text", ["identifier": "name", "text": "ab"])
+        let (_, status) = try await self.run("press_key", ["key": "deleteOrBackspace"])
+        XCTAssertEqual(status, 200)
+        XCTAssertEqual(textField.text, "a")
+    }
+
     // MARK: - Helpers
 
     private struct DescribedNode: Decodable {
