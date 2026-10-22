@@ -25,6 +25,36 @@ final class ViewControllerTests: XCTestCase {
         await self.fulfillment(of: [expectation], timeout: 1)
     }
 
+    func testTapRightAfterPush() async throws {
+        let navigationController = UINavigationController(rootViewController: UIViewController())
+        let eventGenerator = try await EventGenerator(viewController: navigationController)
+
+        let button = UIButton()
+        button.accessibilityIdentifier = "pushed_button"
+        let pushedViewController = UIViewController()
+        pushedViewController.view.addSubview(button)
+        button.frame = CGRect(x: 0, y: 200, width: 200, height: 200)
+
+        let expectation = XCTestExpectation(description: "Button Tapped")
+        button.addHandler(forEvent: .primaryActionTriggered, action: expectation.fulfill)
+
+        navigationController.pushViewController(pushedViewController, animated: false)
+        try await eventGenerator.fingerTap(at: "pushed_button")
+        await self.fulfillment(of: [expectation], timeout: 1)
+    }
+
+    func testTapPointRightAfterPush() async throws {
+        let navigationController = UINavigationController(rootViewController: UIViewController())
+        let eventGenerator = try await EventGenerator(viewController: navigationController)
+        let pushedView = TouchTestView()
+        let pushedViewController = UIViewController()
+        pushedViewController.view = pushedView
+
+        navigationController.pushViewController(pushedViewController, animated: false)
+        try await eventGenerator.fingerTap(at: eventGenerator.window.bounds.center)
+        XCTAssertEqual(pushedView.touches.count, 1)
+    }
+
     func testSignIn() async throws {
         let viewController = TestSignInViewController()
         let navigationController = UINavigationController(rootViewController: viewController)

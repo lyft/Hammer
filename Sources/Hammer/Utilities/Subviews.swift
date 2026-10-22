@@ -323,11 +323,11 @@ extension EventGenerator {
     ///
     /// - returns: The hittable point in window coordinates
     public func windowHitPoint(forIdentifier accessibilityIdentifier: String) throws -> CGPoint {
+        try self.checkWindowIsReady()
+
         if let view = try? self.viewWithIdentifier(accessibilityIdentifier) {
             return try self.windowHitPoint(forView: view)
         }
-
-        try self.checkWindowIsReady()
 
         guard let element = self.accessibilityElement(withIdentifier: accessibilityIdentifier) else {
             throw HammerError.unableToFindView(identifier: accessibilityIdentifier)

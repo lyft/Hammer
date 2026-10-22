@@ -123,6 +123,10 @@ extension EventGenerator {
 
         try self.checkIsLatestActiveGenerator()
 
+        // Pending layout, like a navigation controller's push without animation, would otherwise swap the
+        // views after Hammer hit tests them and before UIKit delivers the event
+        self.window.layoutIfNeeded()
+
         if let reason = self.windowNotReadyReason {
             throw HammerError.windowIsNotReadyForInteraction(reason: reason)
         }
