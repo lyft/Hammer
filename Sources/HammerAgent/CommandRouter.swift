@@ -26,7 +26,9 @@ final class CommandRouter {
         let descriptor = command.descriptor
         self.registrations[name] = Registration(descriptor: descriptor) { body, context in
             let arguments = try Self.decodeArguments(Command.Arguments.self, from: body, for: descriptor)
-            return try JSONEncoder().encode(try await command.run(arguments, in: context))
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            return try encoder.encode(try await command.run(arguments, in: context))
         }
     }
 

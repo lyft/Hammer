@@ -331,10 +331,11 @@ swift run hammer screenshot --output screen.png
 swift run hammer help swipe
 ```
 
-Run `hammer mcp` as a stdio MCP server to give an agent the same commands as tools, for example with Claude Code:
+Run `hammer mcp` as a stdio MCP server to give an agent the same commands as tools. Build it first so build output doesn't mix with the MCP messages, for example with Claude Code:
 
 ```bash
-claude mcp add hammer -- swift run --package-path /path/to/Hammer hammer mcp
+swift build -c release --product hammer
+claude mcp add hammer -- "$(swift build -c release --show-bin-path)/hammer" mcp
 ```
 
 The agent listens on port 9876, or on `HAMMER_AGENT_PORT` for both the app and the tool (launch the app with `SIMCTL_CHILD_HAMMER_AGENT_PORT` to set it in the simulator).

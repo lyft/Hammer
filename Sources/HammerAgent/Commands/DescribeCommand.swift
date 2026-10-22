@@ -36,8 +36,9 @@ struct DescribeCommand: AgentCommand {
     /// Converts the snapshot to nodes, replacing the ones left out with their children.
     private static func nodes(for snapshot: ElementSnapshot, includeAll: Bool) -> [Node] {
         let children = snapshot.children.flatMap { self.nodes(for: $0, includeAll: includeAll) }
+        let traits = snapshot.traits.names
         let hasInformation = snapshot.identifier.nonEmpty != nil || snapshot.label.nonEmpty != nil
-            || snapshot.value.nonEmpty != nil || !snapshot.traits.isEmpty
+            || snapshot.value.nonEmpty != nil || !traits.isEmpty
         guard snapshot.isVisible && (includeAll || hasInformation) else {
             return children
         }
@@ -45,7 +46,7 @@ struct DescribeCommand: AgentCommand {
         let frame = snapshot.frame
         let node = Node(type: snapshot.typeName, identifier: snapshot.identifier.nonEmpty,
                         label: snapshot.label.nonEmpty, value: snapshot.value.nonEmpty,
-                        traits: snapshot.traits.isEmpty ? nil : snapshot.traits.names,
+                        traits: traits.isEmpty ? nil : traits,
                         frame: Node.Frame(x: frame.minX.rounded, y: frame.minY.rounded,
                                           width: frame.width.rounded, height: frame.height.rounded),
                         hittable: snapshot.isHittable, children: children.isEmpty ? nil : children)
