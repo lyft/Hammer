@@ -39,6 +39,9 @@ public final class EventGenerator {
     var isAccessibilityActivated = false
     private(set) var isFinished = false
 
+    /// The window the event generator presented the view in, to dismiss when it finishes.
+    private let presentedWindow: HammerWindow?
+
     /// The touches UIKit began delivering to the window since the last event was sent.
     var deliveredBeganTouches = [UITouch]()
 
@@ -55,11 +58,13 @@ public final class EventGenerator {
 
     /// Initialize an event generator for a specified UIWindow.
     ///
-    /// - parameter window:   The window to receive events.
-    /// - parameter mainView: The view that was used to create the event generator
-    init(window: UIWindow, mainView: UIView) {
+    /// - parameter window:          The window to receive events.
+    /// - parameter mainView:        The view that was used to create the event generator
+    /// - parameter presentedWindow: The window the event generator presented the view in, if any.
+    init(window: UIWindow, mainView: UIView, presentedWindow: HammerWindow? = nil) {
         self.window = window
         self.mainView = mainView
+        self.presentedWindow = presentedWindow
         self.window.layoutIfNeeded()
         self.debugWindow.frame = self.window.frame
 
@@ -87,7 +92,8 @@ public final class EventGenerator {
     ///
     /// - parameter viewController: The viewController to receive events.
     public convenience init(viewController: UIViewController) async throws {
-        self.init(window: EventGenerator.window(for: viewController), mainView: viewController.view)
+        let (window, presentedWindow) = EventGenerator.window(for: viewController)
+        self.init(window: window, mainView: viewController.view, presentedWindow: presentedWindow)
         try await self.waitUntilWindowIsReady()
     }
 
@@ -98,7 +104,8 @@ public final class EventGenerator {
     /// - parameter view:      The view to receive events.
     /// - parameter alignment: The wrapping alignment to use.
     public convenience init(view: UIView, alignment: WrappingAlignment = .center) async throws {
-        self.init(window: EventGenerator.window(for: view, alignment: alignment), mainView: view)
+        let (window, presentedWindow) = EventGenerator.window(for: view, alignment: alignment)
+        self.init(window: window, mainView: view, presentedWindow: presentedWindow)
         try await self.waitUntilWindowIsReady()
     }
 
@@ -106,15 +113,15 @@ public final class EventGenerator {
     ///
     /// - parameter viewController: The view controller to receive events.
     ///
-    /// - returns: The window to send events to.
-    static func window(for viewController: UIViewController) -> UIWindow {
+    /// - returns: The window to send events to, and the same window if it was presented.
+    static func window(for viewController: UIViewController) -> (UIWindow, presented: HammerWindow?) {
         if let window = viewController.view.window {
-            return window
+            return (window, presented: nil)
         }
 
         let window = HammerWindow()
         window.presentContained(viewController)
-        return window
+        return (window, presented: window)
     }
 
     /// Returns the view's window, or presents it in a new temporary window.
@@ -122,15 +129,17 @@ public final class EventGenerator {
     /// - parameter view:      The view to receive events.
     /// - parameter alignment: The wrapping alignment to use.
     ///
-    /// - returns: The window to send events to.
-    static func window(for view: UIView, alignment: WrappingAlignment) -> UIWindow {
+    /// - returns: The window to send events to, and the same window if it was presented.
+    static func window(for view: UIView,
+                       alignment: WrappingAlignment) -> (UIWindow, presented: HammerWindow?)
+    {
         if let window = view.window {
-            return window
+            return (window, presented: nil)
         }
 
         let window = HammerWindow()
         window.presentContained(UIViewController(wrapping: view.topLevelView, alignment: alignment))
-        return window
+        return (window, presented: window)
     }
 
     deinit {
@@ -255,8 +264,6 @@ public final class EventGenerator {
         Storage.activeGenerators.removeAll { $0 == ObjectIdentifier(self) }
         UIApplication.unregister(ObjectIdentifier(self))
         self.debugWindow.removeFromScene()
-        if let window = self.window as? HammerWindow {
-            window.dismissContained()
-        }
+        self.presentedWindow?.dismissContained()
     }
 }

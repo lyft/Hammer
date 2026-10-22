@@ -22,6 +22,7 @@
       <li><a href="#synchronous-tests">Synchronous Tests</a></li>
       <li><a href="#upgrading-from-1x">Upgrading from 1.x</a></li>
     </ul></li>
+    <li><a href="#ai-agents">AI Agents</a></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
     <li><a href="#license">License</a></li>
   </ol>
@@ -304,6 +305,59 @@ The synchronous versions keep the main run loop running while they wait, like `X
 - Hammer now needs Swift 6, iOS 17 and the main actor.
 - Waits check every frame, so `checkInterval` is gone.
 - Timeouts are optional and default to `settings.waitTimeout`.
+
+## AI Agents
+
+`HammerAgent` lets AI agents and scripts drive a running app with Hammer, through the `hammer` command line tool or its MCP server. Since it runs inside the app it finds elements by accessibility identifier, label, value or traits, including SwiftUI's, and waits for the app to process each event. It can't reach system UI such as permission alerts or the home screen.
+
+Start it in a debug build of the app. It only accepts connections from the same device, which includes the Mac running the simulator:
+
+```swift
+#if DEBUG
+import HammerAgent
+
+let agent = HammerAgent()
+try await agent.start()
+#endif
+```
+
+Then drive the app from the Mac:
+
+```bash
+swift run hammer describe
+swift run hammer tap --identifier sign_in
+swift run hammer type-text --identifier email --text "me@example.com"
+swift run hammer screenshot --output screen.png
+swift run hammer help swipe
+```
+
+Run `hammer mcp` as a stdio MCP server to give an agent the same commands as tools, for example with Claude Code:
+
+```bash
+claude mcp add hammer -- swift run --package-path /path/to/Hammer hammer mcp
+```
+
+The agent listens on port 9876, or on `HAMMER_AGENT_PORT` for both the app and the tool (launch the app with `SIMCTL_CHILD_HAMMER_AGENT_PORT` to set it in the simulator).
+
+Apps can add their own commands, which appear in the tool and as MCP tools:
+
+```swift
+struct SignInCommand: AgentCommand {
+    struct Arguments: Decodable {
+        let user: String
+    }
+
+    let descriptor = CommandDescriptor(name: "sign_in", summary: "Signs in as a test user.",
+                                       parameters: [.init("user", .string, "The user name.", isRequired: true)])
+
+    func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
+        try await TestSession.signIn(as: arguments.user)
+        return NoOutput()
+    }
+}
+
+agent.register(SignInCommand())
+```
 
 ## Troubleshooting
 

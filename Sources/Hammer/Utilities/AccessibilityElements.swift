@@ -124,7 +124,7 @@ extension EventGenerator {
 
 @MainActor
 extension NSObject {
-    fileprivate var accessibilityChildren: [NSObject] {
+    var accessibilityChildren: [NSObject] {
         if let elements = self.accessibilityElements as? [NSObject] {
             return elements
         }

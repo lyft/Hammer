@@ -10,8 +10,8 @@ extension EventGenerator {
     /// - parameter alignment: The wrapping alignment to use.
     public convenience init(view: some View, alignment: WrappingAlignment = .center) async throws {
         let hostingController = EventGenerator.hostingController(for: view)
-        self.init(window: EventGenerator.window(for: hostingController, alignment: alignment),
-                  mainView: hostingController.view)
+        let window = EventGenerator.window(for: hostingController, alignment: alignment)
+        self.init(window: window, mainView: hostingController.view, presentedWindow: window)
         try await self.waitUntilWindowIsReady()
     }
 
@@ -32,7 +32,7 @@ extension EventGenerator {
     /// - parameter alignment:      The wrapping alignment to use.
     ///
     /// - returns: The window to send events to.
-    static func window(for viewController: UIViewController, alignment: WrappingAlignment) -> UIWindow {
+    static func window(for viewController: UIViewController, alignment: WrappingAlignment) -> HammerWindow {
         let window = HammerWindow()
         window.presentContained(UIViewController(wrapping: viewController, alignment: alignment))
         return window

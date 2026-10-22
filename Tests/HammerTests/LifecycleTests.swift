@@ -76,6 +76,17 @@ final class LifecycleTests: XCTestCase {
         XCTAssertNil(view.window)
     }
 
+    func testFinishKeepsWindowItDidNotPresent() async throws {
+        let view = UIButton().withSize(width: 100, height: 100)
+        let presentingEventGenerator = try await EventGenerator(view: view)
+        let windowEventGenerator = try await EventGenerator(window: presentingEventGenerator.window)
+        try await windowEventGenerator.finish()
+        XCTAssertNotNil(view.window)
+
+        try await presentingEventGenerator.finish()
+        XCTAssertNil(view.window)
+    }
+
     func testEventsAfterFinishThrow() async throws {
         let eventGenerator = try await EventGenerator(view: UIButton().withSize(width: 100, height: 100))
         try await eventGenerator.finish()

@@ -10,19 +10,21 @@ extension EventGenerator {
     }
 
     public convenience init(viewController: UIViewController) throws {
-        self.init(window: EventGenerator.window(for: viewController), mainView: viewController.view)
+        let (window, presentedWindow) = EventGenerator.window(for: viewController)
+        self.init(window: window, mainView: viewController.view, presentedWindow: presentedWindow)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
     public convenience init(view: UIView, alignment: WrappingAlignment = .center) throws {
-        self.init(window: EventGenerator.window(for: view, alignment: alignment), mainView: view)
+        let (window, presentedWindow) = EventGenerator.window(for: view, alignment: alignment)
+        self.init(window: window, mainView: view, presentedWindow: presentedWindow)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
     public convenience init(view: some View, alignment: WrappingAlignment = .center) throws {
         let hostingController = EventGenerator.hostingController(for: view)
-        self.init(window: EventGenerator.window(for: hostingController, alignment: alignment),
-                  mainView: hostingController.view)
+        let window = EventGenerator.window(for: hostingController, alignment: alignment)
+        self.init(window: window, mainView: hostingController.view, presentedWindow: window)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 

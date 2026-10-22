@@ -14,7 +14,25 @@ targets:
         - HammerTests
       coverageTargets: 
         - Hammer
+        - HammerAgent
       gatherCoverageData: true
+  HammerAgentCore:
+    type: framework
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: Sources/HammerAgentCore
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+  HammerAgent:
+    type: framework
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: Sources/HammerAgent
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Hammer
+      - target: HammerAgentCore
   HammerTests:
     type: bundle.unit-test
     platform: iOS
@@ -22,6 +40,8 @@ targets:
     sources: Tests/HammerTests
     dependencies:
       - target: Hammer
+      - target: HammerAgent
+      - target: HammerAgentCore
       - target: TestHost
   TestHost:
     type: application
