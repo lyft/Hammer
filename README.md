@@ -334,7 +334,7 @@ swift run hammer help swipe
 
 Commands find elements by identifier, label, value and traits, or by the `ref` that `describe` gives each view and element. A `-` reads a JSON object of arguments from standard input, for nested values.
 
-`hammer help <command>` shows a command's arguments and examples, and `hammer guide` prints a markdown guide for agents with the workflow and every command the app runs. Failed commands print an `error:` and a `hint:` on how to fix the call, and exit with 2 when the call itself is invalid. To teach a coding agent to use it, copy [skills/hammer](skills/hammer/SKILL.md) into your project's skills, for example `.claude/skills/hammer`.
+`hammer help <command>` shows a command's arguments and examples, and `hammer guide` prints a markdown guide for agents with the workflow and every command the app runs. Failed commands print an `error:` and a `hint:` on how to fix the call, and exit with 2 when the call itself is invalid. To teach a coding agent to use it, copy [skills/hammer-cli](skills/hammer-cli/SKILL.md) into your project's skills, for example `.claude/skills/hammer-cli`, and [skills/hammer-tests](skills/hammer-tests/SKILL.md) for writing Hammer tests.
 
 Run `hammer mcp` as a stdio MCP server to give an agent the same commands as tools. Build it first so build output doesn't mix with the MCP messages, for example with Claude Code:
 
