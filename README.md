@@ -97,6 +97,7 @@ When simulating finger or stylus touches, there are multiple ways of specifying 
 2. Point: A CGPoint in screen coordinates.
 3. View: A reference to a UIView or UIViewController, the location will be the center of the visible part of the view.
 4. Identifier: An accessibility identifier string of a view or SwiftUI element, the location will be the center of the visible part of the view, or the activation point of the SwiftUI element.
+5. Query: An `AccessibilityQuery` that matches the identifier, label, value and traits of a view or SwiftUI element, with the same location as an identifier.
 
 By default, Hammer will display simulated touches over the view. You can change this behavior for your event generator.
 
@@ -208,6 +209,15 @@ try await eventGenerator.fingerMove(to: "drop_target", duration: 0.5)
 try await eventGenerator.fingerUp()
 ```
 
+To find elements by their label, value or traits instead, use an `AccessibilityQuery`. The waiting and visibility methods take queries too.
+
+```swift
+try await eventGenerator.fingerTap(at: .label("Sign In", traits: .button))
+try await eventGenerator.waitUntilVisible(AccessibilityQuery(label: "Wi-Fi", value: "1"))
+```
+
+When multiple elements match, Hammer prefers the visible ones and then the actionable ones like buttons and controls. Elements that activate at the same point, like a button and its title label, count as one. If it still can't choose it throws, unless you turn off `settings.throwOnMultipleMatches` to use the first match.
+
 ### SwiftUI
 
 SwiftUI views don't create a UIView for every element, so Hammer finds them through their accessibility elements instead. Give the elements you want to interact with an accessibility identifier and use it as the location, or to wait for them.
@@ -315,9 +325,13 @@ UIKit processed the event but did not begin a touch in any of the app's windows.
 
 The main thread did not get to the event in time, for example because it is blocked by other work. You can increase the time Hammer waits with `EventGenerator.settings.eventProcessingTimeout`.
 
-- View is not in hirarchy / Unable to find view
+- View is not in hirarchy / Unable to find view / Unable to find element
 
-Make sure the view you specified is in the same hierarchy as the view that was used to create the `EventGenerator`. If you used an accessibility identifier, check that it was spelled correctly.
+Make sure the view you specified is in the same hierarchy as the view that was used to create the `EventGenerator`. If you used an accessibility identifier or query, check that it was spelled correctly.
+
+- Found multiple elements
+
+More than one visible and actionable element matches the identifier or query. Make the query more specific, for example by adding traits, or give the elements unique identifiers.
 
 - View is not visible
 

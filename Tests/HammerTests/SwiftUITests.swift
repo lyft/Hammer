@@ -42,8 +42,8 @@ final class SwiftUITests: XCTestCase {
         do {
             try await eventGenerator.fingerTap(at: "row-25")
             XCTFail("Tapping a scrolled out element should throw")
-        } catch HammerError.elementIsNotVisible(let identifier) {
-            XCTAssertEqual(identifier, "row-25")
+        } catch HammerError.elementIsNotVisible(let query) {
+            XCTAssertEqual(query.identifier, "row-25")
         }
 
         try await eventGenerator.fingerDrag(from: "row-3", to: "row-0", duration: 0.3)

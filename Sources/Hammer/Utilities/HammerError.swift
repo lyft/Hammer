@@ -32,8 +32,10 @@ public enum HammerError: Error, @unchecked Sendable {
     case pointIsNotHittable(CGPoint)
 
     case unableToFindView(identifier: String)
-    case elementIsNotVisible(identifier: String)
-    case elementIsNotHittable(identifier: String)
+    case unableToFindElement(query: AccessibilityQuery)
+    case multipleElementsFound(query: AccessibilityQuery, count: Int)
+    case elementIsNotVisible(query: AccessibilityQuery)
+    case elementIsNotHittable(query: AccessibilityQuery)
     case invalidViewType(identifier: String, type: String, expected: String)
     case waitConditionTimeout(TimeInterval)
 
@@ -96,10 +98,17 @@ extension HammerError: CustomStringConvertible {
             return "Point is not hittable: \(point)"
         case .unableToFindView(let identifier):
             return "Unable to find view: \"\(identifier)\""
-        case .elementIsNotVisible(let identifier):
-            return "Element is not visible: \"\(identifier)\""
-        case .elementIsNotHittable(let identifier):
-            return "Element is not hittable: \"\(identifier)\""
+        case .unableToFindElement(let query):
+            return "Unable to find element: \(query)"
+        case .multipleElementsFound(let query, let count):
+            return """
+                Found \(count) elements for \(query), make the query more specific or turn off \
+                `throwOnMultipleMatches` to use the first one
+                """
+        case .elementIsNotVisible(let query):
+            return "Element is not visible: \(query)"
+        case .elementIsNotHittable(let query):
+            return "Element is not hittable: \(query)"
         case .invalidViewType(let identifier, let type, let expected):
             return "Invalid type for view: \"\(identifier)\", got \"\(type)\" expected \"\(expected)\""
         case .waitConditionTimeout(let timeout):
