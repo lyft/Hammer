@@ -168,19 +168,23 @@ public enum BuiltinCommands {
 
     public static let screenshot = CommandDescriptor(
         name: "screenshot",
-        summary: "Returns a PNG image of the windows of the app's foreground scene.",
-        parameters: [
+        summary: """
+            Returns a PNG image of the windows of the app's foreground scene, or of the area of one view, \
+            such as to compare it before and after set_property.
+            """,
+        parameters: elementParameters(role: "view to capture, or none for the screen") + [
             .init("scale", .number, "The pixels per point. Defaults to 1."),
         ],
         examples: [
             .init("See the screen"),
             .init("Capture it at the device's resolution", ["scale": 3]),
+            .init("Capture one view", ["ref": "e3", "scale": 2]),
         ]
     )
 
     /// Every builtin command.
     public static let all = [
-        describe, tap, longPress, swipe, edgeSwipe, drag, typeText, pressKey, waitFor, waitForIdle,
-        screenshot,
+        describe, hierarchy, inspect, tap, longPress, swipe, edgeSwipe, drag, typeText, pressKey, waitFor,
+        waitForIdle, screenshot, setProperty, setConstraint, addConstraint, revert,
     ]
 }

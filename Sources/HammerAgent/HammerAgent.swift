@@ -62,8 +62,9 @@ public final class HammerAgent {
     }
 
     private static let builtinCommands: [any AgentCommand] = [
-        DescribeCommand(), TapCommand(), LongPressCommand(), SwipeCommand(), EdgeSwipeCommand(),
-        DragCommand(), TypeTextCommand(), PressKeyCommand(), WaitForCommand(), WaitForIdleCommand(),
-        ScreenshotCommand(),
+        DescribeCommand(), HierarchyCommand(), InspectCommand(), TapCommand(), LongPressCommand(),
+        SwipeCommand(), EdgeSwipeCommand(), DragCommand(), TypeTextCommand(), PressKeyCommand(),
+        WaitForCommand(), WaitForIdleCommand(), ScreenshotCommand(), SetPropertyCommand(),
+        SetConstraintCommand(), AddConstraintCommand(), RevertCommand(),
     ]
 }

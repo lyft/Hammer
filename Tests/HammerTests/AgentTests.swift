@@ -22,7 +22,7 @@ final class AgentTests: XCTestCase {
     }
 
     func testListsBuiltinCommands() async throws {
-        let (data, status) = try await self.request("GET", AgentEndpoint.commandsPath)
+        let (data, status) = try await self.agent.request("GET", AgentEndpoint.commandsPath)
         XCTAssertEqual(status, 200)
         XCTAssertEqual(try JSONDecoder().decode([CommandDescriptor].self, from: data), BuiltinCommands.all)
     }
@@ -33,7 +33,7 @@ final class AgentTests: XCTestCase {
         button.addHandler(forEvent: .primaryActionTriggered) { tapCount += 1 }
         try await self.present(button)
 
-        let (_, status) = try await self.run("tap", ["identifier": "sign_in", "count": 2])
+        let (_, status) = try await self.agent.run("tap", ["identifier": "sign_in", "count": 2])
         XCTAssertEqual(status, 200)
         XCTAssertEqual(tapCount, 2)
     }
@@ -44,15 +44,15 @@ final class AgentTests: XCTestCase {
         button.addHandler(forEvent: .primaryActionTriggered) { tapCount += 1 }
         try await self.present(button)
 
-        let (data, _) = try await self.run("describe")
+        let (data, _) = try await self.agent.run("describe")
         let nodes = try JSONDecoder().decode([DescribedNode].self, from: data)
         let ref = try XCTUnwrap(nodes.flatMap(\.flattened).first { $0.identifier == "sign_in" }?.ref)
 
-        let (_, status) = try await self.run("tap", ["ref": .string(ref)])
+        let (_, status) = try await self.agent.run("tap", ["ref": .string(ref)])
         XCTAssertEqual(status, 200)
         XCTAssertEqual(tapCount, 1)
 
-        let (secondData, _) = try await self.run("describe")
+        let (secondData, _) = try await self.agent.run("describe")
         let secondNodes = try JSONDecoder().decode([DescribedNode].self, from: secondData)
         XCTAssertEqual(secondNodes.flatMap(\.flattened).first { $0.identifier == "sign_in" }?.ref, ref)
     }
@@ -60,7 +60,7 @@ final class AgentTests: XCTestCase {
     func testRejectsUnknownRef() async throws {
         try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
 
-        let (_, status) = try await self.run("tap", ["ref": "e999999"])
+        let (_, status) = try await self.agent.run("tap", ["ref": "e999999"])
         XCTAssertEqual(status, 400)
     }
 
@@ -80,7 +80,7 @@ final class AgentTests: XCTestCase {
     func testDescribeIncludesAccessibilityInformation() async throws {
         try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
 
-        let (data, status) = try await self.run("describe")
+        let (data, status) = try await self.agent.run("describe")
         XCTAssertEqual(status, 200)
         let output = try XCTUnwrap(String(bytes: data, encoding: .utf8))
         XCTAssertTrue(output.contains(#""identifier":"sign_in""#), output)
@@ -95,7 +95,7 @@ final class AgentTests: XCTestCase {
         textField.setSize(width: 200, height: 40)
         try await self.present(textField)
 
-        let (_, status) = try await self.run("type_text", ["identifier": "name", "text": "Hammer"])
+        let (_, status) = try await self.agent.run("type_text", ["identifier": "name", "text": "Hammer"])
         XCTAssertEqual(status, 200)
         XCTAssertEqual(textField.text, "Hammer")
     }
@@ -103,7 +103,7 @@ final class AgentTests: XCTestCase {
     func testScreenshotIsPNG() async throws {
         try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
 
-        let (data, status) = try await self.run("screenshot")
+        let (data, status) = try await self.agent.run("screenshot")
         XCTAssertEqual(status, 200)
         let image = try JSONDecoder().decode(AgentImage.self, from: data)
         XCTAssertEqual(image.mimeType, "image/png")
@@ -113,7 +113,7 @@ final class AgentTests: XCTestCase {
     func testRejectsUnknownArgument() async throws {
         try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
 
-        let (data, status) = try await self.run("tap", ["identifer": "sign_in"])
+        let (data, status) = try await self.agent.run("tap", ["identifer": "sign_in"])
         XCTAssertEqual(status, 400)
         let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
         XCTAssertEqual(body.error, #"Unknown argument "identifer" for tap, did you mean "identifier"?"#)
@@ -123,7 +123,7 @@ final class AgentTests: XCTestCase {
     func testRejectsInvalidArgumentValues() async throws {
         try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
 
-        let (data, status) = try await self.run("swipe", ["direction": "upward"])
+        let (data, status) = try await self.agent.run("swipe", ["direction": "upward"])
         XCTAssertEqual(status, 400)
         XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).error,
                        #"Invalid value "upward" for "direction", expected one of up, down, left, right"#)
@@ -132,7 +132,7 @@ final class AgentTests: XCTestCase {
     func testReportsCommandErrors() async throws {
         try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
 
-        let (data, status) = try await self.run("tap", ["identifier": "missing"])
+        let (data, status) = try await self.agent.run("tap", ["identifier": "missing"])
         XCTAssertEqual(status, 500)
         let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
         XCTAssertTrue(body.error.contains("missing"), body.error)
@@ -140,7 +140,7 @@ final class AgentTests: XCTestCase {
     }
 
     func testSuggestsCommandForTypo() async throws {
-        let (data, status) = try await self.request("POST", AgentEndpoint.commandPath("tapp"))
+        let (data, status) = try await self.agent.request("POST", AgentEndpoint.commandPath("tapp"))
         XCTAssertEqual(status, 404)
         XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).error,
                        #"Unknown command "tapp", did you mean tap?"#)
@@ -172,7 +172,7 @@ final class AgentTests: XCTestCase {
         self.agent.register(GreetCommand())
         XCTAssertEqual(self.agent.commands.last?.name, "greet")
 
-        let (data, status) = try await self.run("greet", ["name": "Hammer"])
+        let (data, status) = try await self.agent.run("greet", ["name": "Hammer"])
         XCTAssertEqual(status, 200)
         XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: data),
                        ["greeting": "Hello Hammer"])
@@ -183,7 +183,7 @@ final class AgentTests: XCTestCase {
         toggle.accessibilityIdentifier = "wifi"
         try await self.present(toggle)
 
-        let (_, status) = try await self.run("tap", ["identifier": "wifi"])
+        let (_, status) = try await self.agent.run("tap", ["identifier": "wifi"])
         XCTAssertEqual(status, 200)
         XCTAssertTrue(toggle.isOn)
     }
@@ -198,7 +198,7 @@ final class AgentTests: XCTestCase {
         recognizer.addHandler(forState: .began) { beganCount += 1 }
         try await self.present(view)
 
-        let (_, status) = try await self.run("long_press", ["identifier": "pressable", "duration": 1])
+        let (_, status) = try await self.agent.run("long_press", ["identifier": "pressable", "duration": 1])
         XCTAssertEqual(status, 200)
         XCTAssertEqual(beganCount, 1)
     }
@@ -209,7 +209,7 @@ final class AgentTests: XCTestCase {
         scrollView.setSize(width: 300, height: 300)
         try await self.present(scrollView)
 
-        let (_, status) = try await self.run("swipe", ["identifier": "scroll", "direction": "up"])
+        let (_, status) = try await self.agent.run("swipe", ["identifier": "scroll", "direction": "up"])
         XCTAssertEqual(status, 200)
         XCTAssertGreaterThan(scrollView.contentOffset.y, 0)
         XCTAssertEqual(scrollView.contentOffset.x, 0)
@@ -221,7 +221,7 @@ final class AgentTests: XCTestCase {
         let hostEventGenerator = try await EventGenerator(viewController: navigationController)
         self.hostEventGenerator = hostEventGenerator
 
-        let (_, status) = try await self.run("edge_swipe", ["direction": "right"])
+        let (_, status) = try await self.agent.run("edge_swipe", ["direction": "right"])
         XCTAssertEqual(status, 200)
         try await hostEventGenerator.waitUntil(navigationController.viewControllers.count == 1, timeout: 1)
     }
@@ -233,7 +233,7 @@ final class AgentTests: XCTestCase {
         try await self.present(view)
 
         let center = view.convert(CGPoint(x: 150, y: 150), to: nil)
-        let (_, status) = try await self.run("drag", [
+        let (_, status) = try await self.agent.run("drag", [
             "identifier": "canvas", "to_x": .number(center.x + 100), "to_y": .number(center.y),
         ])
         XCTAssertEqual(status, 200)
@@ -249,8 +249,8 @@ final class AgentTests: XCTestCase {
         textField.setSize(width: 200, height: 40)
         try await self.present(textField)
 
-        _ = try await self.run("type_text", ["identifier": "name", "text": "ab"])
-        let (_, status) = try await self.run("press_key", ["key": "deleteOrBackspace"])
+        _ = try await self.agent.run("type_text", ["identifier": "name", "text": "ab"])
+        let (_, status) = try await self.agent.run("press_key", ["key": "deleteOrBackspace"])
         XCTAssertEqual(status, 200)
         XCTAssertEqual(textField.text, "a")
     }
@@ -277,19 +277,5 @@ final class AgentTests: XCTestCase {
 
     private func present(_ view: UIView) async throws {
         self.hostEventGenerator = try await EventGenerator(view: view)
-    }
-
-    private func run(_ command: String, _ arguments: [String: JSONValue] = [:]) async throws -> (Data, Int) {
-        return try await self.request("POST", AgentEndpoint.commandPath(command),
-                                      body: try JSONEncoder().encode(arguments))
-    }
-
-    private func request(_ method: String, _ path: String, body: Data? = nil) async throws -> (Data, Int) {
-        let port = try XCTUnwrap(self.agent.port)
-        var request = URLRequest(url: try XCTUnwrap(URL(string: "http://127.0.0.1:\(port)\(path)")))
-        request.httpMethod = method
-        request.httpBody = body
-        let (data, response) = try await URLSession.shared.data(for: request)
-        return (data, try XCTUnwrap(response as? HTTPURLResponse).statusCode)
     }
 }

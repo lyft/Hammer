@@ -75,6 +75,11 @@ struct Target: Decodable {
         }
     }
 
+    /// If no target was passed, for commands where the target is optional.
+    var isEmpty: Bool {
+        return self.ref == nil && self.query == nil && self.point == nil
+    }
+
     /// The location to send touches to, or nil for the center of the window.
     ///
     /// - parameter context: The context that resolves refs.
@@ -87,6 +92,44 @@ struct Target: Decodable {
         }
 
         return self.query ?? self.point
+    }
+
+    /// The view to inspect or change, the topmost view at the point for a point.
+    ///
+    /// - parameter context: The context that resolves refs and queries.
+    ///
+    /// - throws: An error if the target is empty, is not found or is an element that is not a view.
+    ///
+    /// - returns: The view.
+    @MainActor
+    func view(in context: AgentContext) async throws -> UIView {
+        let element: AccessibilityElement
+        if let ref = self.ref {
+            element = try context.element(for: ref)
+        } else if let query = self.query {
+            element = try await context.eventGenerator().element(matching: query)
+        } else if let point = self.point {
+            let window = try await context.eventGenerator().window
+            guard let view = window.hitTest(point, with: nil) else {
+                throw AgentError.invalidArguments("No view is at \(point.x), \(point.y)",
+                                                  hint: "Pass a point inside the window, in window points")
+            }
+
+            return view
+        } else {
+            throw AgentError.invalidArguments("This command needs a view", hint: """
+                Pass the view's ref from describe or hierarchy, any of identifier, label, value and traits, \
+                or x and y for the topmost view at a point
+                """)
+        }
+
+        guard let view = element.view else {
+            throw AgentError.invalidArguments(
+                "The element is an accessibility element, such as a SwiftUI one, not a view",
+                hint: "Call hierarchy to find the UIKit view that hosts it, and target that view instead")
+        }
+
+        return view
     }
 
     /// The query, for commands that search for an element.

@@ -332,6 +332,16 @@ swift run hammer screenshot --output screen.png
 swift run hammer help swipe
 ```
 
+Agents can also change views live to see how a change looks, or which one fixes a layout problem, before writing it in code:
+
+```bash
+swift run hammer inspect --ref e3
+swift run hammer set-property --ref e3 --property backgroundColor --to systemBlue
+swift run hammer set-constraint --constraint c4 --constant 24
+swift run hammer screenshot --ref e3 --output view.png
+swift run hammer revert
+```
+
 Commands find elements by identifier, label, value and traits, or by the `ref` that `describe` gives each view and element. A `-` reads a JSON object of arguments from standard input, for nested values.
 
 `hammer help <command>` shows a command's arguments and examples, and `hammer guide` prints a markdown guide for agents with the workflow and every command the app runs. Failed commands print an `error:` and a `hint:` on how to fix the call, and exit with 2 when the call itself is invalid. To teach a coding agent to use it, copy [skills/hammer-cli](skills/hammer-cli/SKILL.md) into your project's skills, for example `.claude/skills/hammer-cli`, and [skills/hammer-tests](skills/hammer-tests/SKILL.md) for writing Hammer tests.

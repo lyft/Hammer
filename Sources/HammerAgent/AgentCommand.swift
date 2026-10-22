@@ -36,10 +36,12 @@ public struct NoOutput: Encodable, Sendable {
 @MainActor
 public final class AgentContext {
     private var generator: EventGenerator?
-    let references: ElementReferences
+    let references: ObjectReferences
+    let changes: ChangeLog
 
-    init(references: ElementReferences) {
+    init(references: ObjectReferences, changes: ChangeLog) {
         self.references = references
+        self.changes = changes
     }
 
     /// Returns the ref clients use to target the element in later commands.
@@ -60,6 +62,26 @@ public final class AgentContext {
     /// - returns: The element.
     public func element(for ref: String) throws -> AccessibilityElement {
         return try self.references.element(for: ref)
+    }
+
+    /// Returns the ref clients use to target the constraint in later commands.
+    ///
+    /// - parameter constraint: The constraint.
+    ///
+    /// - returns: The ref.
+    public func ref(for constraint: NSLayoutConstraint) -> String {
+        return self.references.ref(for: constraint)
+    }
+
+    /// Returns the constraint a ref from `ref(for:)` points to.
+    ///
+    /// - parameter ref: The ref.
+    ///
+    /// - throws: An error if the ref is unknown or its constraint was released.
+    ///
+    /// - returns: The constraint.
+    public func constraint(for ref: String) throws -> NSLayoutConstraint {
+        return try self.references.constraint(for: ref)
     }
 
     /// The event generator for the key window, created on first use and finished after the command runs.

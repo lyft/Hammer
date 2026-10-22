@@ -12,7 +12,8 @@ final class CommandRouter {
     private var registrations = [String: Registration]()
     private var order = [String]()
     private var lastRun: Task<Void, Never>?
-    private let references = ElementReferences()
+    private let references = ObjectReferences()
+    private let changes = ChangeLog()
 
     var descriptors: [CommandDescriptor] {
         return self.order.compactMap { self.registrations[$0]?.descriptor }
@@ -20,9 +21,10 @@ final class CommandRouter {
 
     func register<Command: AgentCommand>(_ command: Command) {
         let name = command.descriptor.name
-        let reserved = command.descriptor.parameters.map(\.name)
-            .filter(CommandDescriptor.reservedParameterNames.contains)
+        let names = command.descriptor.parameters.map(\.name)
+        let reserved = names.filter(CommandDescriptor.reservedParameterNames.contains)
         precondition(reserved.isEmpty, "Command \(name) uses reserved parameter names: \(reserved)")
+        precondition(Set(names).count == names.count, "Command \(name) has duplicate parameters: \(names)")
         if self.registrations[name] == nil {
             self.order.append(name)
         }
@@ -48,7 +50,7 @@ final class CommandRouter {
                                     hint: "The commands are \(self.order.joined(separator: ", "))")
             }
 
-            let context = AgentContext(references: self.references)
+            let context = AgentContext(references: self.references, changes: self.changes)
             return await self.serially { await Self.run(registration, body: request.body, in: context) }
         default:
             return HTTPResponse(status: 404, error: "Unknown route \(request.method) \(request.path)")
