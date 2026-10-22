@@ -7,16 +7,25 @@ struct HammerCLI {
         Drives an iOS app that runs Hammer's agent.
 
         Usage:
-          hammer [--port <port>] <command> [--<option> <value>]...
-          hammer [--port <port>] commands         List the commands the app runs
-          hammer [--port <port>] help <command>   Describe a command and its options
-          hammer [--port <port>] mcp              Run an MCP server over standard input and output
+          hammer <command> [--<argument> <value>]... [-] [<options>]
+          hammer commands         List the commands the app runs
+          hammer help <command>   Describe a command and its arguments
+          hammer mcp              Run an MCP server over standard input and output
 
-        Commands print their JSON output. Images, such as screenshots, are written to --output, or to a PNG
-        file in the current directory.
+        Options:
+          --port <port>    The agent's port. Defaults to \(AgentEndpoint.portEnvironmentKey) or \
+        \(AgentEndpoint.defaultPort).
+          --output <path>  Write the command's output to a file instead of printing it.
 
-        The port defaults to \(AgentEndpoint.portEnvironmentKey) or \(AgentEndpoint.defaultPort).
+        Arguments also take the form --<argument>=<value>. A - reads a JSON object of arguments from
+        standard input, for values such as nested objects. Commands print their JSON output, and write
+        images such as screenshots to a PNG file in the current directory.
         """
+
+    private struct Options {
+        var port = AgentEndpoint.port()
+        var outputPath: String?
+    }
 
     static func main() async {
         do {
@@ -28,23 +37,15 @@ struct HammerCLI {
     }
 
     private static func run(_ arguments: [String]) async throws {
-        var arguments = arguments[...]
-        var port = AgentEndpoint.port()
-        if arguments.first == "--port" {
-            arguments.removeFirst()
-            guard let value = arguments.popFirst().flatMap(UInt16.init) else {
-                throw UsageError(description: "Invalid port")
-            }
-
-            port = value
-        }
-
-        let client = AgentClient(port: port)
-        switch arguments.popFirst() {
+        var arguments = arguments
+        let options = try self.extractOptions(from: &arguments)
+        var remaining = arguments[...]
+        let client = AgentClient(port: options.port)
+        switch remaining.popFirst() {
         case nil, "--help", "-h":
             print(self.usage)
         case "help":
-            guard let name = arguments.first else {
+            guard let name = remaining.first else {
                 print(self.usage)
                 return
             }
@@ -57,28 +58,51 @@ struct HammerCLI {
         case "mcp":
             try await MCPServer(client: client).run()
         case let name?:
-            try await self.runCommand(name, options: Array(arguments), client: client)
+            let descriptor = try self.descriptor(named: name, in: await client.commandsOrBuiltins())
+            let commandArguments = try descriptor.arguments(from: Array(remaining))
+            let output = try await client.run(descriptor.name, arguments: commandArguments)
+            try self.write(output, name: descriptor.commandLineName, to: options.outputPath)
         }
     }
 
-    private static func runCommand(_ name: String, options: [String], client: AgentClient) async throws {
-        var options = options
-        var outputPath: String?
-        if let index = options.firstIndex(of: "--output") {
-            guard index + 1 < options.count else {
-                throw UsageError(description: "Missing value for --output")
+    /// Removes the tool's own options, which can go anywhere since commands can't use their names.
+    private static func extractOptions(from arguments: inout [String]) throws -> Options {
+        var options = Options()
+        var remaining = [String]()
+        var tokens = arguments[...]
+        while let token = tokens.popFirst() {
+            let parts = token.split(separator: "=", maxSplits: 1).map(String.init)
+            let name = parts[0].hasPrefix("--") ? String(parts[0].dropFirst(2)) : ""
+            guard CommandDescriptor.reservedParameterNames.contains(name) else {
+                remaining.append(token)
+                continue
             }
 
-            outputPath = options[index + 1]
-            options.removeSubrange(index...(index + 1))
+            guard let value = parts.count == 2 ? parts[1] : tokens.popFirst() else {
+                throw UsageError(description: "Missing value for \(parts[0])")
+            }
+
+            if parts[0] == "--output" {
+                options.outputPath = value
+            } else if let port = UInt16(value) {
+                options.port = port
+            } else {
+                throw UsageError(description: "Invalid port \"\(value)\"")
+            }
         }
 
-        let descriptor = try self.descriptor(named: name, in: await client.commandsOrBuiltins())
-        let output = try await client.run(descriptor.name, arguments: try descriptor.arguments(from: options))
+        arguments = remaining
+        return options
+    }
+
+    /// Prints the output or writes it to the path. Images are always written to a file, as image data.
+    private static func write(_ output: Data, name: String, to outputPath: String?) throws {
         if let image = try? JSONDecoder().decode(AgentImage.self, from: output) {
             let path = outputPath ?? "\(name)-\(Int(Date().timeIntervalSince1970)).png"
             try image.data.write(to: URL(filePath: path))
             print(path)
+        } else if let outputPath {
+            try output.write(to: URL(filePath: outputPath))
         } else {
             print(String(bytes: output, encoding: .utf8) ?? "")
         }

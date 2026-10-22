@@ -375,6 +375,26 @@ extension EventGenerator {
             throw HammerError.unableToFindElement(query: query)
         }
 
+        return try self.windowHitPoint(for: element, describedBy: query)
+    }
+
+    /// Returns a valid hittable point for the view or accessibility element, the center of a view's visible
+    /// area or the activation point of an element that is not a view.
+    ///
+    /// - parameter element: The element to hit.
+    ///
+    /// - throws: And error if the element is not visible or not hittable.
+    ///
+    /// - returns: The hittable point in window coordinates
+    public func windowHitPoint(for element: AccessibilityElement) throws -> CGPoint {
+        try self.checkWindowIsReady()
+        return try self.windowHitPoint(for: element, describedBy: element.query)
+    }
+
+    /// Returns a valid hittable point for the element, reporting errors with the query.
+    private func windowHitPoint(for element: AccessibilityElement,
+                                describedBy query: AccessibilityQuery) throws -> CGPoint
+    {
         if let view = element.view {
             return try self.windowHitPoint(forView: view)
         }

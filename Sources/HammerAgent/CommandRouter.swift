@@ -12,6 +12,7 @@ final class CommandRouter {
     private var registrations = [String: Registration]()
     private var order = [String]()
     private var lastRun: Task<Void, Never>?
+    private let references = ElementReferences()
 
     var descriptors: [CommandDescriptor] {
         return self.order.compactMap { self.registrations[$0]?.descriptor }
@@ -19,6 +20,9 @@ final class CommandRouter {
 
     func register<Command: AgentCommand>(_ command: Command) {
         let name = command.descriptor.name
+        let reserved = command.descriptor.parameters.map(\.name)
+            .filter(CommandDescriptor.reservedParameterNames.contains)
+        precondition(reserved.isEmpty, "Command \(name) uses reserved parameter names: \(reserved)")
         if self.registrations[name] == nil {
             self.order.append(name)
         }
@@ -60,14 +64,16 @@ final class CommandRouter {
                 return HTTPResponse(status: 404, error: "Unknown command \"\(name)\"")
             }
 
-            return await self.serially { await Self.run(registration, body: request.body) }
+            let context = AgentContext(references: self.references)
+            return await self.serially { await Self.run(registration, body: request.body, in: context) }
         default:
             return HTTPResponse(status: 404, error: "Unknown route \(request.method) \(request.path)")
         }
     }
 
-    private static func run(_ registration: Registration, body: Data) async -> HTTPResponse {
-        let context = AgentContext()
+    private static func run(_ registration: Registration, body: Data,
+                            in context: AgentContext) async -> HTTPResponse
+    {
         do {
             let output = try await registration.run(body, context)
             try await context.finish()

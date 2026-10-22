@@ -326,10 +326,13 @@ Then drive the app from the Mac:
 ```bash
 swift run hammer describe
 swift run hammer tap --identifier sign_in
+swift run hammer tap --ref e12
 swift run hammer type-text --identifier email --text "me@example.com"
 swift run hammer screenshot --output screen.png
 swift run hammer help swipe
 ```
+
+Commands find elements by identifier, label, value and traits, or by the `ref` that `describe` gives each view and element. A `-` reads a JSON object of arguments from standard input, for nested values.
 
 Run `hammer mcp` as a stdio MCP server to give an agent the same commands as tools. Build it first so build output doesn't mix with the MCP messages, for example with Claude Code:
 

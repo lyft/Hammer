@@ -16,6 +16,7 @@ struct Target: Decodable {
         }
     }
 
+    let ref: String?
     let query: AccessibilityQuery?
     let point: CGPoint?
 
@@ -32,6 +33,8 @@ struct Target: Decodable {
         func decode<T: Decodable>(_ type: T.Type, _ name: String) throws -> T? {
             return try container.decodeIfPresent(type, forKey: Key(stringValue: prefix + name))
         }
+
+        self.ref = try decode(String.self, "ref")
 
         let traitNames = try decode([String].self, "traits") ?? []
         let traits = try traitNames.reduce(into: UIAccessibilityTraits()) { traits, name in
@@ -58,19 +61,30 @@ struct Target: Decodable {
             throw AgentError.invalidArguments("Pass both \(prefix)x and \(prefix)y")
         }
 
-        if self.query != nil && self.point != nil {
-            throw AgentError.invalidArguments("Pass either an element or \(prefix)x and \(prefix)y")
+        if [self.ref != nil, self.query != nil, self.point != nil].filter({ $0 }).count > 1 {
+            throw AgentError.invalidArguments("""
+                Pass only one of \(prefix)ref, an element query, or \(prefix)x and \(prefix)y
+                """)
         }
     }
 
     /// The location to send touches to, or nil for the center of the window.
-    var location: HammerLocatable? {
+    ///
+    /// - parameter context: The context that resolves refs.
+    ///
+    /// - throws: An error if the ref is unknown.
+    @MainActor
+    func location(in context: AgentContext) throws -> HammerLocatable? {
+        if let ref = self.ref {
+            return try context.element(for: ref)
+        }
+
         return self.query ?? self.point
     }
 
-    /// The query, for commands that need an element.
+    /// The query, for commands that search for an element.
     ///
-    /// - throws: An error if the target is a point or empty.
+    /// - throws: An error if the target is not a query.
     func requiredQuery() throws -> AccessibilityQuery {
         guard let query = self.query else {
             throw AgentError.invalidArguments("Pass an identifier, label, value or traits")

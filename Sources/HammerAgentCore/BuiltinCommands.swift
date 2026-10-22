@@ -12,6 +12,7 @@ public enum BuiltinCommands {
         -> [CommandDescriptor.Parameter]
     {
         return [
+            .init(prefix + "ref", .string, "The ref of the \(role) from describe."),
             .init(prefix + "identifier", .string, "The accessibility identifier of the \(role)."),
             .init(prefix + "label", .string, "The accessibility label of the \(role)."),
             .init(prefix + "value", .string, "The accessibility value of the \(role)."),
@@ -29,7 +30,8 @@ public enum BuiltinCommands {
         summary: """
             Returns the tree of visible views and accessibility elements in the key window, with their \
             identifier, label, value, traits, frame in window points and whether touches reach them. \
-            Containers without accessibility information are left out unless `all` is set.
+            Each has a ref, such as e12, that other commands take to target it. Containers without \
+            accessibility information are left out unless `all` is set.
             """,
         parameters: [
             .init("all", .boolean, "Include every visible view, even without accessibility information."),

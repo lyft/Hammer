@@ -37,7 +37,7 @@ struct HTTPResponse: Sendable {
 final class HTTPServer: Sendable {
     typealias Handler = @Sendable (HTTPRequest) async -> HTTPResponse
 
-    private static let maxRequestSize = 1 << 20
+    private static let maxRequestSize = 16 << 20
 
     private let listener: NWListener
     private let queue = DispatchQueue(label: "com.lyft.hammer.agent.server")
@@ -54,6 +54,10 @@ final class HTTPServer: Sendable {
                                                      port: NWEndpoint.Port(rawValue: port) ?? .any)
         self.listener = try NWListener(using: parameters)
         self.handler = handler
+    }
+
+    deinit {
+        self.listener.cancel()
     }
 
     /// The port the server listens on, once it started.

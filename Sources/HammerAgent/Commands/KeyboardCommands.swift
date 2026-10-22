@@ -22,7 +22,7 @@ struct TypeTextCommand: AgentCommand {
 
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
         let eventGenerator = try await context.eventGenerator()
-        if let location = arguments.target.location {
+        if let location = try arguments.target.location(in: context) {
             try await eventGenerator.fingerTap(at: location)
         }
 

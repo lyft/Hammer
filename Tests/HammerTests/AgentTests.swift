@@ -38,6 +38,45 @@ final class AgentTests: XCTestCase {
         XCTAssertEqual(tapCount, 2)
     }
 
+    func testTapButtonWithRefFromDescribe() async throws {
+        let button = self.button(title: "Sign In", identifier: "sign_in")
+        var tapCount = 0
+        button.addHandler(forEvent: .primaryActionTriggered) { tapCount += 1 }
+        try await self.present(button)
+
+        let (data, _) = try await self.run("describe")
+        let nodes = try JSONDecoder().decode([DescribedNode].self, from: data)
+        let ref = try XCTUnwrap(nodes.flatMap(\.flattened).first { $0.identifier == "sign_in" }?.ref)
+
+        let (_, status) = try await self.run("tap", ["ref": .string(ref)])
+        XCTAssertEqual(status, 200)
+        XCTAssertEqual(tapCount, 1)
+
+        let (secondData, _) = try await self.run("describe")
+        let secondNodes = try JSONDecoder().decode([DescribedNode].self, from: secondData)
+        XCTAssertEqual(secondNodes.flatMap(\.flattened).first { $0.identifier == "sign_in" }?.ref, ref)
+    }
+
+    func testRejectsUnknownRef() async throws {
+        try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
+
+        let (_, status) = try await self.run("tap", ["ref": "e999999"])
+        XCTAssertEqual(status, 400)
+    }
+
+    func testParameterTypesRoundTripAndUnknownTypesDecodeAsJSON() throws {
+        let types: [CommandDescriptor.ParameterType] = [
+            .string, .integer, .number, .boolean, .stringList, .choice(["a", "b"]), .json,
+        ]
+        let decoded = try JSONDecoder().decode([CommandDescriptor.ParameterType].self,
+                                               from: JSONEncoder().encode(types))
+        XCTAssertEqual(decoded, types)
+
+        let unknown = try JSONDecoder().decode(CommandDescriptor.ParameterType.self,
+                                               from: Data(#"{"type":"color"}"#.utf8))
+        XCTAssertEqual(unknown, .json)
+    }
+
     func testDescribeIncludesAccessibilityInformation() async throws {
         try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
 
@@ -112,6 +151,16 @@ final class AgentTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    private struct DescribedNode: Decodable {
+        let ref: String
+        let identifier: String?
+        let children: [DescribedNode]?
+
+        var flattened: [DescribedNode] {
+            return [self] + (self.children ?? []).flatMap(\.flattened)
+        }
+    }
 
     private func button(title: String, identifier: String) -> UIButton {
         let button = UIButton(type: .system)

@@ -16,6 +16,7 @@ struct DescribeCommand: AgentCommand {
             let height: Double
         }
 
+        let ref: String
         let type: String
         let identifier: String?
         let label: String?
@@ -30,12 +31,13 @@ struct DescribeCommand: AgentCommand {
 
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> [Node] {
         let snapshot = try await context.eventGenerator().elementSnapshot()
-        return Self.nodes(for: snapshot, includeAll: arguments.all ?? false)
+        context.references.removeReleased()
+        return self.nodes(for: snapshot, includeAll: arguments.all ?? false, in: context)
     }
 
     /// Converts the snapshot to nodes, replacing the ones left out with their children.
-    private static func nodes(for snapshot: ElementSnapshot, includeAll: Bool) -> [Node] {
-        let children = snapshot.children.flatMap { self.nodes(for: $0, includeAll: includeAll) }
+    private func nodes(for snapshot: ElementSnapshot, includeAll: Bool, in context: AgentContext) -> [Node] {
+        let children = snapshot.children.flatMap { self.nodes(for: $0, includeAll: includeAll, in: context) }
         let traits = snapshot.traits.names
         let hasInformation = snapshot.identifier.nonEmpty != nil || snapshot.label.nonEmpty != nil
             || snapshot.value.nonEmpty != nil || !traits.isEmpty
@@ -44,7 +46,9 @@ struct DescribeCommand: AgentCommand {
         }
 
         let frame = snapshot.frame
-        let node = Node(type: snapshot.typeName, identifier: snapshot.identifier.nonEmpty,
+        let node = Node(ref: context.ref(for: snapshot.element),
+                        type: String(describing: type(of: snapshot.element.object)),
+                        identifier: snapshot.identifier.nonEmpty,
                         label: snapshot.label.nonEmpty, value: snapshot.value.nonEmpty,
                         traits: traits.isEmpty ? nil : traits,
                         frame: Node.Frame(x: frame.minX.rounded, y: frame.minY.rounded,

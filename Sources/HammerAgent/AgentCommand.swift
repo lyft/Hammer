@@ -4,14 +4,16 @@ import HammerAgentCore
 import UIKit
 
 /// A command the agent runs for its clients, such as a tap or an app specific action like signing in.
-public protocol AgentCommand: Sendable {
+@MainActor
+public protocol AgentCommand {
     /// The arguments, decoded from the JSON object the client sends.
     associatedtype Arguments: Decodable
 
     /// The output, encoded as the JSON the client receives.
     associatedtype Output: Encodable
 
-    /// Describes the command to clients. The parameters must match the keys `Arguments` decodes.
+    /// Describes the command to clients. The parameters must match the keys `Arguments` decodes and can't
+    /// use `CommandDescriptor.reservedParameterNames`.
     var descriptor: CommandDescriptor { get }
 
     /// Runs the command.
@@ -22,12 +24,8 @@ public protocol AgentCommand: Sendable {
     /// - throws: An error to report to the client.
     ///
     /// - returns: The output for the client.
-    @MainActor
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> Output
 }
-
-/// The arguments of a command that takes none.
-public struct NoArguments: Decodable, Sendable {}
 
 /// The output of a command that only reports it succeeded.
 public struct NoOutput: Encodable, Sendable {
@@ -38,8 +36,31 @@ public struct NoOutput: Encodable, Sendable {
 @MainActor
 public final class AgentContext {
     private var generator: EventGenerator?
+    let references: ElementReferences
 
-    init() {}
+    init(references: ElementReferences) {
+        self.references = references
+    }
+
+    /// Returns the ref clients use to target the element in later commands.
+    ///
+    /// - parameter element: The element.
+    ///
+    /// - returns: The ref.
+    public func ref(for element: AccessibilityElement) -> String {
+        return self.references.ref(for: element)
+    }
+
+    /// Returns the element a ref from `ref(for:)` points to.
+    ///
+    /// - parameter ref: The ref.
+    ///
+    /// - throws: An error if the ref is unknown or its element was released.
+    ///
+    /// - returns: The element.
+    public func element(for ref: String) throws -> AccessibilityElement {
+        return try self.references.element(for: ref)
+    }
 
     /// The event generator for the key window, created on first use and finished after the command runs.
     ///

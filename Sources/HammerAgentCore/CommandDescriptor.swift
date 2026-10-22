@@ -11,6 +11,9 @@ public struct CommandDescriptor: Codable, Equatable, Sendable {
     /// The parameters of the command's arguments object.
     public var parameters: [Parameter]
 
+    /// The parameter names clients use for their own options, such as the `hammer` tool's `--output`.
+    public static let reservedParameterNames: Set<String> = ["output", "port"]
+
     /// Creates a command descriptor.
     ///
     /// - parameter name:       The name clients call the command with, in snake case.
@@ -71,6 +74,8 @@ extension CommandDescriptor {
     }
 
     /// The type of a parameter's value.
+    ///
+    /// Clients decode a type they don't know as `json`, so apps can use newer types than their clients.
     public enum ParameterType: Codable, Equatable, Sendable {
         case string
         case integer
@@ -79,20 +84,77 @@ extension CommandDescriptor {
         case stringList
         case choice([String])
 
+        /// Any JSON value, such as an object for a frame or a value for a property of any type.
+        case json
+
+        private enum CodingKeys: String, CodingKey {
+            case type
+            case values
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            switch try container.decode(String.self, forKey: .type) {
+            case "string":
+                self = .string
+            case "integer":
+                self = .integer
+            case "number":
+                self = .number
+            case "boolean":
+                self = .boolean
+            case "stringList":
+                self = .stringList
+            case "choice":
+                self = .choice(try container.decode([String].self, forKey: .values))
+            default:
+                self = .json
+            }
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(self.name, forKey: .type)
+            if case .choice(let values) = self {
+                try container.encode(values, forKey: .values)
+            }
+        }
+
+        private var name: String {
+            switch self {
+            case .string:
+                return "string"
+            case .integer:
+                return "integer"
+            case .number:
+                return "number"
+            case .boolean:
+                return "boolean"
+            case .stringList:
+                return "stringList"
+            case .choice:
+                return "choice"
+            case .json:
+                return "json"
+            }
+        }
+
         var schema: [String: JSONValue] {
             switch self {
             case .string:
-                return ["type": .string("string")]
+                return ["type": "string"]
             case .integer:
-                return ["type": .string("integer")]
+                return ["type": "integer"]
             case .number:
-                return ["type": .string("number")]
+                return ["type": "number"]
             case .boolean:
-                return ["type": .string("boolean")]
+                return ["type": "boolean"]
             case .stringList:
-                return ["type": .string("array"), "items": .object(["type": .string("string")])]
+                return ["type": "array", "items": ["type": "string"]]
             case .choice(let values):
-                return ["type": .string("string"), "enum": .array(values.map(JSONValue.string))]
+                return ["type": "string", "enum": .array(values.map(JSONValue.string))]
+            case .json:
+                return [:]
             }
         }
     }

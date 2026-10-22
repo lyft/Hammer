@@ -1,9 +1,10 @@
 import UIKit
 
 /// The state of a view or an accessibility element that is not a view, and of its descendants.
-public struct ElementSnapshot: Sendable {
-    /// The name of the view's or element's type.
-    public let typeName: String
+@MainActor
+public struct ElementSnapshot {
+    /// The view or element.
+    public let element: AccessibilityElement
 
     /// The accessibility identifier.
     public let identifier: String?
@@ -40,8 +41,7 @@ extension EventGenerator {
 
         func snapshot(_ element: AccessibilityElement, children: [ElementSnapshot]) -> ElementSnapshot {
             let object = element.object
-            return ElementSnapshot(typeName: String(describing: type(of: object)),
-                                   identifier: object.accessibilityIdentifierValue,
+            return ElementSnapshot(element: element, identifier: object.accessibilityIdentifierValue,
                                    label: object.accessibilityLabel, value: object.accessibilityValue,
                                    traits: object.accessibilityTraits, frame: element.frame(in: self.window),
                                    isVisible: self.isVisible(element, visibility: .partial),

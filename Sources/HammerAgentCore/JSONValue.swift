@@ -44,15 +44,6 @@ public enum JSONValue: Codable, Equatable, Sendable {
         }
     }
 
-    /// Creates a value from an encodable one.
-    ///
-    /// - parameter value: The value to convert.
-    ///
-    /// - throws: An error if the value cannot be encoded.
-    public init(encoding value: some Encodable) throws {
-        self = try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(value))
-    }
-
     /// Decodes the value as a decodable type.
     ///
     /// - parameter type: The type to decode.

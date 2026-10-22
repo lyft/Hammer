@@ -52,7 +52,14 @@ struct MCPServer {
         case "ping":
             return [:]
         case "tools/list":
-            let tools = await self.client.commandsOrBuiltins().map { command -> JSONValue in
+            let commands: [CommandDescriptor]
+            do {
+                commands = try await self.client.commandsOrBuiltins()
+            } catch {
+                throw MCPError(code: -32603, message: String(describing: error))
+            }
+
+            let tools = commands.map { command -> JSONValue in
                 [
                     "name": .string(command.name),
                     "description": .string(command.summary),

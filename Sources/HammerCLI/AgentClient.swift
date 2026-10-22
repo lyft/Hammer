@@ -18,9 +18,15 @@ struct AgentClient: Sendable {
         return try JSONDecoder().decode([CommandDescriptor].self, from: data)
     }
 
-    /// The commands the app runs, or the builtin ones when it is not reachable, to describe them anyway.
-    func commandsOrBuiltins() async -> [CommandDescriptor] {
-        return (try? await self.commands()) ?? BuiltinCommands.all
+    /// The commands the app runs, or the builtin ones when it is not running, to describe them anyway.
+    ///
+    /// - throws: An error if the app is running but its commands could not be read.
+    func commandsOrBuiltins() async throws -> [CommandDescriptor] {
+        do {
+            return try await self.commands()
+        } catch ClientError.unreachable {
+            return BuiltinCommands.all
+        }
     }
 
     /// Runs a command.
