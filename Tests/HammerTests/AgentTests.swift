@@ -27,6 +27,15 @@ final class AgentTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode([CommandDescriptor].self, from: data), BuiltinCommands.all)
     }
 
+    func testServesRequestsWhenAllowingRemoteConnections() async throws {
+        let agent = HammerAgent(port: 0)
+        try await agent.start(allowsRemoteConnections: true)
+        defer { agent.stop() }
+
+        let (_, status) = try await agent.request("GET", AgentEndpoint.commandsPath)
+        XCTAssertEqual(status, 200)
+    }
+
     func testTapButtonWithIdentifier() async throws {
         let button = self.button(title: "Sign In", identifier: "sign_in")
         var tapCount = 0
