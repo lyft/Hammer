@@ -12,7 +12,8 @@ final class CommandRouter {
     private var registrations = [String: Registration]()
     private var order = [String]()
     private var lastRun: Task<Void, Never>?
-    private let references = ElementReferences()
+    private let references = ObjectReferences()
+    private let changes = ChangeLog()
 
     var descriptors: [CommandDescriptor] {
         return self.order.compactMap { self.registrations[$0]?.descriptor }
@@ -48,7 +49,7 @@ final class CommandRouter {
                                     hint: "The commands are \(self.order.joined(separator: ", "))")
             }
 
-            let context = AgentContext(references: self.references)
+            let context = AgentContext(references: self.references, changes: self.changes)
             return await self.serially { await Self.run(registration, body: request.body, in: context) }
         default:
             return HTTPResponse(status: 404, error: "Unknown route \(request.method) \(request.path)")

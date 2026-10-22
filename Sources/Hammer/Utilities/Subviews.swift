@@ -14,6 +14,22 @@ extension EventGenerator {
         case full
     }
 
+    /// Finds the view or accessibility element that matches the query, the same one touches go to.
+    ///
+    /// - parameter query: The query to match.
+    ///
+    /// - throws: An error if no element matches, or if multiple elements match and `throwOnMultipleMatches`
+    ///           is set.
+    ///
+    /// - returns: The element.
+    public func element(matching query: AccessibilityQuery) throws -> AccessibilityElement {
+        guard let element = try self.accessibilityElement(matching: query) else {
+            throw HammerError.unableToFindElement(query: query)
+        }
+
+        return element
+    }
+
     /// Searches the view's subviews recursively for the one that has the specified identifier.
     ///
     /// NOTE: This uses a level order traversal with complexity O(n), where n is number of nodes in the tree.

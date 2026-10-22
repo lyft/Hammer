@@ -58,6 +58,19 @@ public enum AgentGuide {
 
         Without a target, gestures use the center of the window.
 
+        ## Live editing
+
+        To see how a change looks, or which change fixes a layout problem, before writing it in code:
+
+        1. Find the view with `describe`, or with `hierarchy` for containers and hidden views that \
+        `describe` leaves out.
+        2. Call `inspect` on it to see its properties, with their types and values, and the constraints \
+        that lay it out, with their refs such as `c4`.
+        3. Change it with `set_property`, `set_constraint` or `add_constraint`, then `screenshot` to see \
+        the result, with a `ref` to capture only that view.
+        4. Call `revert` when done. It restores every original value, since the app keeps the changes until \
+        it relaunches.
+
         ## Errors
 
         A failed command explains what went wrong and gives a hint on how to fix it, such as calling \
