@@ -133,6 +133,13 @@ try await eventGenerator.fingerPinch(fromDistance: 100, toDistance: 50, duration
 try await eventGenerator.fingerRotate(angle: .pi, duration: 0.5)
 ```
 
+Swipes move a finger in a direction, and edge swipes start from the edge of the screen like the swipe to go back in a navigation controller. Any touch that starts at the edge of the screen is marked as an edge touch, so `UIScreenEdgePanGestureRecognizer` recognizes it.
+
+```swift
+try await eventGenerator.fingerSwipe(direction: .up)
+try await eventGenerator.fingerEdgeSwipe(direction: .right)
+```
+
 ### Simulating Stylus
 
 Stylus is available when running on an iPad. It allows for additional properties like pressure, altitude and azimuth to be specified.

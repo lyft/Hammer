@@ -76,6 +76,26 @@ extension EventGenerator {
         }
     }
 
+    public func fingerSwipe(_ index: FingerIndex? = .automatic, at location: HammerLocatable? = nil,
+                            direction: SwipeDirection, distance: CGFloat = EventGenerator.swipeDistance,
+                            duration: TimeInterval = EventGenerator.swipeDuration) throws
+    {
+        try self.runSynchronously {
+            try await self.fingerSwipe(index, at: location, direction: direction, distance: distance,
+                                       duration: duration)
+        }
+    }
+
+    public func fingerEdgeSwipe(_ index: FingerIndex? = .automatic, direction: SwipeDirection,
+                                distance: CGFloat = EventGenerator.swipeDistance,
+                                duration: TimeInterval = EventGenerator.swipeDuration) throws
+    {
+        try self.runSynchronously {
+            try await self.fingerEdgeSwipe(index, direction: direction, distance: distance,
+                                           duration: duration)
+        }
+    }
+
     public func twoFingerDown(_ indices: [FingerIndex?] = .automatic, at location: HammerLocatable? = nil,
                               withDistance distance: CGFloat = EventGenerator.twoFingerDistance,
                               angle radians: CGFloat = 0) throws

@@ -196,6 +196,7 @@ extension IOHID {
         static let attribute = DigitizerEventMask(rawValue: 1 << 6)
         static let cancel = DigitizerEventMask(rawValue: 1 << 7)
         static let start = DigitizerEventMask(rawValue: 1 << 8)
+        static let fromEdgeTip = DigitizerEventMask(rawValue: 1 << 11)
 
         static let estimatedAltitude = DigitizerEventMask(rawValue: 1 << 28)
         static let estimatedAzimuth = DigitizerEventMask(rawValue: 1 << 29)
