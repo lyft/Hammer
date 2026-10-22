@@ -31,6 +31,12 @@ extension UIViewController: HammerLocatable {
     }
 }
 
+extension AccessibilityElement: HammerLocatable {
+    public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
+        return try eventGenerator.windowHitPoint(for: self)
+    }
+}
+
 extension String: HammerLocatable {
     public func windowHitPoint(for eventGenerator: EventGenerator) throws -> CGPoint {
         return try eventGenerator.windowHitPoint(forIdentifier: self)

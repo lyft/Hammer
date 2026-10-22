@@ -5,6 +5,16 @@ on:
     branches:
     - main
 jobs:
+  build_cli:
+    name: Build-CLI
+    runs-on: xcode-27
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Force Xcode 27.0
+        run: sudo xcode-select -switch /Applications/Xcode_27.0.app
+      - name: Build hammer
+        run: swift build --product hammer
   test_ipad:
     name: Test-iPad
     runs-on: xcode-27

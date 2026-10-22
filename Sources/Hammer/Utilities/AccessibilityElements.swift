@@ -2,16 +2,32 @@ import UIKit
 
 /// A view or an accessibility element that is not a view, such as an element of a SwiftUI view.
 @MainActor
-struct AccessibilityElement {
+public struct AccessibilityElement {
     /// The view or element.
-    let object: NSObject
+    public let object: NSObject
 
     /// The view itself, or the view the element belongs to.
-    let containerView: UIView
+    public let containerView: UIView
+
+    /// Creates an element.
+    ///
+    /// - parameter object:        The view or element.
+    /// - parameter containerView: The view itself, or the view the element belongs to.
+    public init(object: NSObject, containerView: UIView) {
+        self.object = object
+        self.containerView = containerView
+    }
 
     /// The view, or nil if the element is not a view.
-    var view: UIView? {
+    public var view: UIView? {
         return self.object as? UIView
+    }
+
+    /// A query with the element's accessibility identifier, label and value, to describe it in errors.
+    var query: AccessibilityQuery {
+        let object = self.object
+        return AccessibilityQuery(identifier: object.accessibilityIdentifierValue,
+                                  label: object.accessibilityLabel, value: object.accessibilityValue)
     }
 
     /// If the element is a control or has traits of an element that performs an action.
@@ -25,7 +41,7 @@ struct AccessibilityElement {
     /// - parameter window: The window the element is in.
     ///
     /// - returns: The frame.
-    func frame(in window: UIWindow) -> CGRect {
+    public func frame(in window: UIWindow) -> CGRect {
         window.screen.coordinateSpace.convert(self.object.accessibilityFrame, to: window)
     }
 
@@ -34,7 +50,7 @@ struct AccessibilityElement {
     /// - parameter window: The window the element is in.
     ///
     /// - returns: The point.
-    func activationPoint(in window: UIWindow) -> CGPoint {
+    public func activationPoint(in window: UIWindow) -> CGPoint {
         window.screen.coordinateSpace.convert(self.object.accessibilityActivationPoint, to: window)
     }
 }
@@ -124,7 +140,7 @@ extension EventGenerator {
 
 @MainActor
 extension NSObject {
-    fileprivate var accessibilityChildren: [NSObject] {
+    var accessibilityChildren: [NSObject] {
         if let elements = self.accessibilityElements as? [NSObject] {
             return elements
         }

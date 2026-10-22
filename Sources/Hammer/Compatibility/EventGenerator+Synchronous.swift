@@ -5,23 +5,23 @@ import UIKit
 // code and the async versions in async code.
 extension EventGenerator {
     public convenience init(window: UIWindow) throws {
-        self.init(window: window, mainView: window)
+        self.init(host: .existing(window), mainView: window)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
     public convenience init(viewController: UIViewController) throws {
-        self.init(window: EventGenerator.window(for: viewController), mainView: viewController.view)
+        self.init(host: EventGenerator.host(for: viewController), mainView: viewController.view)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
     public convenience init(view: UIView, alignment: WrappingAlignment = .center) throws {
-        self.init(window: EventGenerator.window(for: view, alignment: alignment), mainView: view)
+        self.init(host: EventGenerator.host(for: view, alignment: alignment), mainView: view)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
 
     public convenience init(view: some View, alignment: WrappingAlignment = .center) throws {
         let hostingController = EventGenerator.hostingController(for: view)
-        self.init(window: EventGenerator.window(for: hostingController, alignment: alignment),
+        self.init(host: EventGenerator.host(for: hostingController, alignment: alignment),
                   mainView: hostingController.view)
         try self.runSynchronously { try await self.waitUntilWindowIsReady() }
     }
