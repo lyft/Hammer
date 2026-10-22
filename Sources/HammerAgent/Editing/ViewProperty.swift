@@ -122,7 +122,7 @@ struct ViewProperty {
         guard let undo = set(view, value) else {
             throw AgentError.invalidArguments(
                 "Invalid value \(value.compactDescription) for \(self.name), expected \(self.expectation)",
-                hint: #"Pass it like --value '#FF0000', --value 0.5 or --value '{"x": 0, "y": 0}'"#)
+                hint: #"Pass it like --to '#FF0000', --to 0.5 or --to '{"x": 0, "y": 0}'"#)
         }
 
         return undo

@@ -336,7 +336,7 @@ Agents can also change views live to see how a change looks, or which one fixes 
 
 ```bash
 swift run hammer inspect --ref e3
-swift run hammer set-property --ref e3 --property backgroundColor --value systemBlue
+swift run hammer set-property --ref e3 --property backgroundColor --to systemBlue
 swift run hammer set-constraint --constraint c4 --constant 24
 swift run hammer screenshot --ref e3 --output view.png
 swift run hammer revert

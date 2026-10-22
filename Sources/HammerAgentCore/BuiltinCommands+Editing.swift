@@ -65,15 +65,15 @@ extension BuiltinCommands {
             """,
         parameters: targetParameters(role: "view") + [
             .init("property", .string, "The property name, as inspect lists it.", isRequired: true),
-            .init("value", .json, "The new value as JSON, in the property's type.", isRequired: true),
+            .init("to", .json, "The new value as JSON, in the property's type.", isRequired: true),
         ],
         examples: [
             .init("Try a blue background",
-                  ["ref": "e3", "property": "backgroundColor", "value": "systemBlue"]),
+                  ["ref": "e3", "property": "backgroundColor", "to": "systemBlue"]),
             .init("Make a view half transparent",
-                  ["identifier": "banner", "property": "alpha", "value": 0.5]),
-            .init("Hide a view", ["ref": "e7", "property": "isHidden", "value": true]),
-            .init("Increase a stack view's spacing", ["ref": "e2", "property": "spacing", "value": 16]),
+                  ["identifier": "banner", "property": "alpha", "to": 0.5]),
+            .init("Hide a view", ["ref": "e7", "property": "isHidden", "to": true]),
+            .init("Increase a stack view's spacing", ["ref": "e2", "property": "spacing", "to": 16]),
         ]
     )
 

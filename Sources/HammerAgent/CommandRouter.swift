@@ -21,9 +21,10 @@ final class CommandRouter {
 
     func register<Command: AgentCommand>(_ command: Command) {
         let name = command.descriptor.name
-        let reserved = command.descriptor.parameters.map(\.name)
-            .filter(CommandDescriptor.reservedParameterNames.contains)
+        let names = command.descriptor.parameters.map(\.name)
+        let reserved = names.filter(CommandDescriptor.reservedParameterNames.contains)
         precondition(reserved.isEmpty, "Command \(name) uses reserved parameter names: \(reserved)")
+        precondition(Set(names).count == names.count, "Command \(name) has duplicate parameters: \(names)")
         if self.registrations[name] == nil {
             self.order.append(name)
         }

@@ -6,7 +6,7 @@ struct SetPropertyCommand: AgentCommand {
     struct Arguments: Decodable {
         private enum CodingKeys: String, CodingKey {
             case property
-            case value
+            case value = "to"
         }
 
         let target: Target
