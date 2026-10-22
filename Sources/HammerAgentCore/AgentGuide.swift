@@ -156,7 +156,7 @@ extension CommandDescriptor {
             }
 
             switch value {
-            case .bool(true):
+            case .bool(true) where parameter.type == .boolean:
                 return parameter.optionName
             case .string(let string):
                 return "\(parameter.optionName) \(shellQuoted(string))"
