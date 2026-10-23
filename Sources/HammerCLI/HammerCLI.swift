@@ -51,7 +51,7 @@ struct HammerCLI {
         var arguments = arguments
         let options = try self.extractOptions(from: &arguments)
         var remaining = arguments[...]
-        let client = AgentClient(port: options.port)
+        let client = AgentClient(port: options.port, token: AgentEndpoint.token())
         switch remaining.popFirst() {
         case nil, "--help", "-h":
             print(self.usage)

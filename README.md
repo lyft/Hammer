@@ -310,7 +310,7 @@ The synchronous versions keep the main run loop running while they wait, like `X
 
 `HammerAgent` lets AI agents and scripts drive a running app with Hammer, through the `hammer` command line tool or its MCP server. Since it runs inside the app it finds elements by accessibility identifier, label, value or traits, including SwiftUI's, and waits for the app to process each event. It can't reach system UI such as permission alerts or the home screen.
 
-Start it in a debug build of the app. It only accepts connections from the same device, which includes the Mac running the simulator, unless you call `start(allowsRemoteConnections: true)`. Anyone on the network can then control the app, since there is no authentication:
+Start it in a debug build of the app. It only runs in the simulator and accepts connections from the same device, which includes the Mac running the simulator. It rejects requests from web browsers, so websites can't control the app:
 
 ```swift
 #if DEBUG
@@ -353,7 +353,9 @@ swift build -c release --product hammer
 claude mcp add hammer -- "$(swift build -c release --show-bin-path)/hammer" mcp
 ```
 
-The agent listens on port 9876, or on `HAMMER_AGENT_PORT` for both the app and the tool (launch the app with `SIMCTL_CHILD_HAMMER_AGENT_PORT` to set it in the simulator).
+The agent listens on port 9876, or on `HAMMER_AGENT_PORT` for both the app and the tool (launch the app with `SIMCTL_CHILD_HAMMER_AGENT_PORT` to set it in the simulator). Set `HAMMER_AGENT_TOKEN` the same way to require a token, so other processes on the Mac can't control the app.
+
+To run it on a physical device, call `start(allowsPhysicalDevice: true)`, since other apps on the device can connect to it. `start(allowsRemoteConnections: true)` also accepts connections from other devices on the network, and needs a token.
 
 Apps can add their own commands, which appear in the tool and as MCP tools:
 

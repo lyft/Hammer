@@ -3,13 +3,17 @@ import Foundation
 /// Where the agent listens and the routes of its HTTP API.
 ///
 /// `GET /commands` returns the `[CommandDescriptor]` the agent runs, and `POST /commands/<name>` runs one
-/// with a JSON object of arguments, returning its JSON output or an `AgentErrorBody`.
+/// with a JSON object of arguments, returning its JSON output or an `AgentErrorBody`. When the agent has a
+/// token, requests send it as `Authorization: Bearer <token>`.
 public enum AgentEndpoint {
     /// The port used when `portEnvironmentKey` is not set.
     public static let defaultPort: UInt16 = 9876
 
     /// The environment variable that sets the port, for both the app and its clients.
     public static let portEnvironmentKey = "HAMMER_AGENT_PORT"
+
+    /// The environment variable that sets the token requests must send, for both the app and its clients.
+    public static let tokenEnvironmentKey = "HAMMER_AGENT_TOKEN"
 
     /// The path that lists the commands.
     public static let commandsPath = "/commands"
@@ -23,6 +27,17 @@ public enum AgentEndpoint {
         -> UInt16
     {
         return environment[self.portEnvironmentKey].flatMap(UInt16.init) ?? self.defaultPort
+    }
+
+    /// The token set in the environment, or nil if requests need none.
+    ///
+    /// - parameter environment: The environment to read.
+    ///
+    /// - returns: The token.
+    public static func token(in environment: [String: String] = ProcessInfo.processInfo.environment)
+        -> String?
+    {
+        return environment[self.tokenEnvironmentKey].flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// The path that runs a command.

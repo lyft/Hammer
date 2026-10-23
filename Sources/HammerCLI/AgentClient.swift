@@ -4,6 +4,7 @@ import HammerAgentCore
 /// Talks to the agent running in the app.
 struct AgentClient: Sendable {
     let port: UInt16
+    let token: String?
 
     private var baseURL: URL {
         return URL(string: "http://127.0.0.1:\(self.port)")!
@@ -67,6 +68,9 @@ struct AgentClient: Sendable {
         var request = request
         // Commands such as waits and long presses take a while, and the app runs them one at a time
         request.timeoutInterval = 300
+        if let token = self.token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let data: Data
         let response: URLResponse

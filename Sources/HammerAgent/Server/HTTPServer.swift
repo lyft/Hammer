@@ -5,6 +5,8 @@ import Network
 struct HTTPRequest: Sendable {
     let method: String
     let path: String
+    /// The headers, by lowercased name.
+    let headers: [String: String]
     let body: Data
 }
 
@@ -42,14 +44,16 @@ final class HTTPServer: Sendable {
 
     private let listener: NWListener
     private let queue = DispatchQueue(label: "com.lyft.hammer.agent.server")
+    private let token: String?
     private let handler: Handler
 
     /// Creates a server bound to the loopback interface, or to every interface.
     ///
     /// - parameter port:                    The port to listen on, or 0 for any free port.
     /// - parameter allowsRemoteConnections: If other devices on the network can connect.
+    /// - parameter token:                   The token requests must send, or nil for none.
     /// - parameter handler:                 Responds to each request.
-    init(port: UInt16, allowsRemoteConnections: Bool, handler: @escaping Handler) throws {
+    init(port: UInt16, allowsRemoteConnections: Bool, token: String?, handler: @escaping Handler) throws {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
         let port = NWEndpoint.Port(rawValue: port) ?? .any
@@ -60,6 +64,7 @@ final class HTTPServer: Sendable {
             self.listener = try NWListener(using: parameters)
         }
 
+        self.token = token
         self.handler = handler
     }
 
@@ -115,7 +120,12 @@ final class HTTPServer: Sendable {
 
         let response: HTTPResponse
         do {
-            response = await self.handler(try await connection.receiveRequest(limit: Self.maxRequestSize))
+            let request = try await connection.receiveRequest(limit: Self.maxRequestSize)
+            if let rejection = self.rejection(of: request) {
+                response = rejection
+            } else {
+                response = await self.handler(request)
+            }
         } catch let error as HTTPRequestError {
             response = HTTPResponse(status: 400, error: error.message)
         } catch {
@@ -123,6 +133,64 @@ final class HTTPServer: Sendable {
         }
 
         try? await connection.sendAll(response.serialized)
+    }
+}
+
+extension HTTPServer {
+    /// Rejects requests from web pages, since browsers let any site send them to the loopback interface.
+    ///
+    /// - parameter request: The request.
+    ///
+    /// - returns: The response for a rejected request, or nil if the request is allowed.
+    fileprivate func rejection(of request: HTTPRequest) -> HTTPResponse? {
+        if request.headers["origin"] != nil || request.headers["sec-fetch-site"] != nil {
+            return HTTPResponse(status: 403, error: "Requests from web browsers are not allowed",
+                                hint: "Use the hammer command line tool, or a client that is not a browser")
+        }
+
+        // A domain name means a site may have resolved its own domain to this device
+        if let host = request.headers["host"], !Self.isAddress(host: host) {
+            return HTTPResponse(status: 403, error: "Requests for host \(host) are not allowed",
+                                hint: "Connect with an IP address such as 127.0.0.1, or localhost")
+        }
+
+        if let token = self.token, !Self.isAuthorized(request.headers["authorization"], token: token) {
+            return HTTPResponse(status: 401, error: "The request is missing the agent's token",
+                                hint: """
+                Set \(AgentEndpoint.tokenEnvironmentKey) to the token the app was started with, or send it \
+                as Authorization: Bearer <token>
+                """)
+        }
+
+        // Browsers only send JSON after a preflight request, which the server never allows
+        let contentType = request.headers["content-type"]?.split(separator: ";").first?
+            .trimmingCharacters(in: .whitespaces).lowercased()
+        if request.method == "POST" && contentType != "application/json" {
+            return HTTPResponse(status: 415, error: "Requests must have the content type application/json",
+                                hint: "Send the header Content-Type: application/json")
+        }
+
+        return nil
+    }
+
+    /// Compares every byte so the time taken does not reveal how much of the token matched.
+    private static func isAuthorized(_ authorization: String?, token: String) -> Bool {
+        let expected = Array("Bearer \(token)".utf8)
+        let actual = Array((authorization ?? "").utf8)
+        guard actual.count == expected.count else {
+            return false
+        }
+
+        return zip(actual, expected).reduce(0) { $0 | ($1.0 ^ $1.1) } == 0
+    }
+
+    private static func isAddress(host: String) -> Bool {
+        if host.hasPrefix("[") {
+            return IPv6Address(String(host.dropFirst().prefix { $0 != "]" })) != nil
+        }
+
+        let name = String(host.split(separator: ":", maxSplits: 1).first ?? "")
+        return name == "localhost" || IPv4Address(name) != nil
     }
 }
 
@@ -173,13 +241,15 @@ extension NWConnection {
             throw HTTPRequestError(message: "Invalid request line")
         }
 
-        var contentLength = 0
+        var headers = [String: String]()
         for line in lines.dropFirst() {
             let parts = line.split(separator: ":", maxSplits: 1)
-            if parts.count == 2 && parts[0].lowercased() == "content-length" {
-                contentLength = Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
+            if parts.count == 2 {
+                headers[parts[0].lowercased()] = parts[1].trimmingCharacters(in: .whitespaces)
             }
         }
+
+        let contentLength = headers["content-length"].flatMap { Int($0) } ?? 0
 
         guard contentLength <= limit else {
             throw HTTPRequestError(message: "Request body is too large")
@@ -194,7 +264,7 @@ extension NWConnection {
             body.append(chunk)
         }
 
-        return HTTPRequest(method: String(requestLine[0]), path: String(requestLine[1]),
+        return HTTPRequest(method: String(requestLine[0]), path: String(requestLine[1]), headers: headers,
                            body: Data(body.prefix(contentLength)))
     }
 
