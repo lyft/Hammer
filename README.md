@@ -310,7 +310,7 @@ The synchronous versions keep the main run loop running while they wait, like `X
 
 `HammerAgent` lets AI agents and scripts drive a running app with Hammer, through the `hammer` command line tool or its MCP server. Since it runs inside the app it finds elements by accessibility identifier, label, value or traits, including SwiftUI's, and waits for the app to process each event. It can't reach system UI such as permission alerts or the home screen.
 
-Start it in a debug build of the app. It only accepts connections from the same device, which includes the Mac running the simulator, unless you call `start(allowsRemoteConnections: true)`. Anyone on the network can then control the app, since there is no authentication:
+Start it in a debug build of the app. It only accepts connections from the same device, which includes the Mac running the simulator, unless you call `start(allowsRemoteConnections: true)`. Anyone on the network can then control the app, since there is no authentication. It rejects requests from web browsers, so websites can't control the app:
 
 ```swift
 #if DEBUG

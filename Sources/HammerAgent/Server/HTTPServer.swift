@@ -5,6 +5,8 @@ import Network
 struct HTTPRequest: Sendable {
     let method: String
     let path: String
+    /// The headers, by lowercased name.
+    let headers: [String: String]
     let body: Data
 }
 
@@ -115,7 +117,12 @@ final class HTTPServer: Sendable {
 
         let response: HTTPResponse
         do {
-            response = await self.handler(try await connection.receiveRequest(limit: Self.maxRequestSize))
+            let request = try await connection.receiveRequest(limit: Self.maxRequestSize)
+            if let rejection = Self.rejection(of: request) {
+                response = rejection
+            } else {
+                response = await self.handler(request)
+            }
         } catch let error as HTTPRequestError {
             response = HTTPResponse(status: 400, error: error.message)
         } catch {
@@ -123,6 +130,45 @@ final class HTTPServer: Sendable {
         }
 
         try? await connection.sendAll(response.serialized)
+    }
+}
+
+extension HTTPServer {
+    /// Rejects requests from web pages, since browsers let any site send them to the loopback interface.
+    ///
+    /// - parameter request: The request.
+    ///
+    /// - returns: The response for a rejected request, or nil if the request is allowed.
+    fileprivate static func rejection(of request: HTTPRequest) -> HTTPResponse? {
+        if request.headers["origin"] != nil || request.headers["sec-fetch-site"] != nil {
+            return HTTPResponse(status: 403, error: "Requests from web browsers are not allowed",
+                                hint: "Use the hammer command line tool, or a client that is not a browser")
+        }
+
+        // A domain name means a site may have resolved its own domain to this device
+        if let host = request.headers["host"], !Self.isAddress(host: host) {
+            return HTTPResponse(status: 403, error: "Requests for host \(host) are not allowed",
+                                hint: "Connect with an IP address such as 127.0.0.1, or localhost")
+        }
+
+        // Browsers only send JSON after a preflight request, which the server never allows
+        let contentType = request.headers["content-type"]?.split(separator: ";").first?
+            .trimmingCharacters(in: .whitespaces).lowercased()
+        if request.method == "POST" && contentType != "application/json" {
+            return HTTPResponse(status: 415, error: "Requests must have the content type application/json",
+                                hint: "Send the header Content-Type: application/json")
+        }
+
+        return nil
+    }
+
+    private static func isAddress(host: String) -> Bool {
+        if host.hasPrefix("[") {
+            return IPv6Address(String(host.dropFirst().prefix { $0 != "]" })) != nil
+        }
+
+        let name = String(host.split(separator: ":", maxSplits: 1).first ?? "")
+        return name == "localhost" || IPv4Address(name) != nil
     }
 }
 
@@ -173,13 +219,15 @@ extension NWConnection {
             throw HTTPRequestError(message: "Invalid request line")
         }
 
-        var contentLength = 0
+        var headers = [String: String]()
         for line in lines.dropFirst() {
             let parts = line.split(separator: ":", maxSplits: 1)
-            if parts.count == 2 && parts[0].lowercased() == "content-length" {
-                contentLength = Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
+            if parts.count == 2 {
+                headers[parts[0].lowercased()] = parts[1].trimmingCharacters(in: .whitespaces)
             }
         }
+
+        let contentLength = headers["content-length"].flatMap { Int($0) } ?? 0
 
         guard contentLength <= limit else {
             throw HTTPRequestError(message: "Request body is too large")
@@ -194,7 +242,7 @@ extension NWConnection {
             body.append(chunk)
         }
 
-        return HTTPRequest(method: String(requestLine[0]), path: String(requestLine[1]),
+        return HTTPRequest(method: String(requestLine[0]), path: String(requestLine[1]), headers: headers,
                            body: Data(body.prefix(contentLength)))
     }
 
