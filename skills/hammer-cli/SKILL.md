@@ -15,6 +15,6 @@ To try a change live, such as "how does it look with a blue background" or "whic
 
 When a command fails it prints `error:` and `hint:` lines. Follow the hint, such as calling `describe` again or fixing an argument, instead of retrying the same call. Exit code 2 means the call itself was invalid; run `hammer help <command>` to see its arguments and examples.
 
-If no agent is listening, the app is not running or has not called `HammerAgent().start()`. Launch it and try again. Pass `--port` when the app uses a port other than 9876.
+If no agent is listening, the app is not running or has not called `HammerAgent().start()`. Launch it and try again. Pass `--port` when the app uses a port other than 9876, and set `HAMMER_AGENT_TOKEN` to the app's token if it reports a missing token.
 
 To turn what you found into a unit test, use the `hammer-tests` skill. The identifiers and labels from `describe` work as the same queries in tests.

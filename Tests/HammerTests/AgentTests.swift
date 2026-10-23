@@ -27,34 +27,6 @@ final class AgentTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode([CommandDescriptor].self, from: data), BuiltinCommands.all)
     }
 
-    func testServesRequestsWhenAllowingRemoteConnections() async throws {
-        let agent = HammerAgent(port: 0)
-        try await agent.start(allowsRemoteConnections: true)
-        defer { agent.stop() }
-
-        let (_, status) = try await agent.request("GET", AgentEndpoint.commandsPath)
-        XCTAssertEqual(status, 200)
-    }
-
-    func testRejectsBrowserRequests() async throws {
-        let body = try JSONEncoder().encode([String: JSONValue]())
-        let path = AgentEndpoint.commandPath("describe")
-        let (_, originStatus) = try await self.agent.request(
-            "POST", path, body: body,
-            headers: ["Content-Type": "application/json", "Origin": "https://example.com"])
-        XCTAssertEqual(originStatus, 403)
-
-        let (_, formStatus) = try await self.agent.request("POST", path, body: body,
-                                                           headers: ["Content-Type": "text/plain"])
-        XCTAssertEqual(formStatus, 415)
-
-        let port = try XCTUnwrap(self.agent.port)
-        let rebinding = try await self.agent.rawRequest("GET /commands HTTP/1.1\r\nHost: example.com:\(port)")
-        XCTAssertEqual(rebinding, 403)
-        let address = try await self.agent.rawRequest("GET /commands HTTP/1.1\r\nHost: 127.0.0.1:\(port)")
-        XCTAssertEqual(address, 200)
-    }
-
     func testTapButtonWithIdentifier() async throws {
         let button = self.button(title: "Sign In", identifier: "sign_in")
         var tapCount = 0

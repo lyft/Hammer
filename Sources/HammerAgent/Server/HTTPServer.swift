@@ -44,14 +44,16 @@ final class HTTPServer: Sendable {
 
     private let listener: NWListener
     private let queue = DispatchQueue(label: "com.lyft.hammer.agent.server")
+    private let token: String?
     private let handler: Handler
 
     /// Creates a server bound to the loopback interface, or to every interface.
     ///
     /// - parameter port:                    The port to listen on, or 0 for any free port.
     /// - parameter allowsRemoteConnections: If other devices on the network can connect.
+    /// - parameter token:                   The token requests must send, or nil for none.
     /// - parameter handler:                 Responds to each request.
-    init(port: UInt16, allowsRemoteConnections: Bool, handler: @escaping Handler) throws {
+    init(port: UInt16, allowsRemoteConnections: Bool, token: String?, handler: @escaping Handler) throws {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
         let port = NWEndpoint.Port(rawValue: port) ?? .any
@@ -62,6 +64,7 @@ final class HTTPServer: Sendable {
             self.listener = try NWListener(using: parameters)
         }
 
+        self.token = token
         self.handler = handler
     }
 
@@ -118,7 +121,7 @@ final class HTTPServer: Sendable {
         let response: HTTPResponse
         do {
             let request = try await connection.receiveRequest(limit: Self.maxRequestSize)
-            if let rejection = Self.rejection(of: request) {
+            if let rejection = self.rejection(of: request) {
                 response = rejection
             } else {
                 response = await self.handler(request)
@@ -139,7 +142,7 @@ extension HTTPServer {
     /// - parameter request: The request.
     ///
     /// - returns: The response for a rejected request, or nil if the request is allowed.
-    fileprivate static func rejection(of request: HTTPRequest) -> HTTPResponse? {
+    fileprivate func rejection(of request: HTTPRequest) -> HTTPResponse? {
         if request.headers["origin"] != nil || request.headers["sec-fetch-site"] != nil {
             return HTTPResponse(status: 403, error: "Requests from web browsers are not allowed",
                                 hint: "Use the hammer command line tool, or a client that is not a browser")
@@ -151,6 +154,14 @@ extension HTTPServer {
                                 hint: "Connect with an IP address such as 127.0.0.1, or localhost")
         }
 
+        if let token = self.token, !Self.isAuthorized(request.headers["authorization"], token: token) {
+            return HTTPResponse(status: 401, error: "The request is missing the agent's token",
+                                hint: """
+                Set \(AgentEndpoint.tokenEnvironmentKey) to the token the app was started with, or send it \
+                as Authorization: Bearer <token>
+                """)
+        }
+
         // Browsers only send JSON after a preflight request, which the server never allows
         let contentType = request.headers["content-type"]?.split(separator: ";").first?
             .trimmingCharacters(in: .whitespaces).lowercased()
@@ -160,6 +171,17 @@ extension HTTPServer {
         }
 
         return nil
+    }
+
+    /// Compares every byte so the time taken does not reveal how much of the token matched.
+    private static func isAuthorized(_ authorization: String?, token: String) -> Bool {
+        let expected = Array("Bearer \(token)".utf8)
+        let actual = Array((authorization ?? "").utf8)
+        guard actual.count == expected.count else {
+            return false
+        }
+
+        return zip(actual, expected).reduce(0) { $0 | ($1.0 ^ $1.1) } == 0
     }
 
     private static func isAddress(host: String) -> Bool {
