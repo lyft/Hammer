@@ -2,7 +2,8 @@
 import Foundation
 
 /// Lets AI agents and scripts drive the app through Hammer, with the `hammer` command line tool or its MCP
-/// server. It only accepts connections from the same device, which includes the Mac running a simulator.
+/// server. By default it only accepts connections from the same device, which includes the Mac running a
+/// simulator.
 ///
 /// ⚠️ IMPORTANT: Like Hammer, this uses private APIs and must only be started in debug builds.
 @MainActor
@@ -38,16 +39,21 @@ public final class HammerAgent {
         self.router.register(command)
     }
 
-    /// Starts listening for commands.
+    /// Starts listening for commands. Does nothing if the agent is already listening.
+    ///
+    /// - parameter allowsRemoteConnections: If other devices on the network can connect, such as to drive a
+    ///                                      physical device from a Mac. Anyone who can reach the device can
+    ///                                      then control the app, since there is no authentication.
     ///
     /// - throws: An error if the port is not available.
-    public func start() async throws {
+    public func start(allowsRemoteConnections: Bool = false) async throws {
         guard self.server == nil else {
             return
         }
 
         let router = self.router
-        let server = try HTTPServer(port: self.requestedPort) { request in
+        let server = try HTTPServer(port: self.requestedPort,
+                                    allowsRemoteConnections: allowsRemoteConnections) { request in
             await router.respond(to: request)
         }
 

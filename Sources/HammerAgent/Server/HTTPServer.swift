@@ -34,7 +34,7 @@ struct HTTPResponse: Sendable {
     }
 }
 
-/// A minimal HTTP/1.1 server that only accepts connections from the same device, one request each.
+/// A minimal HTTP/1.1 server that handles one request per connection.
 final class HTTPServer: Sendable {
     typealias Handler = @Sendable (HTTPRequest) async -> HTTPResponse
 
@@ -44,16 +44,22 @@ final class HTTPServer: Sendable {
     private let queue = DispatchQueue(label: "com.lyft.hammer.agent.server")
     private let handler: Handler
 
-    /// Creates a server bound to the loopback interface.
+    /// Creates a server bound to the loopback interface, or to every interface.
     ///
-    /// - parameter port:    The port to listen on, or 0 for any free port.
-    /// - parameter handler: Responds to each request.
-    init(port: UInt16, handler: @escaping Handler) throws {
+    /// - parameter port:                    The port to listen on, or 0 for any free port.
+    /// - parameter allowsRemoteConnections: If other devices on the network can connect.
+    /// - parameter handler:                 Responds to each request.
+    init(port: UInt16, allowsRemoteConnections: Bool, handler: @escaping Handler) throws {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
-        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback),
-                                                     port: NWEndpoint.Port(rawValue: port) ?? .any)
-        self.listener = try NWListener(using: parameters)
+        let port = NWEndpoint.Port(rawValue: port) ?? .any
+        if allowsRemoteConnections {
+            self.listener = try NWListener(using: parameters, on: port)
+        } else {
+            parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: port)
+            self.listener = try NWListener(using: parameters)
+        }
+
         self.handler = handler
     }
 
