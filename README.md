@@ -321,7 +321,15 @@ try await agent.start()
 #endif
 ```
 
-Then drive the app from the Mac:
+Each release has a prebuilt `hammer` for macOS, so you don't need a checkout of this repo:
+
+```bash
+mkdir -p ~/.local/bin
+curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.zip -o /tmp/hammer-macos.zip
+unzip -o /tmp/hammer-macos.zip -d ~/.local/bin
+```
+
+Then drive the app from the Mac, with `hammer` or `swift run hammer` from a checkout:
 
 ```bash
 swift run hammer describe
@@ -346,7 +354,13 @@ Commands find elements by identifier, label, value and traits, or by the `ref` t
 
 `hammer help <command>` shows a command's arguments and examples, and `hammer guide` prints a markdown guide for agents with the workflow and every command the app runs. Failed commands print a JSON object with the `error`, a `code` and a `hint` on how to fix the call, and exit with 2 when the call itself is invalid. To teach a coding agent to use it, copy [skills/hammer-cli](skills/hammer-cli/SKILL.md) into your project's skills, for example `.claude/skills/hammer-cli`, and [skills/hammer-tests](skills/hammer-tests/SKILL.md) for writing Hammer tests.
 
-Run `hammer mcp` as a stdio MCP server to give an agent the same commands as tools. Build it first so build output doesn't mix with the MCP messages, for example with Claude Code:
+Run `hammer mcp` as a stdio MCP server to give an agent the same commands as tools, for example with Claude Code:
+
+```bash
+claude mcp add hammer -- ~/.local/bin/hammer mcp
+```
+
+From a checkout, build it first so build output doesn't mix with the MCP messages:
 
 ```bash
 swift build -c release --product hammer

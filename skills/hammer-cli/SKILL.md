@@ -7,6 +7,8 @@ description: Drive and inspect a running iOS app that has Hammer's agent started
 
 `hammer` talks to `HammerAgent` running inside the app and sends real touches and key presses from inside it.
 
+If `hammer` isn't installed, download the prebuilt one from the latest release: `curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.zip -o /tmp/hammer-macos.zip && unzip -o /tmp/hammer-macos.zip -d ~/.local/bin`.
+
 1. Run `hammer guide` first. It prints the full instructions and every command the app runs, including the ones the app adds, so it is always up to date.
 2. Start each task with `hammer describe` to see the elements on screen and their refs.
 3. Act with a command such as `hammer tap --ref e12`, then check the result with `hammer wait-for`, `hammer describe` or `hammer screenshot` (open the PNG path it prints).
