@@ -32,17 +32,17 @@ struct HammerCLI {
         do {
             try await self.run(Array(CommandLine.arguments.dropFirst()))
         } catch let error as UsageError {
-            self.report(error.description, hint: error.hint)
+            self.report(AgentErrorBody(error: error.description, code: error.code, hint: error.hint))
             exit(2)
         } catch let error as ClientError {
-            self.report(error.description, hint: error.hint)
+            self.report(error.body)
             if case .failed(_, isInvalidCall: true) = error {
                 exit(2)
             }
 
             exit(1)
         } catch {
-            self.report(String(describing: error), hint: nil)
+            self.report(AgentErrorBody(error: String(describing: error), code: .failed))
             exit(1)
         }
     }
@@ -138,7 +138,8 @@ struct HammerCLI {
             let names = commands.map(\.commandLineName)
             let suggestion = closestMatch(to: name, in: names).map { ", did you mean \($0)?" } ?? ""
             throw UsageError(description: "Unknown command \"\(name)\"\(suggestion)",
-                             hint: "The commands are \(names.joined(separator: ", ")). Run `hammer help`")
+                             hint: "The commands are \(names.joined(separator: ", ")). Run `hammer help`",
+                             code: .unknownCommand)
         }
 
         return descriptor
@@ -146,8 +147,7 @@ struct HammerCLI {
 }
 
 extension HammerCLI {
-    private static func report(_ message: String, hint: String?) {
-        let lines = ["error: \(message)"] + (hint.map { ["hint: \($0)"] } ?? [])
-        FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))
+    private static func report(_ body: AgentErrorBody) {
+        FileHandle.standardError.write(Data((body.jsonLine + "\n").utf8))
     }
 }

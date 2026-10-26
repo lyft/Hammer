@@ -70,8 +70,9 @@ struct MCPServer {
         do {
             output = try await self.client.run(name, arguments: arguments)
         } catch {
-            let hint = (error as? ClientError)?.hint.map { "\nhint: \($0)" } ?? ""
-            let content: JSONValue = ["type": "text", "text": .string("error: \(error)\(hint)")]
+            let body = (error as? ClientError)?.body
+                ?? AgentErrorBody(error: String(describing: error), code: .failed)
+            let content: JSONValue = ["type": "text", "text": .string(body.jsonLine)]
             return ["content": [content], "isError": true]
         }
 

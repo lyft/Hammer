@@ -88,8 +88,9 @@ public enum AgentGuide {
         - `--output <path>` writes the output to a file, and `--port <port>` picks the app's port.
         - Output is JSON on standard output. Screenshots are written to a PNG file and its path is printed, \
         so open that file to see it.
-        - Failures print `error:` and `hint:` lines to standard error and exit with 1, or with 2 when the \
-        call itself is invalid, such as an unknown command or argument.
+        - Failures print one JSON object to standard error, with the `error`, a `code` such as `not_found` \
+        or `timed_out` and a `hint` on how to fix it, and exit with 1, or with 2 when the call itself is \
+        invalid, such as an unknown command or argument.
         """
 
     /// The overview followed by the reference of every command.

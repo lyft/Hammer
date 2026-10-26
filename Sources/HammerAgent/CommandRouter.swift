@@ -46,14 +46,16 @@ final class CommandRouter {
             let name = String(path.dropFirst(AgentEndpoint.commandPath("").count))
             guard let registration = self.registrations[name] else {
                 let suggestion = closestMatch(to: name, in: self.order).map { ", did you mean \($0)?" } ?? ""
-                return HTTPResponse(status: 404, error: "Unknown command \"\(name)\"\(suggestion)",
+                return HTTPResponse(status: 404, code: .unknownCommand,
+                                    error: "Unknown command \"\(name)\"\(suggestion)",
                                     hint: "The commands are \(self.order.joined(separator: ", "))")
             }
 
             let context = AgentContext(references: self.references, changes: self.changes)
             return await self.serially { await Self.run(registration, body: request.body, in: context) }
         default:
-            return HTTPResponse(status: 404, error: "Unknown route \(request.method) \(request.path)")
+            return HTTPResponse(status: 404, code: .invalidRequest,
+                                error: "Unknown route \(request.method) \(request.path)")
         }
     }
 

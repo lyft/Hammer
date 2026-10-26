@@ -5,6 +5,7 @@ import HammerAgentCore
 struct UsageError: Error, CustomStringConvertible {
     let description: String
     var hint: String?
+    var code: AgentErrorCode = .invalidArguments
 }
 
 extension CommandDescriptor {

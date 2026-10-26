@@ -13,7 +13,7 @@ description: Drive and inspect a running iOS app that has Hammer's agent started
 
 To try a change live, such as "how does it look with a blue background" or "which constraint fixes this", `hammer inspect` the view, change it with `hammer set-property`, `hammer set-constraint` or `hammer add-constraint`, and compare screenshots. Run `hammer revert` when done, so the app is back to its real state, and then make the change that worked in code.
 
-When a command fails it prints `error:` and `hint:` lines. Follow the hint, such as calling `describe` again or fixing an argument, instead of retrying the same call. Exit code 2 means the call itself was invalid; run `hammer help <command>` to see its arguments and examples.
+When a command fails it prints a JSON object with the `error`, a `code` such as `not_found`, `not_hittable` or `timed_out`, and a `hint`. Follow the hint, such as calling `describe` again or fixing an argument, instead of retrying the same call. A `disconnected` or `timed_out` command may still have run, so check the app's state before running it again. Exit code 2 means the call itself was invalid; run `hammer help <command>` to see its arguments and examples.
 
 If no agent is listening, the app is not running or has not called `HammerAgent().start()`. Launch it and try again. Pass `--port` when the app uses a port other than 9876, and set `HAMMER_AGENT_TOKEN` to the app's token if it reports a missing token.
 

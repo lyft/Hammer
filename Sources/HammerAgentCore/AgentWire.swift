@@ -55,13 +55,68 @@ public struct AgentErrorBody: Codable, Sendable {
     /// What went wrong.
     public var error: String
 
+    /// The kind of error, for clients to handle it without reading the message. Agents before 2.2 omit it.
+    public var code: AgentErrorCode?
+
     /// How to fix it, such as the command to call first, for the agent or person that sent the request.
     public var hint: String?
 
-    public init(error: String, hint: String? = nil) {
+    public init(error: String, code: AgentErrorCode? = nil, hint: String? = nil) {
         self.error = error
+        self.code = code
         self.hint = hint
     }
+}
+
+/// A stable name for a kind of error, such as `not_found`. Commands can define their own, like
+/// `AgentErrorCode("unknown_flag")`, in snake case so clients can match them.
+public struct AgentErrorCode: RawRepresentable, Codable, Hashable, Sendable, ExpressibleByStringLiteral,
+    CustomStringConvertible
+{
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    public init(_ rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    public init(stringLiteral value: String) {
+        self.rawValue = value
+    }
+
+    public var description: String {
+        return self.rawValue
+    }
+}
+
+extension AgentErrorCode {
+    /// The arguments are missing, of the wrong type, or don't make sense together.
+    public static let invalidArguments: Self = "invalid_arguments"
+    /// The app has no command with that name.
+    public static let unknownCommand: Self = "unknown_command"
+    /// The request is not one the agent accepts, such as one from a browser or without the token.
+    public static let invalidRequest: Self = "invalid_request"
+    /// The command could not do what was asked, for a reason no other code describes.
+    public static let failed: Self = "failed"
+    /// No element or view matches the target.
+    public static let notFound: Self = "not_found"
+    /// Several elements match the target.
+    public static let ambiguousTarget: Self = "ambiguous_target"
+    /// The element or view is hidden, off screen or no longer on screen.
+    public static let notVisible: Self = "not_visible"
+    /// Something covers the element or view, or it ignores touches.
+    public static let notHittable: Self = "not_hittable"
+    /// The app is busy, still presenting, or another window has the keyboard focus.
+    public static let notReady: Self = "not_ready"
+    /// A wait ran out of time, or the app did not respond in time.
+    public static let timedOut: Self = "timed_out"
+    /// No agent listens on the port.
+    public static let unreachable: Self = "unreachable"
+    /// The app closed the connection before responding, so the command may or may not have run.
+    public static let disconnected: Self = "disconnected"
 }
 
 /// An image a command outputs, such as a screenshot.

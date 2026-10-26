@@ -14,26 +14,27 @@ struct ErrorReport {
     init(_ error: Error, for descriptor: CommandDescriptor) {
         switch error {
         case let error as ArgumentsError:
-            self.init(status: 400, error: error.description, hint: error.hint)
+            self.init(status: 400, code: .invalidArguments, error: error.description, hint: error.hint)
         case let error as AgentError:
             let status = if case .invalidArguments = error { 400 } else { 500 }
-            self.init(status: status, error: error.description, hint: error.hint)
+            self.init(status: status, code: error.code, error: error.description, hint: error.hint)
         case let error as DecodingError:
-            self.init(status: 400, error: error.argumentsMessage, hint: descriptor.argumentsHint)
+            self.init(status: 400, code: .invalidArguments, error: error.argumentsMessage,
+                      hint: descriptor.argumentsHint)
         case HammerError.multipleElementsFound(let query, let count):
             // Hammer's own message suggests a test setting that agents can't change
-            self.init(status: 500, error: "Found \(count) elements for \(query)",
+            self.init(status: 500, code: .ambiguousTarget, error: "Found \(count) elements for \(query)",
                       hint: HammerError.multipleElementsFound(query: query, count: count).hint)
         case let error as HammerError:
-            self.init(status: 500, error: error.description, hint: error.hint)
+            self.init(status: 500, code: error.code, error: error.description, hint: error.hint)
         default:
-            self.init(status: 500, error: String(describing: error), hint: nil)
+            self.init(status: 500, code: .failed, error: String(describing: error), hint: nil)
         }
     }
 
-    private init(status: Int, error: String, hint: String?) {
+    private init(status: Int, code: AgentErrorCode, error: String, hint: String?) {
         self.status = status
-        self.body = AgentErrorBody(error: error, hint: hint)
+        self.body = AgentErrorBody(error: error, code: code, hint: hint)
     }
 
     var response: HTTPResponse {
@@ -42,6 +43,27 @@ struct ErrorReport {
 }
 
 extension HammerError {
+    fileprivate var code: AgentErrorCode {
+        switch self {
+        case .unableToFindElement, .unableToFindView:
+            return .notFound
+        case .multipleElementsFound:
+            return .ambiguousTarget
+        case .elementIsNotVisible, .viewIsNotVisible, .viewIsNotInHierarchy:
+            return .notVisible
+        case .elementIsNotHittable, .viewIsNotHittable, .pointIsNotHittable:
+            return .notHittable
+        case .windowIsNotReadyForInteraction, .windowIsNotKey:
+            return .notReady
+        case .waitConditionTimeout, .eventProcessingTimeout:
+            return .timedOut
+        case .invalidViewType, .unknownKeyForCharacter:
+            return .invalidArguments
+        default:
+            return .failed
+        }
+    }
+
     fileprivate var hint: String? {
         switch self {
         case .unableToFindElement, .unableToFindView:
