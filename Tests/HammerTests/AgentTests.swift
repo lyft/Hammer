@@ -117,6 +117,7 @@ final class AgentTests: XCTestCase {
         XCTAssertEqual(status, 400)
         let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
         XCTAssertEqual(body.error, #"Unknown argument "identifer" for tap, did you mean "identifier"?"#)
+        XCTAssertEqual(body.code, .invalidArguments)
         XCTAssertTrue(body.hint?.contains("identifier: a string") == true, body.hint ?? "")
     }
 
@@ -136,14 +137,16 @@ final class AgentTests: XCTestCase {
         XCTAssertEqual(status, 500)
         let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
         XCTAssertTrue(body.error.contains("missing"), body.error)
+        XCTAssertEqual(body.code, .notFound)
         XCTAssertTrue(body.hint?.contains("describe") == true, body.hint ?? "")
     }
 
     func testSuggestsCommandForTypo() async throws {
         let (data, status) = try await self.agent.run("tapp")
         XCTAssertEqual(status, 404)
-        XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).error,
-                       #"Unknown command "tapp", did you mean tap?"#)
+        let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
+        XCTAssertEqual(body.error, #"Unknown command "tapp", did you mean tap?"#)
+        XCTAssertEqual(body.code, .unknownCommand)
     }
 
     func testBuiltinExamplesAreValid() throws {
@@ -176,6 +179,26 @@ final class AgentTests: XCTestCase {
         XCTAssertEqual(status, 200)
         XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: data),
                        ["greeting": "Hello Hammer"])
+    }
+
+    func testReportsRegisteredCommandErrorCode() async throws {
+        struct SignInCommand: AgentCommand {
+            struct Arguments: Decodable {}
+
+            let descriptor = CommandDescriptor(name: "sign_in", summary: "Signs in.")
+
+            func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
+                throw AgentError.failed("No test user", hint: "Create one first", code: "unknown_user")
+            }
+        }
+
+        self.agent.register(SignInCommand())
+
+        let (data, status) = try await self.agent.run("sign_in")
+        XCTAssertEqual(status, 500)
+        let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
+        XCTAssertEqual(body.code, AgentErrorCode("unknown_user"))
+        XCTAssertEqual(body.hint, "Create one first")
     }
 
     func testTapTogglesSwitch() async throws {

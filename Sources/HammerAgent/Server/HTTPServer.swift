@@ -19,8 +19,8 @@ struct HTTPResponse: Sendable {
         self.body = body
     }
 
-    init(status: Int, error: String, hint: String? = nil) {
-        let body = AgentErrorBody(error: error, hint: hint)
+    init(status: Int, code: AgentErrorCode, error: String, hint: String? = nil) {
+        let body = AgentErrorBody(error: error, code: code, hint: hint)
         self.init(status: status, body: (try? JSONEncoder().encode(body)) ?? Data())
     }
 
@@ -127,7 +127,7 @@ final class HTTPServer: Sendable {
                 response = await self.handler(request)
             }
         } catch let error as HTTPRequestError {
-            response = HTTPResponse(status: 400, error: error.message)
+            response = HTTPResponse(status: 400, code: .invalidRequest, error: error.message)
         } catch {
             return
         }
@@ -144,18 +144,21 @@ extension HTTPServer {
     /// - returns: The response for a rejected request, or nil if the request is allowed.
     fileprivate func rejection(of request: HTTPRequest) -> HTTPResponse? {
         if request.headers["origin"] != nil || request.headers["sec-fetch-site"] != nil {
-            return HTTPResponse(status: 403, error: "Requests from web browsers are not allowed",
+            return HTTPResponse(status: 403, code: .invalidRequest,
+                                error: "Requests from web browsers are not allowed",
                                 hint: "Use the hammer command line tool, or a client that is not a browser")
         }
 
         // A domain name means a site may have resolved its own domain to this device
         if let host = request.headers["host"], !Self.isAddress(host: host) {
-            return HTTPResponse(status: 403, error: "Requests for host \(host) are not allowed",
+            return HTTPResponse(status: 403, code: .invalidRequest,
+                                error: "Requests for host \(host) are not allowed",
                                 hint: "Connect with an IP address such as 127.0.0.1, or localhost")
         }
 
         if let token = self.token, !Self.isAuthorized(request.headers["authorization"], token: token) {
-            return HTTPResponse(status: 401, error: "The request is missing the agent's token",
+            return HTTPResponse(status: 401, code: .invalidRequest,
+                                error: "The request is missing the agent's token",
                                 hint: """
                 Set \(AgentEndpoint.tokenEnvironmentKey) to the token the app was started with, or send it \
                 as Authorization: Bearer <token>
@@ -166,7 +169,8 @@ extension HTTPServer {
         let contentType = request.headers["content-type"]?.split(separator: ";").first?
             .trimmingCharacters(in: .whitespaces).lowercased()
         if request.method == "POST" && contentType != "application/json" {
-            return HTTPResponse(status: 415, error: "Requests must have the content type application/json",
+            return HTTPResponse(status: 415, code: .invalidRequest,
+                                error: "Requests must have the content type application/json",
                                 hint: "Send the header Content-Type: application/json")
         }
 

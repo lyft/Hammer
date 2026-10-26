@@ -131,11 +131,45 @@ enum ClientError: Error, CustomStringConvertible {
                 \(AgentEndpoint.portEnvironmentKey) if it uses another port than \(AgentEndpoint.defaultPort)
                 """
         case .disconnected:
-            return "Check the app is still running, relaunch it if needed, and call describe again"
+            return """
+                The command may have run before the app stopped. Check the app is still running, relaunch it \
+                if needed, and call describe to see its state before running the command again
+                """
         case .timedOut:
-            return "Take a screenshot to see the app's state, or pass a shorter timeout to waits"
+            return """
+                The command may still run or have run. Take a screenshot to see the app's state before \
+                running it again, or pass a shorter timeout to waits
+                """
         case .failed(let body, _):
             return body.hint
         }
+    }
+
+    var code: AgentErrorCode {
+        switch self {
+        case .unreachable:
+            return .unreachable
+        case .disconnected:
+            return .disconnected
+        case .timedOut:
+            return .timedOut
+        case .failed(let body, let isInvalidCall):
+            return body.code ?? (isInvalidCall ? .invalidArguments : .failed)
+        }
+    }
+
+    /// The error as the CLI and MCP server report it.
+    var body: AgentErrorBody {
+        return AgentErrorBody(error: self.description, code: self.code, hint: self.hint)
+    }
+}
+
+extension AgentErrorBody {
+    /// The body as one line of JSON, which is how the CLI and MCP server report every error.
+    var jsonLine: String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let data = (try? encoder.encode(self)) ?? Data()
+        return String(bytes: data, encoding: .utf8) ?? self.error
     }
 }
