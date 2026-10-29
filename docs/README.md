@@ -33,4 +33,5 @@ Then use the `hammer` command line tool:
 ## Developing Hammer
 
 - [Agent HTTP API](internal/http-api.md): the contract between the agent and its clients.
+- [Built-in commands](internal/commands.md): what every command does, to implement it in another agent.
 - [Contributing](../CONTRIBUTING.md)
