@@ -61,7 +61,7 @@ struct WaitForCommand: AgentCommand {
                 """, hint: """
                 Take a screenshot or call describe to see the current state, then wait for a different \
                 element or pass a longer timeout
-                """)
+                """, code: .timedOut)
         }
 
         return NoOutput()

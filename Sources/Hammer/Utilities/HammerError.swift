@@ -1,6 +1,6 @@
 import UIKit
 
-/// https://github.com/lyft/Hammer#troubleshooting.
+/// https://github.com/lyft/Hammer/blob/main/docs/tests/troubleshooting.md.
 public enum HammerError: Error, @unchecked Sendable {
     case windowIsNotReadyForInteraction(reason: WindowNotReadyReason)
     case windowIsNotKey
@@ -51,7 +51,8 @@ extension HammerError: CustomStringConvertible {
             return """
                 The app or window is not ready for interaction: \(reason). Ensure that your tests are \
                 running in a host application and that you have given enough time for the view to present \
-                on screen. For more troubleshooting tips see: https://github.com/lyft/Hammer#troubleshooting.
+                on screen. For more troubleshooting tips see: \
+                https://github.com/lyft/Hammer/blob/main/docs/tests/troubleshooting.md.
                 """
         case .windowIsNotKey:
             return "The window must be the key window to receive keyboard events"

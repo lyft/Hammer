@@ -141,6 +141,16 @@ final class AgentTests: XCTestCase {
         XCTAssertTrue(body.hint?.contains("describe") == true, body.hint ?? "")
     }
 
+    func testWaitForReportsTimeout() async throws {
+        try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
+
+        let (data, status) = try await self.agent.run("wait_for", ["identifier": "missing", "timeout": 0.1])
+        XCTAssertEqual(status, 500)
+        let body = try JSONDecoder().decode(AgentErrorBody.self, from: data)
+        XCTAssertEqual(body.code, .timedOut)
+        XCTAssertTrue(body.error.contains("does not exist"), body.error)
+    }
+
     func testSuggestsCommandForTypo() async throws {
         let (data, status) = try await self.agent.run("tapp")
         XCTAssertEqual(status, 404)
