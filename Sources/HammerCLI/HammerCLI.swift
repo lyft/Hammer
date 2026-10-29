@@ -8,7 +8,7 @@ struct HammerCLI {
         inside the app.
 
         Usage:
-          hammer <command> [--<argument> <value>]... [-] [--output <path>] [--port <port>]
+          hammer <command> [--<argument> <value>]... [-] [--output <path>] [--port <port>] [--system]
           hammer commands         List the commands the app runs
           hammer help <command>   Describe a command, its arguments and examples
           hammer guide            Print the full guide for agents, in markdown
@@ -18,6 +18,10 @@ struct HammerCLI {
           --output <path>  Write the command's output to a file instead of printing it
           --port <port>    The app's port. Defaults to \(AgentEndpoint.portEnvironmentKey) or \
         \(AgentEndpoint.defaultPort)
+          --system         Run on the simulator's whole screen from the Mac, to reach system UI such as \
+        permission alerts
+          --udid <udid>    The simulator for --system. Defaults to \(CoreSimulator.udidEnvironmentKey) or \
+        the only booted one
 
         Start with `hammer describe` to see the elements on screen, and `hammer guide` for how to target \
         them and handle errors.
@@ -26,6 +30,8 @@ struct HammerCLI {
     private struct Options {
         var port = AgentEndpoint.port()
         var outputPath: String?
+        var system = false
+        var udid: String?
     }
 
     static func main() async {
@@ -51,33 +57,35 @@ struct HammerCLI {
         var arguments = arguments
         let options = try self.extractOptions(from: &arguments)
         var remaining = arguments[...]
-        let client = AgentClient(port: options.port, token: AgentEndpoint.token())
+        let drivers = Drivers(app: AgentClient(port: options.port, token: AgentEndpoint.token()),
+                              system: SimulatorDriver(udid: options.udid))
+        let driver = drivers.driver(system: options.system)
         switch remaining.popFirst() {
         case nil, "--help", "-h":
             print(self.usage)
         case "help":
             guard let name = remaining.first else {
-                print(self.usage + "\n\n" + self.commandList(await client.catalog()))
+                print(self.usage + "\n\n" + self.commandList(await driver.catalog()))
                 return
             }
 
-            print(try self.descriptor(named: name, in: await client.catalog().commands)
+            print(try self.descriptor(named: name, in: await driver.catalog().commands)
                 .reference(style: .commandLine))
         case "commands":
-            print(self.commandList(await client.catalog()))
+            print(self.commandList(await driver.catalog()))
         case "guide":
-            let catalog = await client.catalog()
+            let catalog = await driver.catalog()
             try self.write(Data(AgentGuide.markdown(commands: catalog.commands, style: .commandLine).utf8),
                            name: "guide", to: options.outputPath)
             if let note = catalog.note {
                 FileHandle.standardError.write(Data("note: \(note)\n".utf8))
             }
         case "mcp":
-            try await MCPServer(client: client).run()
+            try await MCPServer(drivers: drivers).run()
         case let name?:
-            let descriptor = try self.descriptor(named: name, in: try await client.commandsOrBuiltins())
+            let descriptor = try self.descriptor(named: name, in: try await driver.callableCommands())
             let commandArguments = try descriptor.arguments(from: Array(remaining))
-            let output = try await client.run(descriptor.name, arguments: commandArguments)
+            let output = try await driver.run(descriptor.name, arguments: commandArguments)
             try self.write(output, name: descriptor.commandLineName, to: options.outputPath)
         }
     }
@@ -95,12 +103,25 @@ struct HammerCLI {
                 continue
             }
 
+            if name == "system" {
+                guard let system = parts.count == 2 ? Bool(parts[1]) : true else {
+                    throw UsageError(description: """
+                        Invalid value "\(parts[1])" for --system, expected true or false
+                        """)
+                }
+
+                options.system = system
+                continue
+            }
+
             guard let value = parts.count == 2 ? parts[1] : tokens.popFirst() else {
                 throw UsageError(description: "Missing value for \(parts[0])", hint: "Run `hammer --help`")
             }
 
             if name == "output" {
                 options.outputPath = value
+            } else if name == "udid" {
+                options.udid = value
             } else if let port = UInt16(value) {
                 options.port = port
             } else {
@@ -125,7 +146,7 @@ struct HammerCLI {
         }
     }
 
-    private static func commandList(_ catalog: AgentClient.Catalog) -> String {
+    private static func commandList(_ catalog: DriverCatalog) -> String {
         let commands = catalog.commands.map { "  \($0.commandLineName)\n      \($0.summary)" }
         return (["Commands:"] + commands + (catalog.note.map { ["", "Note: \($0)"] } ?? []))
             .joined(separator: "\n")
