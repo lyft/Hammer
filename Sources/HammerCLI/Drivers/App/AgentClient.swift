@@ -2,7 +2,7 @@ import Foundation
 import HammerAgentCore
 
 /// Talks to the agent running in the app.
-struct AgentClient: Sendable {
+struct AgentClient: Driver {
     let port: UInt16
     let token: String?
 
@@ -19,19 +19,13 @@ struct AgentClient: Sendable {
         return try JSONDecoder().decode([CommandDescriptor].self, from: data)
     }
 
-    /// Commands to describe, with a note when they are not the app's own.
-    struct Catalog {
-        let commands: [CommandDescriptor]
-        let note: String?
-    }
-
-    /// The commands the app runs, or the builtin ones with a note explaining why, so help always works.
-    func catalog() async -> Catalog {
+    /// The commands the app runs, or the builtin ones with a note explaining why.
+    func catalog() async -> DriverCatalog {
         do {
-            return Catalog(commands: try await self.commands(), note: nil)
+            return DriverCatalog(commands: try await self.commands(), note: nil)
         } catch {
             let reason = (error as? ClientError)?.description ?? String(describing: error)
-            return Catalog(commands: BuiltinCommands.all, note: """
+            return DriverCatalog(commands: BuiltinCommands.all, note: """
                 \(reason), so these are only the builtin commands. Commands the app adds appear once it runs.
                 """)
         }
@@ -40,7 +34,7 @@ struct AgentClient: Sendable {
     /// The commands the app runs, or the builtin ones when it is not running, to describe them anyway.
     ///
     /// - throws: An error if the app is running but its commands could not be read.
-    func commandsOrBuiltins() async throws -> [CommandDescriptor] {
+    func callableCommands() async throws -> [CommandDescriptor] {
         do {
             return try await self.commands()
         } catch ClientError.unreachable {

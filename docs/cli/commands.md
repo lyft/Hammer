@@ -40,3 +40,7 @@ These are the built-in commands. Run `hammer help <command>` for a command's arg
 | `revert` | Undoes every live change, or one view's. |
 
 See [Live editing](live-editing.md) for how they fit together.
+
+## System UI
+
+`describe` and `tap` take `--system` to act on the simulator's whole screen from the Mac, such as a permission alert. See [System UI](system-ui.md).

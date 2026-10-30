@@ -18,7 +18,12 @@ public enum AgentGuide {
     /// - returns: The markdown.
     public static func overview(style: Style) -> String {
         let tap = style == .commandLine ? "`hammer tap --ref e12`" : #"`tap` with `{"ref":"e12"}`"#
+        let system = style == .commandLine ? "`--system`" : "`system: true`"
+        let systemTap = style == .commandLine
+            ? "`hammer tap --system --label Allow`" : #"`tap` with `{"system":true,"label":"Allow"}`"#
         let usage = self.usage.replacingOccurrences(of: "{tap}", with: tap)
+            .replacingOccurrences(of: "{system}", with: system)
+            .replacingOccurrences(of: "{systemTap}", with: systemTap)
         guard style == .commandLine else {
             return usage
         }
@@ -34,9 +39,9 @@ public enum AgentGuide {
         # Hammer agent
 
         Hammer drives an iOS app from inside it: it finds views and accessibility elements, including \
-        SwiftUI's, and sends real touch and keyboard events, waiting for the app to process each one. It can \
-        only reach the app's own windows, not system UI such as permission alerts or the home screen, and it \
-        runs one command at a time.
+        SwiftUI's, and sends real touch and keyboard events, waiting for the app to process each one. It \
+        reaches the app's own windows and runs one command at a time. System UI such as permission alerts \
+        and the home screen is outside the app, see System UI below.
 
         ## Workflow
 
@@ -57,6 +62,13 @@ public enum AgentGuide {
         - `x` and `y`: a point in window points, the same coordinates as the frames from `describe`.
 
         Without a target, gestures use the center of the window.
+
+        ## System UI
+
+        In the simulator, {system} runs `describe` and `tap` on the whole screen from the Mac instead of \
+        inside the app, to reach system UI such as a permission alert: call `describe` with {system} to see \
+        its buttons, then tap one by label, such as {systemTap}. Its elements have no refs, and frames and \
+        points are in screen points.
 
         ## Live editing
 
@@ -86,6 +98,8 @@ public enum AgentGuide {
         booleans can leave out `true`.
         - A trailing `-` reads a JSON object of arguments from standard input, for nested values.
         - `--output <path>` writes the output to a file, and `--port <port>` picks the app's port.
+        - `--udid <udid>` picks the simulator for `--system` when several are booted, or set \
+        `HAMMER_SIMULATOR_UDID`.
         - Output is JSON on standard output. Screenshots are written to a PNG file and its path is printed, \
         so open that file to see it.
         - Failures print one JSON object to standard error, with the `error`, a `code` such as `not_found` \

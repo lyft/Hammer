@@ -19,6 +19,8 @@ claude mcp add hammer -- "$(swift build -c release --show-bin-path)/hammer" mcp
 
 Set `HAMMER_AGENT_PORT` and `HAMMER_AGENT_TOKEN` in the server's environment when the app uses them.
 
+The `describe` and `tap` tools take a `system` argument to act on the simulator's whole screen, such as a permission alert. Set `HAMMER_SIMULATOR_UDID` when several simulators are booted. See [System UI](system-ui.md).
+
 ## Skills
 
 To teach a coding agent the command line tool instead, copy [skills/hammer-cli](../../skills/hammer-cli/SKILL.md) into your project's skills, for example `.claude/skills/hammer-cli`. [skills/hammer-tests](../../skills/hammer-tests/SKILL.md) teaches it to write Hammer tests.

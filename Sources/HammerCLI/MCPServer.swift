@@ -4,9 +4,10 @@ import HammerAgentCore
 /// A Model Context Protocol server over standard input and output that exposes the app's commands as tools.
 ///
 /// Tools are listed from the app when it is running, so the commands it registers appear as tools, and
-/// from the builtin commands when it is not, so the client can start before the app.
+/// from the builtin commands when it is not, so the client can start before the app. Tools the system
+/// driver also runs take a `system` argument that sends the call to it.
 struct MCPServer {
-    let client: AgentClient
+    let drivers: Drivers
 
     func run() async throws {
         for try await line in FileHandle.standardInput.bytes.lines where !line.isEmpty {
@@ -46,11 +47,14 @@ struct MCPServer {
         case "ping":
             return [:]
         case "tools/list":
-            let tools = await self.client.catalog().commands.map { command -> JSONValue in
-                [
+            let systemCommands = await self.drivers.system.catalog().commands
+            let tools = await self.drivers.app.catalog().commands.map { command -> JSONValue in
+                let schema = systemCommands.first { $0.name == command.name }
+                    .map { Self.addingSystemArgument(to: command.argumentsSchema, for: $0) }
+                return [
                     "name": .string(command.name),
                     "description": .string(Self.toolDescription(for: command)),
-                    "inputSchema": command.argumentsSchema,
+                    "inputSchema": schema ?? command.argumentsSchema,
                 ]
             }
             return ["tools": .array(tools)]
@@ -66,9 +70,11 @@ struct MCPServer {
     }
 
     private func callTool(_ name: String, arguments: [String: JSONValue]) async -> JSONValue {
+        var arguments = arguments
+        let system = arguments.removeValue(forKey: Self.systemArgument) == .bool(true)
         let output: Data
         do {
-            output = try await self.client.run(name, arguments: arguments)
+            output = try await self.drivers.driver(system: system).run(name, arguments: arguments)
         } catch {
             let body = (error as? ClientError)?.body
                 ?? AgentErrorBody(error: String(describing: error), code: .failed)
@@ -87,6 +93,30 @@ struct MCPServer {
 
         let text = String(bytes: output, encoding: .utf8) ?? ""
         return ["content": [["type": "text", "text": .string(text == "{}" ? "Done" : text)]]]
+    }
+
+    private static let systemArgument = "system"
+
+    /// Adds the argument that sends a call to the system driver, which takes only its command's arguments.
+    private static func addingSystemArgument(to schema: JSONValue, for command: CommandDescriptor)
+        -> JSONValue
+    {
+        guard var schema = schema.objectValue, var properties = schema["properties"]?.objectValue else {
+            return schema
+        }
+
+        let names = command.parameters.map(\.name)
+        let arguments = names.isEmpty
+            ? "It takes no other arguments" : "Only \(names.joined(separator: ", ")) apply"
+        properties[self.systemArgument] = [
+            "type": "boolean",
+            "description": .string("""
+                Run on the simulator's whole screen from the Mac, to reach system UI such as permission \
+                alerts. \(arguments).
+                """),
+        ]
+        schema["properties"] = .object(properties)
+        return .object(schema)
     }
 
     private static func toolDescription(for command: CommandDescriptor) -> String {
