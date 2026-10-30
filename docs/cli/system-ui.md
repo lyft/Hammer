@@ -11,8 +11,8 @@ hammer tap --system --label Allow --traits button
 
 ```json
 [
-  {"frame": {"x": 57, "y": 494, "width": 140, "height": 48}, "label": "Don’t Allow", "traits": ["button"], "type": "AXButton"},
-  {"frame": {"x": 205, "y": 494, "width": 140, "height": 48}, "label": "Allow", "traits": ["button"], "type": "AXButton"}
+  {"frame": {"x": 57, "y": 494, "width": 140, "height": 48}, "label": "Don’t Allow", "traits": ["button"], "type": "Button"},
+  {"frame": {"x": 205, "y": 494, "width": 140, "height": 48}, "label": "Allow", "traits": ["button"], "type": "Button"}
 ]
 ```
 

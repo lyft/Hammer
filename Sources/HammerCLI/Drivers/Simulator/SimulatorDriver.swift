@@ -183,7 +183,7 @@ private struct DescribedElement: Encodable {
 
         let frame = element.frame
         let node = DescribedElement(
-            type: element.role, identifier: element.identifier.nonEmpty, label: element.label.nonEmpty,
+            type: element.type, identifier: element.identifier.nonEmpty, label: element.label.nonEmpty,
             value: element.value.nonEmpty, traits: traits.isEmpty ? nil : traits,
             frame: Frame(x: frame.minX.rounded, y: frame.minY.rounded, width: frame.width.rounded,
                          height: frame.height.rounded),
@@ -197,6 +197,11 @@ extension SystemElement {
         "AXButton": "button", "AXLink": "link", "AXHeading": "header", "AXImage": "image",
         "AXStaticText": "staticText", "AXSearchField": "searchField",
     ]
+
+    /// The role without the `AX` prefix of macOS accessibility roles, such as `Button`.
+    fileprivate var type: String {
+        return self.role.hasPrefix("AX") ? String(self.role.dropFirst(2)) : self.role
+    }
 
     /// The agent's trait names for the element's role, so queries read the same in both drivers.
     fileprivate var traits: [String] {

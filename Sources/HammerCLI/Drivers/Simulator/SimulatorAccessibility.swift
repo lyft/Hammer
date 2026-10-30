@@ -12,14 +12,14 @@ import Foundation
     func frontmostApplication(displayID: UInt32, bridgeDelegateToken: String) -> AXPTranslationObject?
 
     @objc(macPlatformElementFromTranslation:)
-    func macPlatformElement(from translation: AXPTranslationObject) -> AXPlatformElement?
+    func macPlatformElement(from translation: AXPTranslationObject) -> AXPMacPlatformElement?
 }
 
 @objc private protocol AXPTranslationObject {
     var bridgeDelegateToken: String? { get set }
 }
 
-@objc private protocol AXPlatformElement {
+@objc private protocol AXPMacPlatformElement {
     var translation: AXPTranslationObject { get }
     var accessibilityRole: String? { get }
     var accessibilityIdentifier: String? { get }
@@ -78,10 +78,10 @@ enum SimulatorAccessibility {
         return self.element(root, token: token)
     }
 
-    private static func element(_ element: AXPlatformElement, token: String) -> SystemElement {
+    private static func element(_ element: AXPMacPlatformElement, token: String) -> SystemElement {
         element.translation.bridgeDelegateToken = token
         let children = (element.accessibilityChildren ?? []).map {
-            self.element(unsafeBitCast($0, to: AXPlatformElement.self), token: token)
+            self.element(unsafeBitCast($0, to: AXPMacPlatformElement.self), token: token)
         }
 
         return SystemElement(role: element.accessibilityRole ?? "",
