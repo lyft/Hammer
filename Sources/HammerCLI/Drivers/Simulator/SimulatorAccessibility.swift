@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 
@@ -50,6 +51,14 @@ enum SimulatorAccessibility {
     ///
     /// - returns: The root element.
     static func snapshot(of device: SimDevice) async throws -> SystemElement {
+        // The translator gets no elements unless Simulator.app is running, even for a booted device
+        guard !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.iphonesimulator")
+            .isEmpty
+        else {
+            throw ClientError.noSimulator("Simulator.app isn't running, which reading the screen needs",
+                                          hint: "Open it with `open -a Simulator` and try again")
+        }
+
         try CoreSimulator.load("/System/Library/PrivateFrameworks/AccessibilityPlatformTranslation.framework/"
                                + "AccessibilityPlatformTranslation")
         let bridge = AccessibilityBridge(device: device)

@@ -29,7 +29,7 @@ A failed command prints one JSON object to standard error:
 | `timed_out` | A wait ran out of time, or the app did not respond in time. |
 | `unreachable` | No agent listens on the port. The app is not running or hasn't started the agent. |
 | `disconnected` | The app closed the connection before responding. |
-| `no_simulator` | `--system` found no booted simulator, or several and none was picked, or Xcode can't drive it. |
+| `no_simulator` | `--system` found no booted simulator, or several and none was picked, or Simulator.app or Xcode can't drive it. |
 | `failed` | Anything else. |
 
 Custom commands can report codes of their own.

@@ -28,7 +28,7 @@ When no element matches, the `not_found` error lists the buttons on screen.
 
 `--system` drives the only booted simulator. When several are booted, pass `--udid <udid>` or set `HAMMER_SIMULATOR_UDID`. A `no_simulator` error lists the booted ones.
 
-`hammer` uses the frameworks of the selected Xcode, from `DEVELOPER_DIR` or `xcode-select`, so it only works in the simulator.
+`hammer` uses the frameworks of the selected Xcode, from `DEVELOPER_DIR` or `xcode-select`, so it only works in the simulator. Reading the screen also needs Simulator.app running; `open -a Simulator` starts it.
 
 ## MCP
 
