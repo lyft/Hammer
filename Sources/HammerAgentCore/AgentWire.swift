@@ -117,6 +117,8 @@ extension AgentErrorCode {
     public static let unreachable: Self = "unreachable"
     /// The app closed the connection before responding, so the command may or may not have run.
     public static let disconnected: Self = "disconnected"
+    /// No simulator is booted, the one asked for is not, or Xcode can't drive it.
+    public static let noSimulator: Self = "no_simulator"
 }
 
 /// An image a command outputs, such as a screenshot.
