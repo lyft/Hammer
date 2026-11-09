@@ -38,7 +38,7 @@ Returns the commands the agent runs, as a JSON array of descriptors in registrat
 - `name` is snake case. The tool shows it in kebab case (`type_text` is `hammer type-text`), and the MCP server uses it as the tool name.
 - `parameters` and `examples` may be missing, meaning empty.
 - `type.type` is one of `string`, `integer`, `number`, `boolean`, `stringList`, `choice` (with `values`, the allowed strings) or `json` (any value). Clients decode a type they don't know as `json`, so agents can add types before clients know them.
-- `output` and `port` are reserved parameter names, for the tool's own options. Registering a command that uses them is a precondition failure.
+- `output`, `port`, `system`, `udid`, `android`, `serial` and `app_id` are reserved parameter names, for the tool's own options. Registering a command that uses them is a precondition failure.
 
 ### `POST /commands/<name>`
 

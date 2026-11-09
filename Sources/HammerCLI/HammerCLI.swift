@@ -4,11 +4,12 @@ import HammerAgentCore
 @main
 struct HammerCLI {
     private static let usage = """
-        hammer drives an iOS app that runs Hammer's agent, sending real touches and key presses from \
-        inside the app.
+        hammer drives an iOS or Android app that runs Hammer's agent, sending real touches and key presses \
+        from inside the app.
 
         Usage:
           hammer <command> [--<argument> <value>]... [-] [--output <path>] [--port <port>] [--system]
+                           [--android [--serial <serial>] [--app-id <application id>]]
           hammer commands         List the commands the app runs
           hammer help <command>   Describe a command, its arguments and examples
           hammer guide            Print the full guide for agents, in markdown
@@ -22,6 +23,13 @@ struct HammerCLI {
         permission alerts
           --udid <udid>    The simulator for --system. Defaults to \(CoreSimulator.udidEnvironmentKey) or \
         the only booted one
+          --android        Drive an Android app through adb instead of an iOS app
+          --serial <serial>
+                           The Android device, implies --android. Defaults to \(Adb.serialEnvironmentKey) or \
+        the only attached one
+          --app-id <application id>
+                           The Android app, implies --android. Defaults to the only app running an agent, or \
+        the foreground one
 
         Start with `hammer describe` to see the elements on screen, and `hammer guide` for how to target \
         them and handle errors.
@@ -32,6 +40,41 @@ struct HammerCLI {
         var outputPath: String?
         var system = false
         var udid: String?
+        var android = false
+        var serial: String?
+        var appID: String?
+
+        /// The options that take true or false, and are true when given alone.
+        static let flagNames: Set<String> = ["system", "android"]
+
+        mutating func setFlag(_ name: String, to flag: Bool) {
+            if name == "system" {
+                self.system = flag
+            } else {
+                self.android = flag
+            }
+        }
+
+        mutating func set(_ name: String, to value: String) throws {
+            switch name {
+            case "output":
+                self.outputPath = value
+            case "udid":
+                self.udid = value
+            case "serial":
+                self.serial = value
+                self.android = true
+            case "app_id":
+                self.appID = value
+                self.android = true
+            default:
+                guard let port = UInt16(value) else {
+                    throw UsageError(description: "Invalid port \"\(value)\", expected a number up to 65535")
+                }
+
+                self.port = port
+            }
+        }
     }
 
     static func main() async {
@@ -57,8 +100,7 @@ struct HammerCLI {
         var arguments = arguments
         let options = try self.extractOptions(from: &arguments)
         var remaining = arguments[...]
-        let drivers = Drivers(app: AgentClient(port: options.port, token: AgentEndpoint.token()),
-                              system: SimulatorDriver(udid: options.udid))
+        let drivers = try self.drivers(for: options)
         let driver = drivers.driver(system: options.system)
         switch remaining.popFirst() {
         case nil, "--help", "-h":
@@ -97,20 +139,22 @@ struct HammerCLI {
         var tokens = arguments[...]
         while let token = tokens.popFirst() {
             let parts = token.split(separator: "=", maxSplits: 1).map(String.init)
-            let name = parts[0].hasPrefix("--") ? String(parts[0].dropFirst(2)) : ""
+            // Options are kebab case, such as --app-id for the reserved name app_id
+            let name = parts[0].hasPrefix("--")
+                ? String(parts[0].dropFirst(2)).replacingOccurrences(of: "-", with: "_") : ""
             guard CommandDescriptor.reservedParameterNames.contains(name) else {
                 remaining.append(token)
                 continue
             }
 
-            if name == "system" {
-                guard let system = parts.count == 2 ? Bool(parts[1]) : true else {
+            if Options.flagNames.contains(name) {
+                guard let flag = parts.count == 2 ? Bool(parts[1]) : true else {
                     throw UsageError(description: """
-                        Invalid value "\(parts[1])" for --system, expected true or false
+                        Invalid value "\(parts[1])" for \(parts[0]), expected true or false
                         """)
                 }
 
-                options.system = system
+                options.setFlag(name, to: flag)
                 continue
             }
 
@@ -118,19 +162,28 @@ struct HammerCLI {
                 throw UsageError(description: "Missing value for \(parts[0])", hint: "Run `hammer --help`")
             }
 
-            if name == "output" {
-                options.outputPath = value
-            } else if name == "udid" {
-                options.udid = value
-            } else if let port = UInt16(value) {
-                options.port = port
-            } else {
-                throw UsageError(description: "Invalid port \"\(value)\", expected a number up to 65535")
-            }
+            try options.set(name, to: value)
         }
 
         arguments = remaining
         return options
+    }
+
+    private static func drivers(for options: Options) throws -> Drivers {
+        let token = AgentEndpoint.token()
+        guard options.android else {
+            return Drivers(app: AgentClient(port: options.port, token: token),
+                           system: SimulatorDriver(udid: options.udid))
+        }
+
+        guard !options.system else {
+            throw UsageError(description: "--system is not available for Android yet",
+                             hint: "Run the command without --system, in the app")
+        }
+
+        return Drivers(app: AndroidAgentClient(adb: Adb(), serial: options.serial, appID: options.appID,
+                                               token: token),
+                       system: UnavailableDriver(reason: "--system is not available for Android yet"))
     }
 
     /// Prints the output or writes it to the path. Images are always written to a file, as image data.

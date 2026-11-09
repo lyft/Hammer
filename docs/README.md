@@ -28,8 +28,9 @@ Then use the `hammer` command line tool:
 3. [Live editing](cli/live-editing.md): try view changes in the running app.
 4. [System UI](cli/system-ui.md): tap permission alerts and the home screen in the simulator.
 5. [MCP server](cli/mcp.md): give AI agents the commands as tools.
-6. [Errors](cli/errors.md): error codes and exit codes.
-7. [Commands](cli/commands.md): every built-in command.
+6. [Android](cli/android.md): drive an Android app through adb.
+7. [Errors](cli/errors.md): error codes and exit codes.
+8. [Commands](cli/commands.md): every built-in command.
 
 ## Developing Hammer
 
