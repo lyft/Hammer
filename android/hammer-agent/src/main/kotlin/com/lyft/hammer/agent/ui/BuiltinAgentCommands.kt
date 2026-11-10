@@ -12,11 +12,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 /** The built-in commands the Android agent runs, with the behavior Hammer's commands reference describes. */
 internal class BuiltinAgentCommands(private val screen: AgentScreen) {
 
-    val all: List<WireCommand> = listOf(
-        command(BuiltinCommands.describe) { arguments ->
+    private val runs: Map<CommandDescriptor, suspend (JsonObject) -> JsonElement> = mapOf(
+        BuiltinCommands.describe to { arguments ->
             DescribeOutput.json(screen.snapshot(), all = arguments.boolean("all") ?: false)
         },
-        command(BuiltinCommands.tap) { arguments ->
+        BuiltinCommands.tap to { arguments ->
             val count = arguments.int("count") ?: 1
             if (count < 1) throw Target.invalid("count must be at least 1")
             val target = Target.parse(arguments)
@@ -24,14 +24,14 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             screen.injector.tap(TargetResolver.touchPoint(target, snapshot), snapshot.density, count)
             JsonObject()
         },
-        command(BuiltinCommands.longPress) { arguments ->
+        BuiltinCommands.longPress to { arguments ->
             val target = Target.parse(arguments)
             val snapshot = screen.snapshot()
             val point = TargetResolver.touchPoint(target, snapshot)
             screen.injector.longPress(point, snapshot.density, arguments.double("duration") ?: DEFAULT_LONG_PRESS_SECONDS)
             JsonObject()
         },
-        command(BuiltinCommands.swipe) { arguments ->
+        BuiltinCommands.swipe to { arguments ->
             val target = Target.parse(arguments)
             val snapshot = screen.snapshot()
             val center = TargetResolver.touchPoint(target, snapshot)
@@ -39,13 +39,13 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             screen.injector.drag(from, to, snapshot.density, arguments.swipeDuration)
             JsonObject()
         },
-        command(BuiltinCommands.edgeSwipe) { arguments ->
+        BuiltinCommands.edgeSwipe to { arguments ->
             val snapshot = screen.snapshot()
             val (from, to) = Gestures.edgeSwipe(snapshot.windowFrame, arguments.get("direction").asString, arguments.distance)
             screen.injector.drag(from, to, snapshot.density, arguments.swipeDuration)
             JsonObject()
         },
-        command(BuiltinCommands.drag) { arguments ->
+        BuiltinCommands.drag to { arguments ->
             val start = Target.parse(arguments)
             val end = Target.parse(arguments, prefix = "to_")
             if (start == Target.None || end == Target.None) {
@@ -61,7 +61,7 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             screen.injector.drag(from, to, snapshot.density, arguments.double("duration") ?: DEFAULT_DRAG_SECONDS)
             JsonObject()
         },
-        command(BuiltinCommands.typeText) { arguments ->
+        BuiltinCommands.typeText to { arguments ->
             val target = Target.parse(arguments)
             if (target != Target.None) {
                 val snapshot = screen.snapshot()
@@ -72,11 +72,11 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             screen.injector.type(arguments.get("text").asString)
             JsonObject()
         },
-        command(BuiltinCommands.pressKey) { arguments ->
+        BuiltinCommands.pressKey to { arguments ->
             screen.injector.press(Keys.parse(arguments.get("key").asString))
             JsonObject()
         },
-        command(BuiltinCommands.waitFor) { arguments ->
+        BuiltinCommands.waitFor to { arguments ->
             val query = WaitCondition.query(Target.parse(arguments))
             val condition = WaitCondition.parse(arguments.get("condition")?.asString)
             val timeout = arguments.double("timeout") ?: DEFAULT_TIMEOUT_SECONDS
@@ -85,11 +85,11 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             } ?: throw condition.timedOut(query, timeout, WaitCondition.EXISTS.isMet(query, screen.snapshotOrNull()))
             JsonObject()
         },
-        command(BuiltinCommands.waitForIdle) { arguments ->
+        BuiltinCommands.waitForIdle to { arguments ->
             screen.idle.await(arguments.double("timeout") ?: DEFAULT_TIMEOUT_SECONDS)
             JsonObject()
         },
-        command(BuiltinCommands.screenshot) { arguments ->
+        BuiltinCommands.screenshot to { arguments ->
             val scale = arguments.double("scale") ?: 1.0
             if (scale <= 0 || scale > MAX_SCALE) throw Target.invalid("scale must be above 0 and up to $MAX_SCALE")
             val target = Target.parse(arguments)
@@ -98,6 +98,9 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             AgentImage.png(screen.screenshots.png(frame, scale, snapshot.density))
         },
     )
+
+    /** The commands in [BuiltinCommands.all]'s order, which the contract with Hammer fixes. */
+    val all: List<WireCommand> = BuiltinCommands.all.map { command(it, runs.getValue(it)) }
 
     private fun command(descriptor: CommandDescriptor, run: suspend (JsonObject) -> JsonElement): WireCommand =
         object : WireCommand {

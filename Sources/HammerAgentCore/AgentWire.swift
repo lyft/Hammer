@@ -125,6 +125,18 @@ extension AgentErrorCode {
     public static let appFrozen: Self = "app_frozen"
 }
 
+extension AgentErrorCode {
+    /// The codes an agent reports, which the Android agent in `android/` also defines.
+    public static let agentCodes: [Self] = [
+        .invalidArguments, .unknownCommand, .invalidRequest, .failed, .notFound, .ambiguousTarget,
+        .notVisible, .notHittable, .notReady, .timedOut,
+    ]
+
+    /// The codes only clients such as `hammer` report, about reaching the agent rather than running a
+    /// command.
+    public static let clientCodes: [Self] = [.unreachable, .disconnected, .noSimulator, .noDevice, .appFrozen]
+}
+
 /// An image a command outputs, such as a screenshot.
 ///
 /// It is encoded with `"type": "image"` so clients can tell it from other outputs.

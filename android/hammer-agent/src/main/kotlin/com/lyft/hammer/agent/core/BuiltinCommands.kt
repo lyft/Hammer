@@ -205,4 +205,9 @@ internal object BuiltinCommands {
             Example("Capture one element", mapOf("ref" to JsonValue.String("e3"), "scale" to JsonValue.Number(2))),
         ),
     )
+
+    /** Every built-in command, in the order the agent lists them. */
+    val all: List<CommandDescriptor> = listOf(
+        describe, tap, longPress, swipe, edgeSwipe, drag, typeText, pressKey, waitFor, waitForIdle, screenshot,
+    )
 }
