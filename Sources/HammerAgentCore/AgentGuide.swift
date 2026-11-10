@@ -38,10 +38,10 @@ public enum AgentGuide {
     private static let usage = """
         # Hammer agent
 
-        Hammer drives an iOS app from inside it: it finds views and accessibility elements, including \
-        SwiftUI's, and sends real touch and keyboard events, waiting for the app to process each one. It \
-        reaches the app's own windows and runs one command at a time. System UI such as permission alerts \
-        and the home screen is outside the app, see System UI below.
+        Hammer drives an iOS or Android app from inside it: it finds views and accessibility elements, \
+        including SwiftUI's and Jetpack Compose's, and sends touch and keyboard events, waiting for the app \
+        to process each one. It reaches the app's own windows and runs one command at a time. System UI \
+        such as permission alerts and the home screen is outside the app, see System UI below.
 
         ## Workflow
 
@@ -59,7 +59,8 @@ public enum AgentGuide {
         element exists. Call `describe` again if a ref is unknown.
         - `identifier`, `label`, `value` and `traits`: every one given must match. When several elements \
         match, add more of them or use the `ref`.
-        - `x` and `y`: a point in window points, the same coordinates as the frames from `describe`.
+        - `x` and `y`: a point in window points, or screen dp on Android, the same coordinates as the frames \
+        from `describe`.
 
         Without a target, gestures use the center of the window.
 
@@ -68,9 +69,9 @@ public enum AgentGuide {
         In the simulator, {system} runs `describe` and `tap` on the whole screen from the Mac instead of \
         inside the app, to reach system UI such as a permission alert: call `describe` with {system} to see \
         its buttons, then tap one by label, such as {systemTap}. Its elements have no refs, and frames and \
-        points are in screen points.
+        points are in screen points. Android has no {system} yet.
 
-        ## Live editing
+        ## Live editing (iOS)
 
         To see how a change looks, or which change fixes a layout problem, before writing it in code:
 
@@ -100,6 +101,8 @@ public enum AgentGuide {
         - `--output <path>` writes the output to a file, and `--port <port>` picks the app's port.
         - `--udid <udid>` picks the simulator for `--system` when several are booted, or set \
         `HAMMER_SIMULATOR_UDID`.
+        - `--android` drives an Android app through adb. `--serial <serial>` picks the device and \
+        `--app-id <application id>` the app, and either one implies `--android`.
         - Output is JSON on standard output. Screenshots are written to a PNG file and its path is printed, \
         so open that file to see it.
         - Failures print one JSON object to standard error, with the `error`, a `code` such as `not_found` \
