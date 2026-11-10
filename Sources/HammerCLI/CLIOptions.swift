@@ -38,7 +38,9 @@ struct CLIOptions: Equatable {
         var remaining = [String]()
         var tokens = arguments[...]
         while let token = tokens.popFirst() {
-            let parts = token.split(separator: "=", maxSplits: 1).map(String.init)
+            // Keeping empty parts makes an empty argument, such as the value of --label "", one empty part
+            let parts = token.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                .map(String.init)
             // Options are kebab case, such as --app-id for the reserved name app_id
             let name = parts[0].hasPrefix("--")
                 ? String(parts[0].dropFirst(2)).replacingOccurrences(of: "-", with: "_") : ""

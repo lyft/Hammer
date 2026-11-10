@@ -33,6 +33,15 @@ struct CLIOptionsTests {
     }
 
     @Test
+    func emptyArgumentsAreTheCommands() throws {
+        var arguments = ["tap", "--label", "", "", "--android"]
+        let options = try CLIOptions.extract(from: &arguments)
+
+        #expect(options.platform == .android)
+        #expect(arguments == ["tap", "--label", "", ""])
+    }
+
+    @Test
     func iOSOptions() throws {
         var arguments = ["describe", "--port", "9000", "--system", "--udid", "ABC", "--output", "out.json"]
         let options = try CLIOptions.extract(from: &arguments)
