@@ -31,6 +31,7 @@ A failed command prints one JSON object to standard error:
 | `disconnected` | The app closed the connection before responding. |
 | `no_simulator` | `--system` found no booted simulator, or several and none was picked, or Simulator.app or Xcode can't drive it. |
 | `no_device` | `--android` found no attached device, or several and none was picked, or adb failed. |
+| `app_frozen` | Android froze the app in the background, so its agent can't respond. Bring the app to the front. |
 | `failed` | Anything else. |
 
 Custom commands can report codes of their own.
