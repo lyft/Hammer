@@ -1,0 +1,16 @@
+[versions]
+agp = "9.5.1"
+coroutines = "1.11.0"
+
+[libraries]
+androidx-activity = { module = "androidx.activity:activity", version = "1.13.0" }
+androidx-core = { module = "androidx.core:core", version = "1.19.1" }
+compose-ui = { module = "androidx.compose.ui:ui", version = "1.12.1" }
+gson = { module = "com.google.code.gson:gson", version = "2.13.2" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+junit = { module = "junit:junit", version = "4.13.2" }
+assertj = { module = "org.assertj:assertj-core", version = "3.24.2" }
+
+[plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }
