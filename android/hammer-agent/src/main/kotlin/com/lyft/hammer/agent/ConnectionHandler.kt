@@ -8,7 +8,8 @@ internal class ConnectionHandler(private val router: CommandRouter) {
 
     /**
      * Answers the request, or drops it when [isClientGone] says the client closed the connection before it ran, such
-     * as hammer giving up while Android froze the app. Running it then would act after the caller moved on.
+     * as hammer giving up while Android froze the app or while the request waited for another command. Running it then
+     * would act after the caller moved on.
      */
     suspend fun respond(input: InputStream, output: OutputStream, peerUid: Int, ownUid: Int, isClientGone: () -> Boolean) {
         val response = response(input, peerUid, ownUid, isClientGone) ?: return
@@ -20,7 +21,7 @@ internal class ConnectionHandler(private val router: CommandRouter) {
         if (!RequestRules.isAllowedPeer(peerUid, ownUid)) return RequestRules.peerRejection(peerUid)
         return try {
             val request = HttpRequestReader.read(input)
-            RequestRules.rejection(request) ?: if (isClientGone()) null else router.respond(request)
+            RequestRules.rejection(request) ?: router.respond(request, isClientGone)
         } catch (exception: InvalidHttpRequestException) {
             HttpResponse.error(HttpResponse.BAD_REQUEST, AgentErrorCode.INVALID_REQUEST, exception.message.orEmpty())
         }

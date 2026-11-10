@@ -29,11 +29,16 @@ internal class CommandRouter(private val registry: CommandRegistry) {
     val descriptors: List<CommandDescriptor>
         get() = registry.descriptors
 
-    suspend fun respond(request: HttpRequest): HttpResponse = when {
+    /**
+     * The response to [request], or null when [isClientGone] says its client closed the connection
+     * before the request ran, including while it waited for another command to finish.
+     */
+    suspend fun respond(request: HttpRequest, isClientGone: () -> Boolean): HttpResponse? = when {
+        isClientGone() -> null
         request.method == "GET" && request.path == COMMANDS_PATH ->
             HttpResponse.json(HttpResponse.OK, JsonArrays.of(descriptors.map { it.toJson() }))
         request.method == "POST" && request.path.startsWith("$COMMANDS_PATH/") ->
-            run(request.path.removePrefix("$COMMANDS_PATH/"), request.body)
+            run(request.path.removePrefix("$COMMANDS_PATH/"), request.body, isClientGone)
         else -> HttpResponse.error(
             HttpResponse.NOT_FOUND,
             AgentErrorCode.INVALID_REQUEST,
@@ -41,9 +46,10 @@ internal class CommandRouter(private val registry: CommandRegistry) {
         )
     }
 
-    private suspend fun run(name: String, body: ByteArray): HttpResponse {
+    private suspend fun run(name: String, body: ByteArray, isClientGone: () -> Boolean): HttpResponse? {
         val command = registry.command(name) ?: return unknownCommand(name)
         return mutex.withLock {
+            if (isClientGone()) return@withLock null
             try {
                 val arguments = argumentsObject(body, command.descriptor)
                 command.descriptor.validate(arguments)

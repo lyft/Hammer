@@ -3,6 +3,10 @@ package com.lyft.hammer.agent
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.lyft.hammer.agent.core.WireCommand
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
@@ -34,6 +38,27 @@ class ConnectionHandlerTest {
         val output = respond(TAP_REQUEST, peerUid = 2000, isClientGone = true)
 
         assertThat(output).isEmpty()
+        assertThat(tap.runs).isEqualTo(0)
+    }
+
+    @Test
+    fun respond_clientGoneWhileQueued_dropsTheCommand() = runTest {
+        val slow = BlockingCommand(CommandDescriptor("wait_for", "Waits."))
+        val handler = ConnectionHandler(CommandRouter(listOf(tap, slow)))
+        var clientGone = false
+        val slowOutput = ByteArrayOutputStream()
+        val tapOutput = ByteArrayOutputStream()
+        launch { handler.respond(SLOW_REQUEST.byteInputStream(), slowOutput, peerUid = 2000, ownUid = 10123) { false } }
+        runCurrent()
+        launch { handler.respond(TAP_REQUEST.byteInputStream(), tapOutput, peerUid = 2000, ownUid = 10123) { clientGone } }
+        runCurrent()
+
+        clientGone = true
+        slow.release.complete(Unit)
+        advanceUntilIdle()
+
+        assertThat(slowOutput.toString(Charsets.UTF_8.name())).startsWith("HTTP/1.1 200 OK\r\n")
+        assertThat(tapOutput.size()).isEqualTo(0)
         assertThat(tap.runs).isEqualTo(0)
     }
 
@@ -76,7 +101,17 @@ class ConnectionHandlerTest {
         }
     }
 
+    private class BlockingCommand(override val descriptor: CommandDescriptor) : WireCommand {
+        val release = CompletableDeferred<Unit>()
+
+        override suspend fun run(arguments: JsonObject): JsonElement {
+            release.await()
+            return JsonObject()
+        }
+    }
+
     private companion object {
         const val TAP_REQUEST = "POST /commands/tap HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}"
+        const val SLOW_REQUEST = "POST /commands/wait_for HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}"
     }
 }
