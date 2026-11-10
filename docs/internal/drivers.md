@@ -10,6 +10,7 @@ The `hammer` CLI and MCP server speak one command language and send each call to
 | --- | --- | --- |
 | `AgentClient` | [Drivers/App](../../Sources/HammerCLI/Drivers/App) | Every command, inside the app, through the agent's [HTTP API](http-api.md). |
 | `SimulatorDriver` | [Drivers/Simulator](../../Sources/HammerCLI/Drivers/Simulator) | `describe` and `tap` on the simulator's whole screen, from the Mac. |
+| `AndroidAgentClient` | [Drivers/Android](../../Sources/HammerCLI/Drivers/Android) | Every command, inside an Android app, through `adb forward` to the agent's [HTTP API](http-api.md). |
 
 [`Drivers`](../../Sources/HammerCLI/Drivers/Driver.swift) holds the ones a call can go to, and the caller picks one: the CLI with `--system`, the MCP server with the `system` argument.
 

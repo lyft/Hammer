@@ -1,6 +1,6 @@
 ---
 name: hammer-cli
-description: Drive and inspect a running iOS app that has Hammer's agent started, with the `hammer` command line tool. Use when asked to tap, swipe, type, check what is on screen, take a screenshot or verify a UI change in the app, in the simulator or on a device, and to try changes to views live, such as a color, a hidden view or a constraint, before writing them in code.
+description: Drive and inspect a running iOS or Android app that has Hammer's agent started, with the `hammer` command line tool. Use when asked to tap, swipe, type, check what is on screen, take a screenshot or verify a UI change in the app, in the simulator or on a device, and to try changes to views live, such as a color, a hidden view or a constraint, before writing them in code.
 ---
 
 # Hammer CLI
@@ -20,5 +20,7 @@ When a command fails it prints a JSON object with the `error`, a `code` such as 
 System UI such as permission alerts, the home screen and other apps is outside the app. In the simulator, run `hammer describe --system` to see it and `hammer tap --system --label Allow` to tap it. Pass `--udid` when several simulators are booted.
 
 If no agent is listening, the app is not running or has not called `HammerAgent().start()`. Launch it and try again. Pass `--port` when the app uses a port other than 9876, and set `HAMMER_AGENT_TOKEN` to the app's token if it reports a missing token.
+
+For an Android app, add `--android` to every command, such as `hammer describe --android`, and run `hammer guide --android` for the Android guide. `hammer` reaches the app through adb: pass `--serial` when several devices are attached, or set `ANDROID_SERIAL`, and `--app-id` when several apps run an agent. If no agent is listening, launch a build of the app that starts its Hammer agent; an `unreachable` error lists the apps that do run one, and a `no_device` error lists the devices and their states, such as `unauthorized` while the device shows the USB debugging prompt.
 
 To turn what you found into a unit test, use the `hammer-tests` skill. The identifiers and labels from `describe` work as the same queries in tests.

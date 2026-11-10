@@ -119,6 +119,10 @@ extension AgentErrorCode {
     public static let disconnected: Self = "disconnected"
     /// No simulator is booted, the one asked for is not, or Xcode can't drive it.
     public static let noSimulator: Self = "no_simulator"
+    /// No Android device is attached, several are and none was picked, or adb can't reach it.
+    public static let noDevice: Self = "no_device"
+    /// Android froze the app in the background, so its agent can't respond until it's in front again.
+    public static let appFrozen: Self = "app_frozen"
 }
 
 /// An image a command outputs, such as a screenshot.
