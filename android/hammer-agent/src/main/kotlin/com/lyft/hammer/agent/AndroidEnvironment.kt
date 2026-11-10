@@ -2,6 +2,7 @@ package com.lyft.hammer.agent
 
 import android.app.Application
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.lyft.hammer.agent.core.WireCommand
@@ -22,6 +23,11 @@ internal class AndroidEnvironment(private val application: Application) : AgentE
 
     override val isDebuggable: Boolean
         get() = application.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    override val manifestEntries: Map<String, String> by lazy {
+        val metaData = application.packageManager.getApplicationInfo(application.packageName, PackageManager.GET_META_DATA).metaData
+        metaData?.keySet()?.associateWith { metaData.get(it).toString() }.orEmpty()
+    }
 
     override val otherProcessName: String?
         get() = Application.getProcessName().takeIf { it != application.packageName }

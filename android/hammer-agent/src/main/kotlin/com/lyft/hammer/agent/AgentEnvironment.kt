@@ -9,6 +9,9 @@ internal interface AgentEnvironment {
 
     val isDebuggable: Boolean
 
+    /** The `<meta-data>` entries of the app's `<application>`, as strings. */
+    val manifestEntries: Map<String, String>
+
     /** The process name when it isn't the app's main process, null in the main process. */
     val otherProcessName: String?
 

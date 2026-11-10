@@ -9,6 +9,7 @@ import java.io.IOException
 
 internal class FakeEnvironment(
     override val isDebuggable: Boolean = true,
+    override val manifestEntries: Map<String, String> = emptyMap(),
     override val otherProcessName: String? = null,
     private val socketTaken: Boolean = false,
     private val builtins: List<WireCommand> = emptyList(),
