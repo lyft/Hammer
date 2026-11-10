@@ -21,6 +21,8 @@ let package = Package(
         .target(name: "HammerAgentCore"),
         .target(name: "HammerAgent", dependencies: ["Hammer", "HammerAgentCore"]),
         .executableTarget(name: "HammerCLI", dependencies: ["HammerAgentCore"]),
+        // Runs on macOS: `swift build --target HammerCLITests && swift test --skip-build`
+        .testTarget(name: "HammerCLITests", dependencies: ["HammerCLI"]),
         // Disabled because SPM does not support running on TestHost yet
         // .testTarget(name: "HammerTests", dependencies: ["Hammer"]),
     ],

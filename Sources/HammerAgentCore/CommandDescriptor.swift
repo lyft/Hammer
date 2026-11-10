@@ -15,9 +15,10 @@ public struct CommandDescriptor: Codable, Equatable, Sendable {
     public var examples: [Example]
 
     /// The parameter names clients use for their own options, such as the `hammer` tool's `--output`.
-    public static let reservedParameterNames: Set<String> = [
-        "output", "port", "system", "udid", "android", "serial", "app_id",
-    ]
+    ///
+    /// The iOS agent stops on a command that uses one, so this set only grows in a major release. Options
+    /// for one platform go in `reservedParameterNames(for:)` instead.
+    public static let reservedParameterNames: Set<String> = ["output", "port", "system", "udid"]
 
     /// Creates a command descriptor.
     ///
