@@ -186,6 +186,8 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
         var package: String?
     }
 
+    static let textFieldClassSuffixes = ["EditText", "AutoCompleteTextView", "SearchAutoComplete"]
+
     private let scale: CGFloat
     private var stack: [Node] = []
     private var roots: [(element: AndroidElement, layer: Int)] = []
@@ -259,7 +261,9 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
 
     private func element(_ attributes: [String: String]) -> AndroidElement {
         let className = attributes["class"] ?? ""
-        let isEditable = className.hasSuffix("EditText")
+        // Views report their accessibility class name, which is EditText for its subclasses, such as
+        // AutoCompleteTextView and SearchView's field, unless one reports its own
+        let isEditable = Self.textFieldClassSuffixes.contains { className.hasSuffix($0) }
         let text = attributes["text"].nonEmpty
         let description = attributes["content-desc"].nonEmpty
         let resourceID = attributes["resource-id"].nonEmpty

@@ -118,10 +118,50 @@ struct UIAutomatorDumpTests {
         #expect(fields.map(\.isFocusedTextField) == [true, false])
     }
 
+    @Test(arguments: [
+        "android.widget.EditText", "android.widget.AutoCompleteTextView",
+        "android.widget.MultiAutoCompleteTextView", "androidx.appcompat.widget.SearchView$SearchAutoComplete",
+    ])
+    func textFieldSubclassesAreTextFields(className: String) throws {
+        let dump = """
+            <?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0">\
+            <node class="\(className)" text="SFO" hint="Search" focused="true" bounds="[0,0][300,60]" />\
+            </hierarchy>
+            """
+        let field = try #require(UIAutomatorDump.parse(dump, scale: 1)?.first)
+
+        #expect(field.label == "Search")
+        #expect(field.value == "SFO")
+        #expect(field.isFocusedTextField)
+    }
+
     @Test
     func outputWithoutXMLIsNoDump() {
         #expect(UIAutomatorDump.parse("ERROR: null root node returned by UiTestAutomationBridge.",
                                       scale: 1) == nil)
+    }
+}
+
+struct FocusedTextFieldTests {
+    private let windows = [
+        AndroidElement(type: "Window", identifier: nil, label: nil, value: nil, traits: [],
+                       frame: CGRect(x: 0, y: 0, width: 400, height: 800), children: [
+            AndroidElement(type: "EditText", identifier: "name", label: "Name", value: nil, traits: [],
+                           frame: CGRect(x: 0, y: 0, width: 400, height: 60), children: [],
+                           isFocusedTextField: true),
+            AndroidElement(type: "EditText", identifier: "email", label: "Email", value: nil, traits: [],
+                           frame: CGRect(x: 0, y: 100, width: 400, height: 60), children: []),
+        ]),
+    ]
+
+    @Test
+    func focusOnTheTappedFieldCounts() {
+        #expect(AndroidSystemDriver.hasFocusedTextField(at: CGPoint(x: 200, y: 30), in: self.windows))
+    }
+
+    @Test
+    func focusOnAnotherFieldDoesntCount() {
+        #expect(!AndroidSystemDriver.hasFocusedTextField(at: CGPoint(x: 200, y: 130), in: self.windows))
     }
 }
 

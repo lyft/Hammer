@@ -80,18 +80,20 @@ struct AndroidSystemDriver: Driver {
             let metrics = try await screen.metrics()
             let point = try await self.point(of: typing.target, on: screen, metrics: metrics)
             try await screen.tap(point, metrics: metrics)
-            try await self.waitForFocusedTextField(on: screen, scale: metrics.scale)
+            try await self.waitForFocusedTextField(at: point, on: screen, scale: metrics.scale)
         }
 
         try await screen.type(typing.text)
     }
 
-    /// Waits until a text field has focus after a tap, so the text isn't typed before its keyboard shows.
-    private func waitForFocusedTextField(on screen: AndroidScreen, scale: CGFloat) async throws {
+    /// Waits until the text field at the tapped point has focus, so the text isn't typed before its keyboard
+    /// shows, or into another field that had focus before the tap.
+    private func waitForFocusedTextField(at point: CGPoint, on screen: AndroidScreen, scale: CGFloat)
+        async throws
+    {
         let deadline = ContinuousClock.now + Self.focusTimeout
         repeat {
-            let windows = try await screen.windows(scale: scale)
-            if windows.contains(where: { $0.flattened.contains(where: \.isFocusedTextField) }) {
+            if Self.hasFocusedTextField(at: point, in: try await screen.windows(scale: scale)) {
                 return
             }
 
@@ -99,12 +101,20 @@ struct AndroidSystemDriver: Driver {
         } while ContinuousClock.now < deadline
 
         throw ClientError.failed(.init(
-            error: "No text field had focus \(Self.focusTimeout.components.seconds) seconds after the tap",
+            error: """
+                The tapped field had no focus \(Self.focusTimeout.components.seconds) seconds after the tap
+                """,
             code: .timedOut,
             hint: "Check the target is a text field with describe, or tap it and type without a target"))
     }
 
     private static let focusTimeout: Duration = .seconds(3)
+
+    static func hasFocusedTextField(at point: CGPoint, in windows: [AndroidElement]) -> Bool {
+        return windows.contains { window in
+            window.flattened.contains { $0.isFocusedTextField && $0.frame.contains(point) }
+        }
+    }
 
     private func screenshot(_ capture: ScreenshotArguments, of screen: AndroidScreen) async throws -> Data {
         let metrics = try await screen.metrics()
