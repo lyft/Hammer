@@ -23,17 +23,14 @@ import kotlinx.coroutines.sync.withLock
  * Routes requests to commands and runs them one at a time, so gestures never interleave. Ports
  * Hammer's `CommandRouter` and `ErrorReport`, so both agents answer a request the same way.
  */
-internal class CommandRouter(commands: List<AgentCommand>) {
+internal class CommandRouter(private val registry: CommandRegistry) {
 
-    private val registrations = LinkedHashMap<String, AgentCommand>()
+    constructor(commands: List<AgentCommand>) : this(CommandRegistry.of(commands, AgentLog.Logcat))
+
     private val mutex = Mutex()
 
-    init {
-        commands.forEach(::register)
-    }
-
     val descriptors: List<CommandDescriptor>
-        get() = registrations.values.map { it.descriptor }
+        get() = registry.descriptors
 
     suspend fun respond(request: HttpRequest): HttpResponse = when {
         request.method == "GET" && request.path == COMMANDS_PATH ->
@@ -47,17 +44,8 @@ internal class CommandRouter(commands: List<AgentCommand>) {
         )
     }
 
-    private fun register(command: AgentCommand) {
-        val descriptor = command.descriptor
-        val names = descriptor.parameters.map { it.name }
-        val reserved = names.filter { it in CommandDescriptor.RESERVED_PARAMETER_NAMES }
-        require(reserved.isEmpty()) { "Command ${descriptor.name} uses reserved parameter names: $reserved" }
-        require(names.toSet().size == names.size) { "Command ${descriptor.name} has duplicate parameters: $names" }
-        registrations[descriptor.name] = command
-    }
-
     private suspend fun run(name: String, body: ByteArray): HttpResponse {
-        val command = registrations[name] ?: return unknownCommand(name)
+        val command = registry.command(name) ?: return unknownCommand(name)
         return mutex.withLock {
             try {
                 val arguments = argumentsObject(body, command.descriptor)
@@ -76,7 +64,7 @@ internal class CommandRouter(commands: List<AgentCommand>) {
     }
 
     private fun unknownCommand(name: String): HttpResponse {
-        val order = registrations.keys.toList()
+        val order = registry.names
         val suggestion = closestMatch(name, order)?.let { ", did you mean $it?" }.orEmpty()
         return HttpResponse.error(
             HttpResponse.NOT_FOUND,
