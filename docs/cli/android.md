@@ -33,7 +33,7 @@ An Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `d
 
 ### Notes on one agent
 
-These describe the agent in Lyft's Android app, not rules for every agent:
+These describe how one agent implementation behaves, not rules every agent follows:
 
 - Apps can't hold the permission to inject events into the input system, so it dispatches events to the window's root view on the main thread, the way Compose UI tests send them.
 - `deviceBack` calls the activity's `onBackPressed`, or a dialog's `OnBackPressedDispatcher`.
