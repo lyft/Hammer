@@ -48,4 +48,5 @@ Any app on the device can connect to an abstract socket, so the [Android transpo
 ## Limits
 
 - `hierarchy`, `inspect` and live editing are not available.
+- Android freezes an app soon after it leaves the screen, and its agent can't respond until it's in front again. When a call takes more than 5 seconds, `hammer` checks whether the app is frozen and fails with `app_frozen` instead of waiting.
 - Tested with platform tools 37 and Android 9 (API 28) and 17 (API 37) emulators, in portrait and landscape, with gesture and 3-button navigation. Not yet tested on a physical device.

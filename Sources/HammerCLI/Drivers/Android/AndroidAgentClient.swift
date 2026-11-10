@@ -45,15 +45,22 @@ struct AndroidAgentClient: Driver {
         return try await self.withAgent { try await $0.run(name, arguments: arguments) }
     }
 
-    private func withAgent<T: Sendable>(_ body: (AgentClient) async throws -> T) async throws -> T {
+    private func withAgent<T: Sendable>(_ body: @escaping @Sendable (AgentClient) async throws -> T)
+        async throws -> T
+    {
         let (device, port) = try await self.connection.endpoint {
             let device = try await AndroidDevice.resolve(adb: self.adb, serial: self.serial,
                                                          appID: self.appID)
             return (device, try await device.forward())
         }
 
+        let client = AgentClient(port: port, token: self.token)
         do {
-            return try await body(AgentClient(port: port, token: self.token))
+            return try await Self.failingWhenFrozen(isFrozen: { await device.isFrozen() },
+                                                    call: { try await body(client) })
+        } catch is AppFrozen {
+            // The forward works, so the connection is kept for when the app is back
+            throw device.frozenError
         } catch let error as ClientError where [.unreachable, .disconnected].contains(error.code) {
             // adb forwards to sockets that don't exist, which only shows once the connection drops
             await self.connection.reset()
@@ -62,6 +69,44 @@ struct AndroidAgentClient: Driver {
             }
 
             throw error.code == .unreachable ? device.refusedError : error
+        }
+    }
+}
+
+extension AndroidAgentClient {
+    /// How long a call waits for the agent before checking whether Android froze the app.
+    static let frozenCheckDelay: Duration = .seconds(5)
+
+    /// Thrown when a call is slow because Android froze the app.
+    struct AppFrozen: Error {}
+
+    /// Runs the call, failing it with `AppFrozen` when it is slow because Android froze the app in the
+    /// background, where the call would otherwise wait for its whole timeout.
+    static func failingWhenFrozen<T: Sendable>(delay: Duration = Self.frozenCheckDelay,
+                                               isFrozen: @escaping @Sendable () async -> Bool,
+                                               call: @escaping @Sendable () async throws -> T)
+        async throws -> T
+    {
+        return try await withThrowingTaskGroup(of: T?.self) { group in
+            group.addTask { try await call() }
+            group.addTask {
+                try await Task.sleep(for: delay)
+                guard await isFrozen() else {
+                    // Not frozen, so the call keeps its own timeout
+                    return nil
+                }
+
+                throw AppFrozen()
+            }
+
+            while let result = try await group.next() {
+                if let result {
+                    group.cancelAll()
+                    return result
+                }
+            }
+
+            preconditionFailure("The call's task always returns or throws")
         }
     }
 }
