@@ -74,14 +74,14 @@ struct AndroidAgentClient: Driver {
 }
 
 extension AndroidAgentClient {
-    /// How long a call waits for the agent before checking whether Android froze the app.
+    /// How often a call checks whether Android froze the app while it waits for the agent.
     static let frozenCheckDelay: Duration = .seconds(5)
 
     /// Thrown when a call is slow because Android froze the app.
     struct AppFrozen: Error {}
 
-    /// Runs the call, failing it with `AppFrozen` when it is slow because Android froze the app in the
-    /// background, where the call would otherwise wait for its whole timeout.
+    /// Runs the call, failing it with `AppFrozen` when Android froze the app in the background, where the
+    /// call would otherwise wait for its whole timeout. The app is checked every `delay` while the call runs.
     static func failingWhenFrozen<T: Sendable>(delay: Duration = Self.frozenCheckDelay,
                                                isFrozen: @escaping @Sendable () async -> Bool,
                                                call: @escaping @Sendable () async throws -> T)
@@ -90,13 +90,14 @@ extension AndroidAgentClient {
         return try await withThrowingTaskGroup(of: T?.self) { group in
             group.addTask { try await call() }
             group.addTask {
-                try await Task.sleep(for: delay)
-                guard await isFrozen() else {
-                    // Not frozen, so the call keeps its own timeout
-                    return nil
-                }
-
-                throw AppFrozen()
+                // Checked for as long as the call runs, since the app can freeze during a long wait_for
+                repeat {
+                    try await Task.sleep(for: delay)
+                    if await isFrozen() {
+                        throw AppFrozen()
+                    }
+                } while !Task.isCancelled
+                return nil
             }
 
             while let result = try await group.next() {
