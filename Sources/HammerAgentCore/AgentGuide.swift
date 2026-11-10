@@ -13,36 +13,62 @@ public enum AgentGuide {
 
     /// How to use the commands, without the reference of each one.
     ///
-    /// - parameter style: How to show calls.
+    /// - parameter style:    How to show calls.
+    /// - parameter platform: The platform of the agent, which decides the sections that apply.
     ///
     /// - returns: The markdown.
-    public static func overview(style: Style) -> String {
+    public static func overview(style: Style, platform: AgentPlatform = .iOS) -> String {
         let tap = style == .commandLine ? "`hammer tap --ref e12`" : #"`tap` with `{"ref":"e12"}`"#
         let system = style == .commandLine ? "`--system`" : "`system: true`"
         let systemTap = style == .commandLine
             ? "`hammer tap --system --label Allow`" : #"`tap` with `{"system":true,"label":"Allow"}`"#
-        let usage = self.usage.replacingOccurrences(of: "{tap}", with: tap)
+        let sections = switch platform {
+        case .iOS:
+            [
+                self.iOSIntroduction, self.workflow, self.targeting(unit: "window points"), self.iOSSystemUI,
+                self.liveEditing, self.errors,
+            ]
+        case .android:
+            [
+                self.androidIntroduction, self.workflow, self.targeting(unit: "screen dp"),
+                self.androidSystemUI, self.androidBack, self.errors,
+            ]
+        }
+        let usage = sections.joined(separator: "\n\n").replacingOccurrences(of: "{tap}", with: tap)
             .replacingOccurrences(of: "{system}", with: system)
             .replacingOccurrences(of: "{systemTap}", with: systemTap)
         guard style == .commandLine else {
             return usage
         }
 
-        let commandLineUsage = BuiltinCommands.all.reduce(usage) { usage, command in
+        let commandLineUsage = BuiltinCommands.all(for: platform).reduce(usage) { usage, command in
             usage.replacingOccurrences(of: "`\(command.name)`", with: "`\(command.commandLineName)`")
         }
 
-        return commandLineUsage + "\n\n" + self.commandLine
+        let commandLine = self.commandLine + "\n" + (platform == .iOS ? self.iOSOptions : self.androidOptions)
+        return commandLineUsage + "\n\n" + commandLine + "\n" + self.output
     }
 
-    private static let usage = """
+    private static let iOSIntroduction = """
         # Hammer agent
 
-        Hammer drives an iOS or Android app from inside it: it finds views and accessibility elements, \
-        including SwiftUI's and Jetpack Compose's, and sends touch and keyboard events, waiting for the app \
-        to process each one. It reaches the app's own windows and runs one command at a time. System UI \
-        such as permission alerts and the home screen is outside the app, see System UI below.
+        Hammer drives an iOS app from inside it: it finds views and accessibility elements, including \
+        SwiftUI's, and sends real touch and keyboard events, waiting for the app to process each one. It \
+        reaches the app's own windows and runs one command at a time. System UI such as permission alerts \
+        and the home screen is outside the app, see System UI below.
+        """
 
+    private static let androidIntroduction = """
+        # Hammer agent
+
+        Hammer drives an Android app from inside it: it finds Views and Jetpack Compose semantics nodes, \
+        the elements accessibility services and Compose UI tests see, and sends touch and key events, \
+        waiting for the app to process each one. It reaches the app's own windows and runs one command at \
+        a time. System UI such as permission dialogs and the home screen is outside the app, see System UI \
+        below.
+        """
+
+    private static let workflow = """
         ## Workflow
 
         1. Call `describe` to see the elements on screen, with their ref, identifier, label, value, traits, \
@@ -50,30 +76,53 @@ public enum AgentGuide {
         2. Act on an element, such as {tap}.
         3. After an action that changes the screen, call `wait_for` with an element of the next state, or \
         `wait_for_idle` for animations, then `describe` or `screenshot` again to check the result.
+        """
 
-        ## Targeting
+    private static func targeting(unit: String) -> String {
+        return """
+            ## Targeting
 
-        Commands that act on an element take one of:
+            Commands that act on an element take one of:
 
-        - `ref`: the ref from `describe`, such as `e12`. It is the most precise and stays the same while the \
-        element exists. Call `describe` again if a ref is unknown.
-        - `identifier`, `label`, `value` and `traits`: every one given must match. When several elements \
-        match, add more of them or use the `ref`.
-        - `x` and `y`: a point in window points, or screen dp on Android, the same coordinates as the frames \
-        from `describe`.
+            - `ref`: the ref from `describe`, such as `e12`. It is the most precise and stays the same while \
+            the element exists. Call `describe` again if a ref is unknown.
+            - `identifier`, `label`, `value` and `traits`: every one given must match. When several elements \
+            match, add more of them or use the `ref`.
+            - `x` and `y`: a point in \(unit), the same coordinates as the frames from `describe`.
 
-        Without a target, gestures use the center of the window.
+            Without a target, gestures use the center of the window.
+            """
+    }
 
+    private static let iOSSystemUI = """
         ## System UI
 
-        {system} runs commands on the whole screen from the Mac instead of inside the app, to reach system \
-        UI such as a permission alert: call `describe` with {system} to see its buttons, then tap one by \
-        label, such as {systemTap}. Its elements have no refs, and frames and points are in screen points, \
-        or dp on Android. In the simulator it runs `describe` and `tap`. On Android it also runs `swipe`, \
-        `edge_swipe`, `type_text`, `press_key` with keys such as `home`, and `screenshot`, which captures \
-        maps and videos too. To go back inside an Android app, call `press_key` with the key `back`.
+        In the simulator, {system} runs `describe` and `tap` on the whole screen from the Mac instead of \
+        inside the app, to reach system UI such as a permission alert: call `describe` with {system} to see \
+        its buttons, then tap one by label, such as {systemTap}. Its elements have no refs, and frames and \
+        points are in screen points.
+        """
 
-        ## Live editing (iOS)
+    private static let androidSystemUI = """
+        ## System UI
+
+        The agent can't reach system UI such as permission dialogs, the notification shade or the home \
+        screen. {system} runs `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and \
+        `screenshot` on the whole screen through adb instead, to reach it: call `describe` with {system} to \
+        see its buttons, then tap one by label, such as {systemTap}. Its elements have no refs, its frames \
+        and points are in screen dp, and each call takes about a second. Its `press_key` also takes \
+        `deviceHome` and `appSwitch`, and its `screenshot` captures maps and videos too.
+        """
+
+    private static let androidBack = """
+        ## Going back
+
+        The system's back gesture is outside the app, so `edge_swipe` doesn't go back. Call `press_key` \
+        with the key `deviceBack` instead, which goes back in the frontmost window like the back button.
+        """
+
+    private static let liveEditing = """
+        ## Live editing
 
         To see how a change looks, or which change fixes a layout problem, before writing it in code:
 
@@ -85,7 +134,9 @@ public enum AgentGuide {
         the result, with a `ref` to capture only that view.
         4. Call `revert` when done. It restores every original value, since the app keeps the changes until \
         it relaunches.
+        """
 
+    private static let errors = """
         ## Errors
 
         A failed command explains what went wrong and gives a hint on how to fix it, such as calling \
@@ -100,11 +151,22 @@ public enum AgentGuide {
         - Pass arguments as `--name value` or `--name=value`. Lists take comma separated values, and \
         booleans can leave out `true`.
         - A trailing `-` reads a JSON object of arguments from standard input, for nested values.
-        - `--output <path>` writes the output to a file, and `--port <port>` picks the app's port.
+        - `--output <path>` writes the output to a file.
+        """
+
+    private static let iOSOptions = """
+        - `--port <port>` picks the app's port.
         - `--udid <udid>` picks the simulator for `--system` when several are booted, or set \
         `HAMMER_SIMULATOR_UDID`.
-        - `--android` drives an Android app through adb. `--serial <serial>` picks the device and \
-        `--app-id <application id>` the app, and either one implies `--android`.
+        """
+
+    private static let androidOptions = """
+        - `--android` drives the app through adb. With it, `--serial <serial>` picks the device, or set \
+        `ANDROID_SERIAL`, and `--app-id <application id>` picks the app, which defaults to the only one \
+        running an agent.
+        """
+
+    private static let output = """
         - Output is JSON on standard output. Screenshots are written to a PNG file and its path is printed, \
         so open that file to see it.
         - Failures print one JSON object to standard error, with the `error`, a `code` such as `not_found` \
@@ -116,11 +178,15 @@ public enum AgentGuide {
     ///
     /// - parameter commands: The commands the app runs.
     /// - parameter style:    How to show calls.
+    /// - parameter platform: The platform of the agent.
     ///
     /// - returns: The markdown.
-    public static func markdown(commands: [CommandDescriptor], style: Style) -> String {
+    public static func markdown(commands: [CommandDescriptor], style: Style, platform: AgentPlatform = .iOS)
+        -> String
+    {
         let reference = commands.map { $0.reference(style: style) }
-        return ([self.overview(style: style), "## Commands"] + reference).joined(separator: "\n\n") + "\n"
+        let overview = self.overview(style: style, platform: platform)
+        return ([overview, "## Commands"] + reference).joined(separator: "\n\n") + "\n"
     }
 }
 

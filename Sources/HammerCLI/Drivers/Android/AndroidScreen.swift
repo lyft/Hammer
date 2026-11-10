@@ -11,6 +11,9 @@ struct AndroidElement: ScreenElement {
     let traits: [String]
     let frame: CGRect
     let children: [AndroidElement]
+
+    /// Whether the node is a text field with input focus, which `type_text` types into.
+    var isFocusedTextField = false
 }
 
 /// Reads and drives an Android device's whole screen through adb's shell user, which can inject input
@@ -19,8 +22,8 @@ struct AndroidScreen: Sendable {
     let adb: Adb
     let serial: String
 
-    /// The screen's size in pixels and its pixels per dp.
-    struct Metrics {
+    /// The screen's size in pixels as it is rotated now, and its pixels per dp.
+    struct Metrics: Equatable {
         let size: CGSize
         let scale: CGFloat
 
@@ -35,93 +38,134 @@ struct AndroidScreen: Sendable {
         }
     }
 
-    func metrics() throws -> Metrics {
-        let output = try self.shell("wm size; wm density")
-        return try Self.metrics(from: output)
+    // `wm size` is the size in the natural orientation, while input, screencap and uiautomator use the
+    // display's current size, which `cur=` lists
+    static let metricsCommand =
+        "wm density; wm size; dumpsys window displays | grep -o 'cur=[0-9]*x[0-9]*' || true"
+
+    func metrics() async throws -> Metrics {
+        return try Self.metrics(from: try await self.shell(Self.metricsCommand))
     }
 
     /// The windows on screen back to front, each with its accessibility nodes.
     ///
-    /// - throws: A `timed_out` error if the screen kept changing, so uiautomator could not read it.
-    func windows(metrics: Metrics) async throws -> [AndroidElement] {
-        // --windows lists every window on screen, such as the status bar, on recent versions only
-        var arguments = "--windows /dev/tty"
+    /// - throws: A `timed_out` error if the screen kept changing so uiautomator could not read it, or a
+    ///           `failed` error with uiautomator's.
+    func windows(scale: CGFloat) async throws -> [AndroidElement] {
+        // --windows lists every window on screen, such as the status bar. Versions without it get one dump
+        // of the active window
+        var options = "--windows"
         var lastError = ""
-        var idleTimeouts = 0
-        while idleTimeouts < Self.idleAttempts {
-            let command = ["-s", self.serial, "exec-out", "uiautomator dump \(arguments)"]
-            let output = (try? self.adb.run(command)) ?? ""
-            if let windows = UIAutomatorDump.parse(output, scale: metrics.scale), !windows.isEmpty {
-                return windows
+        for _ in 0..<Self.dumpAttempts {
+            let output: String
+            do {
+                output = try await self.shell(Self.dumpCommand(options: options))
+            } catch ClientError.failed(let body, _) where body.code == .failed {
+                lastError = body.error
+                if Self.isTransientDumpError(lastError) {
+                    continue
+                } else if !options.isEmpty {
+                    options = ""
+                    continue
+                }
+                throw ClientError.failed(.init(error: "uiautomator could not read the screen: \(lastError)",
+                                               code: .failed))
             }
 
-            lastError = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            if lastError.contains("idle state") {
-                // uiautomator waits up to 10 seconds for accessibility events to stop before giving up
-                idleTimeouts += 1
-            } else if arguments != "/dev/tty" {
-                arguments = "/dev/tty"
-            } else {
-                break
+            guard let windows = UIAutomatorDump.parse(output, scale: scale) else {
+                throw ClientError.failed(.init(
+                    error: "uiautomator returned no hierarchy: \(output.prefix(200))", code: .failed))
             }
+
+            return windows
         }
 
         throw ClientError.failed(.init(
-            error: "uiautomator could not read the screen: \(lastError.prefix(200))", code: .timedOut,
+            error: "uiautomator could not read the screen: \(lastError)", code: .timedOut,
             hint: "The screen keeps changing, such as during an animation or video. Wait and try again"))
     }
 
-    func tap(_ point: CGPoint, count: Int, metrics: Metrics) throws {
+    func tap(_ point: CGPoint, metrics: Metrics) async throws {
         let (x, y) = metrics.pixel(point)
-        try self.shell(Array(repeating: "input tap \(x) \(y)", count: count).joined(separator: "; "))
+        try await self.shell("input tap \(x) \(y)")
     }
 
-    func swipe(from start: CGPoint, to end: CGPoint, duration: TimeInterval, metrics: Metrics) throws {
+    func swipe(from start: CGPoint, to end: CGPoint, duration: TimeInterval, metrics: Metrics) async throws {
         let (x1, y1) = metrics.pixel(start)
         let (x2, y2) = metrics.pixel(end)
-        try self.shell("input swipe \(x1) \(y1) \(x2) \(y2) \(Int(duration * 1000))")
+        try await self.shell("input swipe \(x1) \(y1) \(x2) \(y2) \(Int(duration * 1000))")
     }
 
     /// Types ASCII text into the focused field.
-    func type(_ text: String) throws {
-        guard text.unicodeScalars.allSatisfy({ $0.isASCII && $0.value >= 0x20 }) else {
+    func type(_ text: String) async throws {
+        guard text.unicodeScalars.allSatisfy({ $0.isASCII && $0.value >= 0x20 && $0.value < 0x7F }) else {
             throw ClientError.invalidArguments("Only printable ASCII characters can be typed from adb",
                                                hint: "Type other text inside the app, without system")
         }
 
-        // input text reads %s as a space
-        try self.shell("input text \(Self.quoted(text.replacingOccurrences(of: " ", with: "%s")))")
+        try await self.shell(Self.typingCommand(text))
     }
 
-    func press(keyCode: String) throws {
-        try self.shell("input keyevent \(keyCode)")
+    func press(keyCode: String) async throws {
+        try await self.shell("input keyevent \(keyCode)")
     }
 
     /// The screen as PNG data, with the surfaces of maps and videos that the app's agent can't capture.
-    func screenshot() throws -> Data {
-        return try self.adb.runData(["-s", self.serial, "exec-out", "screencap -p"])
+    func screenshot() async throws -> Data {
+        return try await self.adb.runData(["-s", self.serial, "exec-out", "screencap -p"])
     }
 
     @discardableResult
-    private func shell(_ command: String) throws -> String {
-        return try self.adb.run(["-s", self.serial, "shell", command])
+    private func shell(_ command: String) async throws -> String {
+        return try await self.adb.run(["-s", self.serial, "shell", command])
     }
 
-    private static let idleAttempts = 2
+    private static let dumpAttempts = 3
+
+    /// Dumps to a file and prints it, since not every device has a `/dev/tty` to dump to. A failed dump
+    /// leaves no file, so `cat` fails with uiautomator's error, which can exit 0.
+    static func dumpCommand(options: String) -> String {
+        let file = "/data/local/tmp/hammer-\(UUID().uuidString).xml"
+        let dump = ["uiautomator", "dump", options, file].filter { !$0.isEmpty }.joined(separator: " ")
+        return "\(dump) 1>&2; cat \(file); status=$?; rm -f \(file); exit $status"
+    }
+
+    /// Whether uiautomator failed because the screen was changing, so a retry can succeed.
+    static func isTransientDumpError(_ error: String) -> Bool {
+        // uiautomator waits up to 10 seconds for accessibility events to stop, and has no root node while
+        // an activity starts
+        return error.contains("idle state") || error.contains("null root node")
+    }
+
+    /// The `input text` commands that type the text.
+    ///
+    /// `input text` reads `%s` as a space, so spaces are sent as `%s`, and a `%` followed by an `s` in the
+    /// text ends one command so the next types the `s`.
+    static func typingCommand(_ text: String) -> String {
+        let parts = text.components(separatedBy: "%s")
+        return parts.enumerated()
+            .map { index, part in
+                (index == 0 ? "" : "s") + part + (index == parts.count - 1 ? "" : "%")
+            }
+            .filter { !$0.isEmpty }
+            .map { "input text \(self.quoted($0.replacingOccurrences(of: " ", with: "%s")))" }
+            .joined(separator: " && ")
+    }
 
     static func metrics(from output: String) throws -> Metrics {
-        func last(_ pattern: Regex<(Substring, Substring)>) -> Substring? {
-            // An override, listed after the physical value, is what apps and input use
-            return output.matches(of: pattern).last?.1
+        let current = output.firstMatch(of: #/cur=(\d+)x(\d+)/#).map { (String($0.1), String($0.2)) }
+        // An override, listed after the physical value, is what apps and input use
+        let natural = output.matches(of: #/size: (\d+)x(\d+)/#).last.map { (String($0.1), String($0.2)) }
+        guard let (width, height) = current ?? natural,
+              let width = Double(width), let height = Double(height),
+              let density = output.matches(of: #/density: (\d+)/#).last.flatMap({ Double($0.1) })
+        else {
+            throw ClientError.failed(.init(
+                error: "Unable to read the screen size from \"\(output.prefix(200))\"", code: .failed,
+                hint: "Check `adb shell wm size` and `adb shell wm density` work"))
         }
 
-        let size = last(#/size: (\d+x\d+)/#)?.split(separator: "x").compactMap { Double($0) }
-        guard let size, size.count == 2, let density = last(#/density: (\d+)/#).flatMap({ Double($0) }) else {
-            throw ClientError.noDevice("Unable to read the screen size from \"\(output)\"",
-                                       hint: "Check `adb shell wm size` and `adb shell wm density` work")
-        }
-
-        return Metrics(size: CGSize(width: size[0], height: size[1]), scale: density / 160)
+        return Metrics(size: CGSize(width: width, height: height), scale: density / 160)
     }
 
     static func quoted(_ string: String) -> String {
@@ -129,7 +173,8 @@ struct AndroidScreen: Sendable {
     }
 }
 
-/// Parses `uiautomator dump`'s XML into elements with frames in dp.
+/// Parses `uiautomator dump`'s XML into elements with frames in dp, with the traits and values the app's
+/// agent gives Views.
 final class UIAutomatorDump: NSObject, XMLParserDelegate {
     private struct Node {
         var element: AndroidElement
@@ -151,16 +196,14 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
 
     /// The windows back to front, or the one root of a dump without windows, or nil if the output is no dump.
     static func parse(_ output: String, scale: CGFloat) -> [AndroidElement]? {
-        // The dump is followed by "UI hierchary dumped to: /dev/tty"
-        let end = output.range(of: "UI hierchary dumped")?.lowerBound ?? output.endIndex
-        guard let start = output.range(of: "<?xml"), start.lowerBound < end else {
+        guard let start = output.range(of: "<?xml") else {
             return nil
         }
 
         let dump = UIAutomatorDump(scale: scale)
-        let parser = XMLParser(data: Data(output[start.lowerBound..<end].utf8))
+        let parser = XMLParser(data: Data(output[start.lowerBound...].utf8))
         parser.delegate = dump
-        guard parser.parse() else {
+        guard parser.parse(), !dump.roots.isEmpty else {
             return nil
         }
 
@@ -188,6 +231,7 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
 
             self.stack.append(Node(element: self.element(attributes)))
         default:
+            // displays, display and hierarchy only group windows and nodes
             break
         }
     }
@@ -204,7 +248,8 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
         let element = AndroidElement(type: node.element.type, identifier: node.element.identifier,
                                      label: label, value: node.element.value,
                                      traits: node.element.traits, frame: node.element.frame,
-                                     children: node.children)
+                                     children: node.children,
+                                     isFocusedTextField: node.element.isFocusedTextField)
         if self.stack.isEmpty {
             self.roots.append((element, node.layer))
         } else {
@@ -221,29 +266,32 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
         func flag(_ name: String) -> Bool { attributes[name] == "true" }
 
         var traits: [String] = []
-        if flag("clickable") || flag("long-clickable") || className.hasSuffix("Button") {
-            traits.append("button")
-        } else if className.hasSuffix("ImageView") {
-            traits.append("image")
-        } else if className.hasSuffix("TextView") {
-            traits.append("staticText")
-        }
         if flag("checkable") {
             traits.append("toggleButton")
+        } else if flag("clickable") {
+            traits.append("button")
+        } else if className.hasSuffix("ImageView") && description != nil {
+            traits.append("image")
+        } else if className.hasSuffix("TextView") && text != nil {
+            traits.append("staticText")
         }
-        if flag("checked") || flag("selected") {
+        if flag("selected") || flag("checked") {
             traits.append("selected")
         }
         if attributes["enabled"] == "false" {
             traits.append("notEnabled")
         }
 
+        // An empty field reports its hint as its text
+        let hint = attributes["hint"].nonEmpty
+        let value: String? = isEditable ? (text == hint ? nil : text)
+            : flag("checkable") ? (flag("checked") ? "1" : "0") : nil
         return AndroidElement(
             type: className.split(separator: ".").last.map(String.init) ?? className,
             identifier: resourceID.map { $0.components(separatedBy: ":id/").last ?? $0 },
-            label: description ?? (isEditable ? attributes["hint"].nonEmpty : text),
-            value: isEditable ? text : nil, traits: traits, frame: self.frame(attributes["bounds"]),
-            children: [])
+            label: description ?? (isEditable ? hint : text),
+            value: value, traits: traits, frame: self.frame(attributes["bounds"]), children: [],
+            isFocusedTextField: isEditable && flag("focused"))
     }
 
     /// The frame in dp of bounds such as `[0,0][1344,2992]`, in pixels.
@@ -256,11 +304,5 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
         return CGRect(x: numbers[0], y: numbers[1], width: numbers[2] - numbers[0],
                       height: numbers[3] - numbers[1])
             .applying(CGAffineTransform(scaleX: 1 / self.scale, y: 1 / self.scale))
-    }
-}
-
-extension Optional where Wrapped == String {
-    fileprivate var nonEmpty: String? {
-        return self?.isEmpty == false ? self : nil
     }
 }

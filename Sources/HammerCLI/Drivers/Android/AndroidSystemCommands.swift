@@ -4,11 +4,14 @@ import HammerAgentCore
 enum AndroidSystemCommands {
     static let traitNames = ["button", "image", "staticText", "toggleButton", "selected", "notEnabled"]
 
-    static let targetParameters: [CommandDescriptor.Parameter] = [
+    static let elementParameters: [CommandDescriptor.Parameter] = [
         .init("identifier", .string, "The resource id name of the element, such as permission_allow_button."),
         .init("label", .string, "The content description of the element, or its text."),
-        .init("value", .string, "The text of a text field."),
+        .init("value", .string, "The text of a text field, or 1 or 0 for a checked or unchecked switch."),
         .init("traits", .stringList, "Traits the element must have: \(traitNames.joined(separator: ", "))."),
+    ]
+
+    static let targetParameters: [CommandDescriptor.Parameter] = elementParameters + [
         .init("x", .number, "The x coordinate in screen dp, instead of an element."),
         .init("y", .number, "The y coordinate in screen dp, instead of an element."),
     ]
@@ -31,9 +34,7 @@ enum AndroidSystemCommands {
             Taps an element or a point anywhere on the device's screen, such as a permission dialog's \
             button. Elements match every identifier, label, value and traits given.
             """,
-        parameters: targetParameters + [
-            .init("count", .integer, "The number of taps, 2 for a double tap. Defaults to 1."),
-        ],
+        parameters: targetParameters,
         examples: [
             .init("Allow a permission dialog", ["identifier": "permission_allow_foreground_only_button"]),
             .init("Tap a point", ["x": 200, "y": 500]),
@@ -58,7 +59,8 @@ enum AndroidSystemCommands {
         name: "edge_swipe",
         summary: """
             Swipes from the edge of the screen, for the system's gestures: down from the top for the \
-            notification shade, up from the bottom to go home, and right from the left edge to go back.
+            notification shade, and with gesture navigation up from the bottom to go home and right from \
+            the left edge to go back. press_key with deviceHome or deviceBack works with any navigation.
             """,
         parameters: [
             .init("direction", .choice(BuiltinCommands.swipeDirections),
@@ -85,15 +87,16 @@ enum AndroidSystemCommands {
 
     static let pressKey = CommandDescriptor(
         name: "press_key",
-        summary: "Presses a key on the device, such as back or home.",
+        summary: "Presses a key on the device, such as its back or home button.",
         parameters: [
             .init("key", .string, """
-                The key: back, home or appSwitch, a character, or a key name such as returnOrEnter, escape, \
-                deleteOrBackspace, tab or arrowUp.
+                The key: deviceBack, deviceHome or appSwitch for the device's buttons, a character, or a \
+                keyboard key name such as returnOrEnter, escape, deleteOrBackspace, tab, home or arrowUp.
                 """, isRequired: true),
         ],
         examples: [
-            .init("Go to the home screen", ["key": "home"]),
+            .init("Go to the home screen", ["key": "deviceHome"]),
+            .init("Go back", ["key": "deviceBack"]),
         ]
     )
 
@@ -103,7 +106,7 @@ enum AndroidSystemCommands {
             Returns a PNG image of the device's whole screen, including system UI and the surfaces of maps \
             and videos, or of the area of one element.
             """,
-        parameters: Array(targetParameters.prefix(4)) + [
+        parameters: elementParameters + [
             .init("scale", .number, "The pixels per dp. Defaults to 1."),
         ],
         examples: [
@@ -114,11 +117,12 @@ enum AndroidSystemCommands {
 
     static let all = [describe, tap, swipe, edgeSwipe, typeText, pressKey, screenshot]
 
-    /// `input keyevent` codes for Hammer's `KeyboardKey` names, plus the device's own keys. `home` is the
-    /// device's home button rather than the keyboard's Home key.
+    /// `input keyevent` codes for Hammer's `KeyboardKey` names, plus the device's own buttons, named like the
+    /// app agent's `deviceBack`.
     static let keyCodes: [String: String] = {
         var codes = [
-            "back": "BACK", "home": "HOME", "appSwitch": "APP_SWITCH", "returnOrEnter": "ENTER",
+            "deviceBack": "BACK", "deviceHome": "HOME", "appSwitch": "APP_SWITCH", "home": "MOVE_HOME",
+            "returnOrEnter": "ENTER",
             "escape": "ESCAPE", "deleteOrBackspace": "DEL", "deleteForward": "FORWARD_DEL", "tab": "TAB",
             "spacebar": "SPACE", "hyphen": "MINUS", "equalSign": "EQUALS", "openBracket": "LEFT_BRACKET",
             "closeBracket": "RIGHT_BRACKET", "backslash": "BACKSLASH", "semicolon": "SEMICOLON",

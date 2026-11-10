@@ -1,6 +1,6 @@
 # Agent HTTP API
 
-The wire contract between `HammerAgent` and its clients: the `hammer` tool and its MCP server. It is for developing Hammer itself. Outside tools should use the [command line tool](../cli/getting-started.md), which is the supported interface.
+The wire contract between an agent and its clients: the `hammer` tool and its MCP server. `HammerAgent` implements it on iOS, and an Android agent implements it over the [Android transport](#android-transport). It is for developing Hammer and agents. Outside tools should use the [command line tool](../cli/getting-started.md), which is the supported interface.
 
 The routes, environment variables and shared bodies are defined in [AgentWire.swift](../../Sources/HammerAgentCore/AgentWire.swift), and descriptors in [CommandDescriptor.swift](../../Sources/HammerAgentCore/CommandDescriptor.swift). Both live in `HammerAgentCore`, which the agent and the tool share, so keep this page in sync when changing them. [Built-in commands](commands.md) covers what each command does.
 
@@ -12,6 +12,21 @@ The routes, environment variables and shared bodies are defined in [AgentWire.sw
 - Requests up to 16 MB.
 - Commands run one at a time, in the order they arrive, so gestures never interleave.
 - Every response is `Content-Type: application/json`.
+
+## Android transport
+
+An Android agent serves the same routes, rules and errors over a local socket instead of TCP, and `hammer --android` reaches it through `adb forward`. An agent must:
+
+- **Listen on the abstract socket `hammer_<applicationId>`**, the app's application id, such as `@hammer_com.example.app` in `/proc/net/unix`. `hammer` finds apps by these sockets.
+- **Listen in one process only**, the app's main process. Other processes, such as `:remote`, must not start an agent, since they would compete for the name.
+- **Accept only adb's `shell` user (uid 2000), root (uid 0) and the app's own uid**, from the connecting socket's peer credentials, and close any other connection before reading it. Any app on the device can connect to an abstract socket, so this check is what keeps other apps out; clients can't enforce it.
+- **Apply the [request rules](#request-rules)**, since a browser on the Mac can reach the forwarded port.
+- Measure frames and points in screen dp, and describe its built-in commands with `BuiltinCommands.all(for: .android)`, so clients can describe them before the app runs.
+- Reserve the parameter names in `CommandDescriptor.reservedParameterNames(for: .android)`, which adds `android`, `serial` and `app_id` to the iOS ones, since `hammer --android` takes them as its own options.
+
+The abstract namespace is shared by every user of the device, so only one instance of an app can run an agent, such as the personal and not the work profile one.
+
+`hammer` sends `HAMMER_AGENT_TOKEN` as on iOS. An agent may require a token as well as the peer check, and must answer a missing or wrong one with `401`.
 
 ## Routes
 

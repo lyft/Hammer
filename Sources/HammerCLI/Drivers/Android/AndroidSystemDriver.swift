@@ -35,70 +35,85 @@ struct AndroidSystemDriver: Driver {
             throw ClientError.invalidArguments(error.description, hint: error.hint)
         }
 
-        let serial = try AndroidDevice.resolveSerial(adb: self.adb, serial: self.serial)
+        let serial = try await AndroidDevice.resolveSerial(adb: self.adb, serial: self.serial)
         let screen = AndroidScreen(adb: self.adb, serial: serial)
-        let metrics = try screen.metrics()
         let arguments = JSONValue.object(arguments)
         switch descriptor.name {
         case AndroidSystemCommands.describe.name:
-            return try DescribedElement.encode(try await screen.windows(metrics: metrics))
+            let metrics = try await screen.metrics()
+            return try DescribedElement.encode(try await screen.windows(scale: metrics.scale))
         case AndroidSystemCommands.tap.name:
-            try await self.tap(try arguments.decode(as: CountedTarget.self), on: screen, metrics: metrics)
-        case AndroidSystemCommands.swipe.name, AndroidSystemCommands.edgeSwipe.name:
+            let metrics = try await screen.metrics()
+            let target = try arguments.decode(as: ScreenTarget.self)
+            let point = try await self.point(of: target, on: screen, metrics: metrics)
+            try await screen.tap(point, metrics: metrics)
+        case AndroidSystemCommands.swipe.name:
+            let metrics = try await screen.metrics()
             let swipe = try arguments.decode(as: SwipeArguments.self)
-            let line = descriptor.name == AndroidSystemCommands.swipe.name
-                ? swipe.line(centeredAt: try await self.point(of: swipe.target, on: screen, metrics: metrics))
-                : swipe.edgeLine(in: metrics.bounds)
-            try screen.swipe(from: line.start, to: line.end, duration: swipe.duration ?? 0.2,
-                             metrics: metrics)
+            let center = try await self.point(of: swipe.target, on: screen, metrics: metrics)
+            let line = swipe.line(centeredAt: center)
+            try await screen.swipe(from: line.start, to: line.end, duration: swipe.duration ?? 0.2,
+                                   metrics: metrics)
+        case AndroidSystemCommands.edgeSwipe.name:
+            let metrics = try await screen.metrics()
+            let swipe = try arguments.decode(as: SwipeArguments.self)
+            let line = swipe.edgeLine(in: metrics.bounds)
+            try await screen.swipe(from: line.start, to: line.end, duration: swipe.duration ?? 0.2,
+                                   metrics: metrics)
         case AndroidSystemCommands.typeText.name:
-            try await self.type(try arguments.decode(as: TypingArguments.self), on: screen, metrics: metrics)
+            try await self.type(try arguments.decode(as: TypingArguments.self), on: screen)
         case AndroidSystemCommands.pressKey.name:
-            try self.press(try arguments.decode(as: KeyArguments.self).key, on: screen)
+            try await self.press(try arguments.decode(as: KeyArguments.self).key, on: screen)
+        case AndroidSystemCommands.screenshot.name:
+            return try await self.screenshot(try arguments.decode(as: ScreenshotArguments.self), of: screen)
         default:
-            return try await self.screenshot(try arguments.decode(as: ScreenshotArguments.self), of: screen,
-                                             metrics: metrics)
+            preconditionFailure("\(descriptor.name) is in AndroidSystemCommands.all but isn't run")
         }
 
         return Data("{}".utf8)
     }
 
-    private func tap(_ tap: CountedTarget, on screen: AndroidScreen, metrics: AndroidScreen.Metrics)
-        async throws
-    {
-        guard tap.count ?? 1 > 0 else {
-            throw ClientError.invalidArguments("Invalid count \(tap.count ?? 0), expected 1 or more",
-                                               hint: "Use 1 for a tap and 2 for a double tap")
-        }
-
-        let point = try await self.point(of: tap.target, on: screen, metrics: metrics)
-        try screen.tap(point, count: tap.count ?? 1, metrics: metrics)
-    }
-
-    private func type(_ typing: TypingArguments, on screen: AndroidScreen, metrics: AndroidScreen.Metrics)
-        async throws
-    {
+    private func type(_ typing: TypingArguments, on screen: AndroidScreen) async throws {
         let hasTarget = try typing.target.query(traitNames: AndroidSystemCommands.traitNames) != nil
             || typing.target.point() != nil
         if hasTarget {
+            let metrics = try await screen.metrics()
             let point = try await self.point(of: typing.target, on: screen, metrics: metrics)
-            try screen.tap(point, count: 1, metrics: metrics)
-            // The field focuses and shows its keyboard after the tap
-            try await Task.sleep(for: .milliseconds(500))
+            try await screen.tap(point, metrics: metrics)
+            try await self.waitForFocusedTextField(on: screen, scale: metrics.scale)
         }
 
-        try screen.type(typing.text)
+        try await screen.type(typing.text)
     }
 
-    private func screenshot(_ capture: ScreenshotArguments, of screen: AndroidScreen,
-                            metrics: AndroidScreen.Metrics) async throws -> Data
-    {
+    /// Waits until a text field has focus after a tap, so the text isn't typed before its keyboard shows.
+    private func waitForFocusedTextField(on screen: AndroidScreen, scale: CGFloat) async throws {
+        let deadline = ContinuousClock.now + Self.focusTimeout
+        repeat {
+            let windows = try await screen.windows(scale: scale)
+            if windows.contains(where: { $0.flattened.contains(where: \.isFocusedTextField) }) {
+                return
+            }
+
+            try await Task.sleep(for: .milliseconds(200))
+        } while ContinuousClock.now < deadline
+
+        throw ClientError.failed(.init(
+            error: "No text field had focus \(Self.focusTimeout.components.seconds) seconds after the tap",
+            code: .timedOut,
+            hint: "Check the target is a text field with describe, or tap it and type without a target"))
+    }
+
+    private static let focusTimeout: Duration = .seconds(3)
+
+    private func screenshot(_ capture: ScreenshotArguments, of screen: AndroidScreen) async throws -> Data {
+        let metrics = try await screen.metrics()
         var area: CGRect?
         if let query = try capture.target.query(traitNames: AndroidSystemCommands.traitNames) {
-            area = try query.element(in: Self.root(try await screen.windows(metrics: metrics))).frame
+            area = try query.element(in: Self.root(try await screen.windows(scale: metrics.scale))).frame
         }
 
-        let image = try Self.png(try screen.screenshot(), area: area, scale: capture.scale ?? 1,
+        let image = try Self.png(try await screen.screenshot(), area: area, scale: capture.scale ?? 1,
                                  metrics: metrics)
         return try JSONEncoder().encode(AgentImage(mimeType: "image/png", data: image))
     }
@@ -108,24 +123,25 @@ struct AndroidSystemDriver: Driver {
         async throws -> CGPoint
     {
         if let query = try target.query(traitNames: AndroidSystemCommands.traitNames) {
-            let element = try query.element(in: Self.root(try await screen.windows(metrics: metrics)))
+            let windows = try await screen.windows(scale: metrics.scale)
+            let element = try query.element(in: Self.root(windows))
             return CGPoint(x: element.frame.midX, y: element.frame.midY)
         }
 
         return try target.point() ?? CGPoint(x: metrics.bounds.midX, y: metrics.bounds.midY)
     }
 
-    private func press(_ key: String, on screen: AndroidScreen) throws {
+    private func press(_ key: String, on screen: AndroidScreen) async throws {
         if let code = AndroidSystemCommands.keyCodes[key] {
-            try screen.press(keyCode: code)
+            try await screen.press(keyCode: code)
         } else if key.count == 1 {
-            try screen.type(key)
+            try await screen.type(key)
         } else {
             let names = Array(AndroidSystemCommands.keyCodes.keys).sorted()
             let suggestion = closestMatch(to: key, in: names).map { ", did you mean \($0)?" } ?? ""
             throw ClientError.invalidArguments("Unknown key \"\(key)\"\(suggestion)", hint: """
-                Pass a single character or a key name, such as back, home, appSwitch, returnOrEnter, escape, \
-                deleteOrBackspace, tab, arrowUp or arrowDown
+                Pass a single character or a key name, such as deviceBack, deviceHome, appSwitch, \
+                returnOrEnter, escape, deleteOrBackspace, tab, arrowUp or arrowDown
                 """)
         }
     }
@@ -186,47 +202,39 @@ struct AndroidSystemDriver: Driver {
     }
 }
 
-private struct CountedTarget: Decodable {
-    private enum CodingKeys: String, CodingKey {
-        case count
-    }
-
-    let target: ScreenTarget
-    let count: Int?
-
-    init(from decoder: Decoder) throws {
-        self.target = try ScreenTarget(from: decoder)
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.count = try container.decodeIfPresent(Int.self, forKey: .count)
-    }
-}
-
-private struct SwipeArguments: Decodable {
+struct SwipeArguments: Decodable {
     private enum CodingKeys: String, CodingKey {
         case direction
         case distance
         case duration
     }
 
+    enum Direction: String, Decodable {
+        case up
+        case down
+        case left
+        case right
+    }
+
     let target: ScreenTarget
-    let direction: String
+    let direction: Direction
     let distance: Double?
     let duration: Double?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.target = try ScreenTarget(from: decoder)
-        self.direction = try container.decode(String.self, forKey: .direction)
+        self.direction = try container.decode(Direction.self, forKey: .direction)
         self.distance = try container.decodeIfPresent(Double.self, forKey: .distance)
         self.duration = try container.decodeIfPresent(Double.self, forKey: .duration)
     }
 
     private var vector: CGVector {
         switch self.direction {
-        case "up": return CGVector(dx: 0, dy: -1)
-        case "down": return CGVector(dx: 0, dy: 1)
-        case "left": return CGVector(dx: -1, dy: 0)
-        default: return CGVector(dx: 1, dy: 0)
+        case .up: return CGVector(dx: 0, dy: -1)
+        case .down: return CGVector(dx: 0, dy: 1)
+        case .left: return CGVector(dx: -1, dy: 0)
+        case .right: return CGVector(dx: 1, dy: 0)
         }
     }
 

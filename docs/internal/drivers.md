@@ -39,6 +39,7 @@ These APIs can change with each Xcode release. When the driver breaks, check the
 
 It runs adb's `shell` user, which can read and inject input into every window, unlike an app:
 
-- **Elements:** `uiautomator dump --windows` lists the accessibility nodes of every window on screen, falling back to the active window on versions without `--windows`, in [AndroidScreen.swift](../../Sources/HammerCLI/Drivers/Android/AndroidScreen.swift). Bounds are pixels, turned into dp with `wm density`.
+- **Elements:** `uiautomator dump --windows` lists the accessibility nodes of every window on screen, falling back to a plain dump on versions without `--windows`, in [AndroidScreen.swift](../../Sources/HammerCLI/Drivers/Android/AndroidScreen.swift). It dumps to a file in `/data/local/tmp` and prints it in the same shell, since uiautomator can print an error and still exit 0. A dump that failed because the screen was changing is retried. Bounds are pixels, turned into dp with `wm density`.
+- **Metrics:** the display's current size from `dumpsys window displays` (`cur=`), since `wm size` is the size in the natural orientation. Commands that don't need it, such as `press_key`, skip it.
 - **Input:** `input tap`, `input swipe`, `input text` and `input keyevent`.
 - **Screenshots:** `screencap -p`, cropped and scaled with ImageIO.

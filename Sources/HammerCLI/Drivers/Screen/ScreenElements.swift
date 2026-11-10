@@ -66,7 +66,7 @@ struct ScreenTarget: Decodable {
             return nil
         default:
             throw ClientError.invalidArguments("Only one of x and y was passed",
-                                               hint: "Pass both, in screen points like describe's frames")
+                                               hint: "Pass both, in the coordinates of describe's frames")
         }
     }
 }
@@ -94,14 +94,27 @@ struct ElementQuery {
         }
 
         guard let element = matches.first else {
-            let buttons = elements.filter { $0.traits.contains("button") }.compactMap(\.label)
-            let onScreen = buttons.isEmpty ? "" : ". The buttons on screen are "
-                + buttons.map { "\"\($0)\"" }.joined(separator: ", ")
-            throw ClientError.failed(.init(error: "Unable to find element: \(self)", code: .notFound,
-                                           hint: "Call describe to see the elements on screen\(onScreen)"))
+            let buttons = elements.filter { $0.traits.contains("button") }.compactMap(\.label.nonEmpty)
+            throw ClientError.failed(.init(
+                error: "Unable to find element: \(self)", code: .notFound,
+                hint: "Call describe to see the elements on screen\(Self.listing(buttons))"))
         }
 
         return element
+    }
+
+    /// The most buttons a not found hint names, so a long list doesn't flood the error.
+    static let hintButtonLimit = 10
+
+    static func listing(_ buttons: [String]) -> String {
+        guard !buttons.isEmpty else {
+            return ""
+        }
+
+        let named = buttons.prefix(self.hintButtonLimit).map { "\"\($0)\"" }.joined(separator: ", ")
+        let more = buttons.count > self.hintButtonLimit
+            ? " and \(buttons.count - self.hintButtonLimit) more" : ""
+        return ". The buttons on screen are \(named)\(more)"
     }
 }
 
@@ -168,7 +181,7 @@ extension ClientError {
 
 extension Optional where Wrapped == String {
     /// The string, or nil when it is only whitespace, like the label of SpringBoard's root element.
-    fileprivate var nonEmpty: String? {
+    var nonEmpty: String? {
         return self?.trimmingCharacters(in: .whitespaces).isEmpty == false ? self : nil
     }
 }

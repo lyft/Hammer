@@ -38,17 +38,17 @@ With `--android`, `--system` runs through adb's `shell` user, which can read and
 hammer describe --android --system
 hammer tap --android --system --identifier permission_allow_foreground_only_button
 hammer edge-swipe --android --system --direction down --distance 400
-hammer press-key --android --system --key home
+hammer press-key --android --system --key deviceHome
 ```
 
 - **Commands:** `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot`.
-- **Elements:** `describe` reads the accessibility nodes of every window on screen with `uiautomator dump`, back to front, such as the app, the status bar and a permission dialog. Each window is listed with its title or the package that owns it, such as `com.android.systemui`. A node's identifier is its resource id name, its label its content description or text, and a text field's value its text.
-- **Targets:** `--identifier`, `--label`, `--value` and `--traits` (`button`, `image`, `staticText`, `toggleButton`, `selected`, `notEnabled`), or `--x` and `--y`. Elements have no refs.
-- **Coordinates:** screen dp, the same as the app's agent.
-- **Gestures:** `edge_swipe` reaches the system's gestures, such as down from the top for the notification shade. `press_key` takes `back`, `home` and `appSwitch` as well as the keyboard keys.
-- **Typing:** `type_text` types printable ASCII only, since it uses `input text`.
+- **Elements:** `describe` reads the accessibility nodes of every window on screen with `uiautomator dump`, back to front, such as the app, the status bar, the navigation bar and a permission dialog. Android 9 and earlier only list the active window. Each window is listed with its title or the package that owns it, such as `com.android.systemui`. A node's identifier is its resource id name and its label its content description or text, as in the app's agent. A text field's value is its text, and a switch's or checkbox's is `1` or `0`.
+- **Targets:** `--identifier`, `--label`, `--value` and `--traits`, or `--x` and `--y`. Elements have no refs. The traits match the app's agent: `toggleButton` for a switch or checkbox, else `button` for a clickable node, `image` for an image with a content description and `staticText` for text, plus `selected` when it is selected or checked and `notEnabled`.
+- **Coordinates:** screen dp, the same as the app's agent, in the screen's current rotation.
+- **Gestures:** `edge_swipe` reaches the system's gestures, such as down from the top for the notification shade. Going home or back by swiping only works with gesture navigation; `press_key` with `deviceHome`, `deviceBack` or `appSwitch` presses the device's buttons with any navigation. Its other keys are the keyboard's, so `home` is the keyboard's Home key, as in the app's agent. `tap` has no `count`, since adb can't tap twice quickly enough for a double tap.
+- **Typing:** `type_text` types printable ASCII only, since it uses `input text`. With a target, it taps it and waits up to 3 seconds for a text field to take focus, and fails with `timed_out` if none does.
 - **Screenshots:** `screencap` captures the whole screen, including the surfaces of maps and videos that the app's agent shows as blank.
-- **Speed:** `describe` takes about 2 seconds. uiautomator waits for accessibility events to stop first, so on a screen that keeps changing it can fail with `timed_out` after about 10 seconds; wait and try again.
+- **Speed:** `describe` takes 2 to 3 seconds, and a command that finds an element as long, since it reads the screen first. uiautomator waits for accessibility events to stop first, so on a screen that keeps changing it can fail with `timed_out` after about 30 seconds; wait and try again.
 
 `--serial` picks the device, as for the app's commands.
 
