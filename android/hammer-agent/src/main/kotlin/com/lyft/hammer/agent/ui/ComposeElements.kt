@@ -15,8 +15,14 @@ import kotlin.math.roundToInt
 /**
  * Reads a Compose root's merged semantics tree into elements, the tree accessibility services and
  * Compose UI tests see. `testTag` is the identifier.
+ *
+ * The only class that names Compose types: Compose UI is a compile-only dependency, so create it only
+ * when [ComposeSupport.isAvailable].
  */
 internal class ComposeElements(private val density: Double) {
+
+    /** If [view] is the root of a composition, whose children are its semantics nodes. */
+    fun isRoot(view: View): Boolean = view is RootForTest
 
     fun children(root: View, clip: Rect, rootVisible: Boolean): List<Element> {
         // Semantics bounds are in the window, so they are offset by where the window is on screen

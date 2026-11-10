@@ -24,7 +24,8 @@ kotlin {
 dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.core)
-    implementation(libs.compose.ui)
+    // Optional: the agent reads Compose semantics only when the app has Compose UI
+    compileOnly(libs.compose.ui)
     implementation(libs.gson)
     implementation(libs.kotlinx.coroutines.android)
 

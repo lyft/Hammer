@@ -7,12 +7,11 @@ import android.widget.Checkable
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.compose.ui.node.RootForTest
 
-/** Reads Views into elements, and hands Compose roots to [ComposeElements]. */
+/** Reads Views into elements, and hands Compose roots to [ComposeElements] when the app has Compose. */
 internal class ViewElements(private val density: Double) {
 
-    private val compose = ComposeElements(density)
+    private val compose = if (ComposeSupport.isAvailable) ComposeElements(density) else null
 
     fun window(root: View, bounds: Rect): Element = element(root, bounds, opacity = 1f, isWindowRoot = true)
 
@@ -28,7 +27,7 @@ internal class ViewElements(private val density: Double) {
             else -> Rect()
         }
         val views = (view as? ViewGroup)?.let { group -> (0 until group.childCount).map { element(group.getChildAt(it), childClip, alpha) } }.orEmpty()
-        val children = if (view is RootForTest) {
+        val children = if (compose != null && compose.isRoot(view)) {
             // A Compose root's only View child is the handler of its interop Views
             InteropPlacement.place(compose.children(view, childClip, visible), views.flatMap { it.children })
         } else {
