@@ -14,6 +14,7 @@ internal class FakeEnvironment(
     private val socketTaken: Boolean = false,
     private val builtins: List<WireCommand> = emptyList(),
     private val registrars: Map<String, () -> List<AgentCommand>> = emptyMap(),
+    override val listeningSockets: ListeningSockets = ListeningSockets(),
 ) : AgentEnvironment {
     override val socketName = "hammer_com.example.app"
     val listens = mutableListOf<String>()

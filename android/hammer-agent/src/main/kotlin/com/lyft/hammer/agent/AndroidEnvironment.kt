@@ -22,6 +22,9 @@ internal class AndroidEnvironment(private val application: Application) : AgentE
     override val socketName: String
         get() = SocketListener.socketName(application.packageName)
 
+    override val listeningSockets: ListeningSockets
+        get() = ListeningSockets.process
+
     override val isDebuggable: Boolean
         get() = application.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 

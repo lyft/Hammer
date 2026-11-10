@@ -49,9 +49,37 @@ class AgentCoreTest {
         assertThatThrownBy { AgentCore(environment, log).start(allowsReleaseBuild = false) }
             .isInstanceOfSatisfying(AgentStartError.SocketUnavailable::class.java) {
                 assertThat(it.socketName).isEqualTo("hammer_com.example.app")
+                assertThat(it.message).isEqualTo("The Hammer agent can't listen on @hammer_com.example.app; another process may already own it")
                 assertThat(it.cause).isInstanceOf(IOException::class.java)
             }
         assertThat(log.lines).isEmpty()
+    }
+
+    @Test
+    fun start_socketHeldByAnotherAgentInThisProcess_pointsToAutoStart() {
+        val process = ListeningSockets()
+        AgentCore(FakeEnvironment(listeningSockets = process), log).start(allowsReleaseBuild = false)
+
+        assertThatThrownBy { AgentCore(FakeEnvironment(socketTaken = true, listeningSockets = process), log).start(allowsReleaseBuild = false) }
+            .isInstanceOfSatisfying(AgentStartError.SocketUnavailable::class.java) {
+                assertThat(it.message).isEqualTo(
+                    "The Hammer agent can't listen on @hammer_com.example.app; another agent in this process already does, " +
+                        "such as the one auto-start runs. To start your own, turn auto-start off with the " +
+                        "com.lyft.hammer.agent.autostart meta-data",
+                )
+                assertThat(it.cause).isInstanceOf(IOException::class.java)
+            }
+    }
+
+    @Test
+    fun start_socketTakenAfterThisProcessStoppedItsAgent_blamesAnotherProcess() {
+        val process = ListeningSockets()
+        val first = AgentCore(FakeEnvironment(listeningSockets = process), log)
+        first.start(allowsReleaseBuild = false)
+        first.stop()
+
+        assertThatThrownBy { AgentCore(FakeEnvironment(socketTaken = true, listeningSockets = process), log).start(allowsReleaseBuild = false) }
+            .hasMessage("The Hammer agent can't listen on @hammer_com.example.app; another process may already own it")
     }
 
     @Test

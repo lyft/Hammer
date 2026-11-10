@@ -58,7 +58,7 @@ agent.register(SignInCommand(session))
 agent.start()
 ```
 
-Keep a reference to `agent` for as long as the app runs. `start()` throws `AgentStartError` when the app isn't debuggable or another process holds the agent's socket. Auto-start only logs these, and never throws.
+Keep a reference to `agent` for as long as the app runs. `start()` throws `AgentStartError` when the app isn't debuggable or something else holds the agent's socket: another process, or the auto-started agent when auto-start is still on. Auto-start only logs these, and never throws.
 
 ## The socket
 

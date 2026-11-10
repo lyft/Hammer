@@ -9,10 +9,19 @@ public sealed class AgentStartError(message: String, cause: Throwable? = null) :
             "in this build, where adb can control the app",
     )
 
-    /** Another process holds the agent's socket, such as another process of this app. */
+    /** Something else holds the agent's socket: another process of this app, or another agent in this one. */
     public class SocketUnavailable internal constructor(
         /** The abstract socket the agent tried to listen on. */
         public val socketName: String,
         cause: Throwable,
-    ) : AgentStartError("The Hammer agent can't listen on @$socketName; another process may already own it", cause)
+        heldByThisProcess: Boolean,
+    ) : AgentStartError(
+        if (heldByThisProcess) {
+            "The Hammer agent can't listen on @$socketName; another agent in this process already does, such as the one " +
+                "auto-start runs. To start your own, turn auto-start off with the com.lyft.hammer.agent.autostart meta-data"
+        } else {
+            "The Hammer agent can't listen on @$socketName; another process may already own it"
+        },
+        cause,
+    )
 }

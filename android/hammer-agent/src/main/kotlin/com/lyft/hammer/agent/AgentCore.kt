@@ -43,8 +43,9 @@ internal class AgentCore(
         listener = try {
             environment.listen(socketName, ConnectionHandler(CommandRouter(registry)))
         } catch (exception: IOException) {
-            throw AgentStartError.SocketUnavailable(socketName, exception)
+            throw AgentStartError.SocketUnavailable(socketName, exception, heldByThisProcess = environment.listeningSockets.contains(socketName))
         }
+        environment.listeningSockets.add(socketName)
         log.info("Hammer agent listening on @$socketName, adb and this app can control it")
         return true
     }
@@ -79,6 +80,7 @@ internal class AgentCore(
 
     @Synchronized
     fun stop() {
+        if (listener != null) environment.listeningSockets.remove(environment.socketName)
         listener?.close()
         listener = null
     }

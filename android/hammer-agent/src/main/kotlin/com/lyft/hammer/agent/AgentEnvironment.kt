@@ -7,6 +7,9 @@ import java.io.IOException
 internal interface AgentEnvironment {
     val socketName: String
 
+    /** The sockets this process's agents listen on. */
+    val listeningSockets: ListeningSockets
+
     val isDebuggable: Boolean
 
     /** The `<meta-data>` entries of the app's `<application>`, as strings. */
