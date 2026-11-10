@@ -18,9 +18,11 @@ android {
     }
 
     buildTypes {
-        release {
-            // Signed with the debug key so the release build installs, to check that it runs no agent
-            signingConfig = signingConfigs.getByName("debug")
+        // A build that has the agent but isn't debuggable, so e2e.sh can check that the agent refuses to start
+        create("nonDebuggable") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            matchingFallbacks += "release"
         }
     }
 
@@ -40,6 +42,7 @@ dependencies {
 
     // The one line an app adds; the agent starts on its own in debug builds
     debugImplementation(project(":hammer-agent"))
+    "nonDebuggableImplementation"(project(":hammer-agent"))
 
     androidTestImplementation(project(":test-client"))
     androidTestImplementation(libs.androidx.test.core)

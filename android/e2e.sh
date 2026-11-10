@@ -1,6 +1,7 @@
 #!/bin/bash
-# Drives the Compose sample with the hammer tool on a running emulator or device: describe, tap, the
-# sample's custom command, and a release build that must not run the agent. Needs macOS for hammer.
+# Drives the Compose sample with the hammer tool on a running emulator or device: describe, tap and the
+# sample's custom command. Then checks that a build with the agent that isn't debuggable doesn't start it.
+# Needs macOS for hammer.
 # Usage: android/e2e.sh, with ANDROID_SERIAL set when several devices are attached.
 set -euo pipefail
 
@@ -51,12 +52,15 @@ hammer show-greeting --name Ada | grep -q '"ref"' || fail "show_greeting returne
 hammer wait-for --label "Hello, Ada" --timeout 5 >/dev/null || fail "show_greeting didn't greet"
 echo "greeted Ada"
 
-step "Installing the release build"
-(cd "$root/android" && ./gradlew -q :sample-compose:uninstallDebug :sample-compose:installRelease)
+step "Installing a build that has the agent but isn't debuggable"
+(cd "$root/android" && ./gradlew -q :sample-compose:uninstallDebug :sample-compose:installNonDebuggable)
+adb logcat -c
 launch
 sleep 3
-if adb shell cat /proc/net/unix | grep -q "@$socket\$"; then fail "the release build listens on @$socket"; fi
+adb logcat -d -s Hammer | grep -q "the app isn't debuggable" || fail "the agent didn't log that it refused to start"
+echo "the agent logged that the app isn't debuggable"
+if adb shell cat /proc/net/unix | grep -q "@$socket\$"; then fail "the non-debuggable build listens on @$socket"; fi
 echo "no @$socket in /proc/net/unix"
-(cd "$root/android" && ./gradlew -q :sample-compose:uninstallRelease)
+(cd "$root/android" && ./gradlew -q :sample-compose:uninstallNonDebuggable)
 
 step "Passed"
