@@ -1,5 +1,5 @@
 import Foundation
-import HammerAgentCore
+@testable import HammerAgentCore
 import Testing
 
 /// Checks the files in `android/contract/` that the Android agent's tests read, so the Swift and Kotlin sides

@@ -127,14 +127,14 @@ extension AgentErrorCode {
 
 extension AgentErrorCode {
     /// The codes an agent reports, which the Android agent in `android/` also defines.
-    public static let agentCodes: [Self] = [
+    static let agentCodes: [Self] = [
         .invalidArguments, .unknownCommand, .invalidRequest, .failed, .notFound, .ambiguousTarget,
         .notVisible, .notHittable, .notReady, .timedOut,
     ]
 
     /// The codes only clients such as `hammer` report, about reaching the agent rather than running a
     /// command.
-    public static let clientCodes: [Self] = [.unreachable, .disconnected, .noSimulator, .noDevice, .appFrozen]
+    static let clientCodes: [Self] = [.unreachable, .disconnected, .noSimulator, .noDevice, .appFrozen]
 }
 
 /// An image a command outputs, such as a screenshot.
