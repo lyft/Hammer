@@ -65,7 +65,9 @@ class ComposeScreenTest {
     fun swipeUp_scrollsTheFirstRowAway() {
         agent.runOk("wait_for", arguments("label" to "Row 1", "condition" to "visible", "timeout" to 5))
 
-        agent.runOk("swipe", arguments("identifier" to "rows", "direction" to "up", "distance" to 400))
+        // The swipe is centered on the list, so it has to fit inside it on small screens
+        val listHeight = agent.element { it.optString("identifier") == "rows" }!!.getJSONObject("frame").getDouble("height")
+        agent.runOk("swipe", arguments("identifier" to "rows", "direction" to "up", "distance" to listHeight * 0.8))
 
         agent.runOk("wait_for", arguments("label" to "Row 1", "condition" to "gone", "timeout" to 5))
     }
