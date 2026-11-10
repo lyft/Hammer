@@ -111,8 +111,8 @@ struct MCPServer {
         properties[self.systemArgument] = [
             "type": "boolean",
             "description": .string("""
-                Run on the simulator's whole screen from the Mac, to reach system UI such as permission \
-                alerts. \(arguments).
+                Run on the simulator's or Android device's whole screen from the Mac, to reach system UI \
+                such as permission alerts. \(arguments).
                 """),
         ]
         schema["properties"] = .object(properties)

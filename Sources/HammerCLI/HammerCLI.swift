@@ -19,8 +19,8 @@ struct HammerCLI {
           --output <path>  Write the command's output to a file instead of printing it
           --port <port>    The app's port. Defaults to \(AgentEndpoint.portEnvironmentKey) or \
         \(AgentEndpoint.defaultPort)
-          --system         Run on the simulator's whole screen from the Mac, to reach system UI such as \
-        permission alerts
+          --system         Run on the simulator's or Android device's whole screen from the Mac, to reach \
+        system UI such as permission alerts
           --udid <udid>    The simulator for --system. Defaults to \(CoreSimulator.udidEnvironmentKey) or \
         the only booted one
           --android        Drive an Android app through adb instead of an iOS app
@@ -99,14 +99,10 @@ struct HammerCLI {
                            system: SimulatorDriver(udid: options.udid), platform: .iOS)
         }
 
-        guard !options.system else {
-            throw UsageError(description: "--system is not available for Android yet",
-                             hint: "Run the command without --system, in the app")
-        }
-
-        return Drivers(app: AndroidAgentClient(adb: Adb(), serial: options.serial, appID: options.appID,
+        let adb = Adb()
+        return Drivers(app: AndroidAgentClient(adb: adb, serial: options.serial, appID: options.appID,
                                                token: token),
-                       system: UnavailableDriver(reason: "--system is not available for Android yet"),
+                       system: AndroidSystemDriver(adb: adb, serial: options.serial),
                        platform: .android)
     }
 

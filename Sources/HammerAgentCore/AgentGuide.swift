@@ -107,7 +107,11 @@ public enum AgentGuide {
         ## System UI
 
         The agent can't reach system UI such as permission dialogs, the notification shade or the home \
-        screen, and {system} doesn't run on Android yet.
+        screen. {system} runs `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and \
+        `screenshot` on the whole screen through adb instead, to reach it: call `describe` with {system} to \
+        see its buttons, then tap one by label, such as {systemTap}. Its elements have no refs, its frames \
+        and points are in screen dp, and each call takes about a second. Its `press_key` also takes \
+        `deviceHome` and `appSwitch`, and its `screenshot` captures maps and videos too.
         """
 
     private static let androidBack = """
