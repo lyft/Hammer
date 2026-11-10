@@ -27,7 +27,9 @@ An Android agent serves the same routes, rules and errors over a local socket in
 
 The abstract namespace is shared by every user of the device, so only one instance of an app can run an agent, such as the personal and not the work profile one.
 
-`hammer` sends `HAMMER_AGENT_TOKEN` as on iOS. An agent may require a token as well as the peer check, and must answer a missing or wrong one with `401`.
+`hammer` sends `HAMMER_AGENT_TOKEN` as on iOS. An agent may require a token as well as the peer check, and must answer a missing or wrong one with `401`. The agent in `android/` doesn't require one, since Android apps have no environment to read it from.
+
+The agent in `android/` implements this transport. Its built-in descriptors, the reserved parameter names and the error codes are checked against Swift's in CI, see [The Android agent's contract files](android-contract.md).
 
 ## Routes
 
