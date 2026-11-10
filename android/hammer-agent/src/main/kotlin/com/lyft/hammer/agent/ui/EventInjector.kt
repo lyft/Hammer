@@ -6,7 +6,6 @@ import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import com.lyft.hammer.agent.AgentError
 import com.lyft.hammer.agent.AgentErrorCode
 import kotlinx.coroutines.CoroutineDispatcher
@@ -84,10 +83,9 @@ internal class EventInjector(
     private suspend fun back() = withContext(main) {
         val window = focusedWindow()
         val activity = activities.activity(window)
-        val dispatcher = window.findViewTreeOnBackPressedDispatcherOwner()?.onBackPressedDispatcher
         when {
             activity != null -> activity.onBackPressed()
-            dispatcher != null -> dispatcher.onBackPressed()
+            OptionalLibraries.hasActivity && BackDispatchers.pressBack(window) -> Unit
             else -> KEY_ACTIONS.forEach { action -> window.dispatchKeyEvent(KeyEvent(action, KeyEvent.KEYCODE_BACK)) }
         }
     }

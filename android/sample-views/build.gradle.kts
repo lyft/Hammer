@@ -3,15 +3,16 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-// An app with Views only, to show the agent runs without Compose on the classpath
+// An app with Views only, to show the agent runs without Compose on the classpath. It also builds
+// with an old compileSdk, so checkDebugAarMetadata fails if the agent needs a newer one.
 android {
     namespace = "com.example.hammer.views"
-    compileSdk = 37
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.hammer.views"
         minSdk = 28
-        targetSdk = 37
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -23,7 +24,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.androidx.activity)
+    implementation(libs.sample.views.activity)
 
     debugImplementation(project(":hammer-agent"))
 

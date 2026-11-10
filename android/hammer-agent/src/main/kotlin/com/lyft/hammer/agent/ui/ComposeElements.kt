@@ -17,7 +17,7 @@ import kotlin.math.roundToInt
  * Compose UI tests see. `testTag` is the identifier.
  *
  * The only class that names Compose types: Compose UI is a compile-only dependency, so create it only
- * when [ComposeSupport.isAvailable].
+ * when [OptionalLibraries.hasCompose].
  */
 internal class ComposeElements(private val density: Double) {
 

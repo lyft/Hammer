@@ -11,7 +11,7 @@ import android.widget.TextView
 /** Reads Views into elements, and hands Compose roots to [ComposeElements] when the app has Compose. */
 internal class ViewElements(private val density: Double) {
 
-    private val compose = if (ComposeSupport.isAvailable) ComposeElements(density) else null
+    private val compose = if (OptionalLibraries.hasCompose) ComposeElements(density) else null
 
     fun window(root: View, bounds: Rect): Element = element(root, bounds, opacity = 1f, isWindowRoot = true)
 

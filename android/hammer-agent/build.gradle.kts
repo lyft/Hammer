@@ -11,6 +11,10 @@ android {
     defaultConfig {
         minSdk = 28
         consumerProguardFiles("consumer-rules.pro")
+        // AGP otherwise requires apps to compile with this library's compileSdk; sample-views checks 34
+        aarMetadata {
+            minCompileSdk = 34
+        }
     }
 }
 
@@ -31,16 +35,15 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.androidx.activity)
-    implementation(libs.androidx.core)
-    // Optional: the agent reads Compose semantics only when the app has Compose UI
-    compileOnly(libs.compose.ui)
-    implementation(libs.gson)
-    implementation(libs.kotlinx.coroutines.android)
+    // Optional: used only when the app has them, see OptionalLibraries
+    compileOnly(libs.agent.activity)
+    compileOnly(libs.agent.compose.ui)
+    implementation(libs.agent.gson)
+    implementation(libs.agent.coroutines.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.assertj)
-    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.agent.coroutines.test)
 }
 
 // Release.yml passes the Hammer release tag as VERSION_NAME

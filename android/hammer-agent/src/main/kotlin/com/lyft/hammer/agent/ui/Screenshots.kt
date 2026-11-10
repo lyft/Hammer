@@ -7,8 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
 import android.view.View
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.scale
 import com.lyft.hammer.agent.AgentError
 import com.lyft.hammer.agent.AgentErrorCode
 import kotlinx.coroutines.CoroutineDispatcher
@@ -38,7 +36,7 @@ internal class Screenshots(
             val width = (area.width() / density * scale).roundToInt().coerceAtLeast(1)
             val height = (area.height() / density * scale).roundToInt().coerceAtLeast(1)
             val cropped = Bitmap.createBitmap(screen, area.left, area.top, area.width(), area.height())
-            val scaled = cropped.scale(width, height)
+            val scaled = Bitmap.createScaledBitmap(cropped, width, height, true)
             ByteArrayOutputStream().also { scaled.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, it) }.toByteArray()
         }
     }
@@ -46,7 +44,7 @@ internal class Screenshots(
     private suspend fun capture(): Bitmap {
         val roots = reader.windowRoots()
         val bounds = roots.map(ScreenReader::screenBounds)
-        val screen = createBitmap(bounds.maxOf { it.right }, bounds.maxOf { it.bottom })
+        val screen = Bitmap.createBitmap(bounds.maxOf { it.right }, bounds.maxOf { it.bottom }, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(screen)
         roots.zip(bounds).forEach { (root, rect) ->
             canvas.drawBitmap(windowBitmap(root), rect.left.toFloat(), rect.top.toFloat(), null)
@@ -55,7 +53,7 @@ internal class Screenshots(
     }
 
     private suspend fun windowBitmap(root: View): Bitmap {
-        val bitmap = createBitmap(root.width, root.height)
+        val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
         val window = activities.window(root)
         val copied = window != null && suspendCancellableCoroutine { continuation ->
             PixelCopy.request(window, bitmap, { result -> continuation.resume(result == PixelCopy.SUCCESS) }, Handler(Looper.getMainLooper()))

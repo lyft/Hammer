@@ -10,6 +10,10 @@ android {
 
     defaultConfig {
         minSdk = 28
+        // sample-views compiles against 34
+        aarMetadata {
+            minCompileSdk = 34
+        }
     }
 }
 
