@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Adds the debug build's own commands to the agent -->
+        <meta-data
+            android:name="com.lyft.hammer.agent.commands:com.example.hammer.compose.DebugCommands"
+            android:value="com.lyft.hammer.agent.HammerCommandRegistrar" />
+    </application>
+</manifest>
