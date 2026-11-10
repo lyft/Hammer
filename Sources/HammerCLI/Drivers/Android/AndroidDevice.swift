@@ -153,7 +153,7 @@ struct AndroidDevice: Sendable {
         }
 
         let windows = try await adb.run(["-s", serial, "shell", self.focusCommand])
-        if let focused = self.focusedAppID(in: windows), listening.contains(focused) {
+        if let focused = self.focusedAppIDs(in: windows).first(where: listening.contains) {
             return focused
         }
 
@@ -254,19 +254,33 @@ struct AndroidDevice: Sendable {
     }
 
     /// Prints the window manager's focus, which every version since Android 9 lists.
-    static let focusCommand = "dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' || true"
+    static let focusCommand = "dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'; "
+        + "dumpsys activity activities | grep -E 'Task(Record)?\\{' || true"
 
-    /// The application id of the focused window in `focusCommand`'s output, or of the focused activity when
-    /// the focused window belongs to no app, such as the notification shade.
-    static func focusedAppID(in output: String) -> String? {
+    /// The application ids in `focusCommand`'s output: the focused window's, the focused activity's, then the
+    /// affinity of the focused activity's task, so a caller can pick the first that runs an agent. A
+    /// permission dialog is another app's activity, but it runs in the task of the app that asked.
+    static func focusedAppIDs(in output: String) -> [String] {
+        var ids = [String]()
         for key in ["mCurrentFocus", "mFocusedApp"] {
             // Android 9 nests the record, as in mFocusedApp=AppWindowToken{… ActivityRecord{… u0 app/.Main}}
             let pattern = try? Regex(#"\#(key)=[^\n]*? u\d+ ([^\s/}]+)/"#)
-            if let pattern, let match = output.firstMatch(of: pattern), let id = match.output[1].substring {
-                return String(id)
+            if let pattern, let match = output.firstMatch(of: pattern), let id = match.output[1].substring,
+               !ids.contains(String(id))
+            {
+                ids.append(String(id))
             }
         }
 
-        return nil
+        // The task line, such as Task{c26d958 #142 type=standard A=10268:com.example …}, or on Android 9
+        // TaskRecord{… #17 A=com.example …}
+        if let task = output.firstMatch(of: #/mFocusedApp=[^\n]* t(\d+)\}/#)?.output.1,
+           let pattern = try? Regex(#"Task(?:Record)?\{\S+ #\#(task) [^\n]*?A=(?:\d+:)?([^\s}]+)"#),
+           let affinity = output.firstMatch(of: pattern)?.output[1].substring, !ids.contains(String(affinity))
+        {
+            ids.append(String(affinity))
+        }
+
+        return ids
     }
 }

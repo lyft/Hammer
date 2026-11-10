@@ -48,17 +48,29 @@ struct AndroidAgentClient: Driver {
     private func withAgent<T: Sendable>(_ body: @escaping @Sendable (AgentClient) async throws -> T)
         async throws -> T
     {
-        let (device, port) = try await self.connection.endpoint {
-            let device = try await AndroidDevice.resolve(adb: self.adb, serial: self.serial,
-                                                         appID: self.appID)
-            return (device, try await device.forward())
-        }
+        return try await self.call(body, mayRetry: true)
+    }
 
+    /// Calls the agent, retrying once when that can't run the command twice: after a refused connection,
+    /// which sent nothing, or after the app hammer picked was frozen and another app is now in front, since
+    /// an agent drops a request whose connection closed.
+    private func call<T: Sendable>(_ body: @escaping @Sendable (AgentClient) async throws -> T,
+                                   mayRetry: Bool) async throws -> T
+    {
+        let (device, port) = try await self.connection.endpoint(self.find)
         let client = AgentClient(port: port, token: self.token)
         do {
             return try await Self.failingWhenFrozen(isFrozen: { await device.isFrozen() },
                                                     call: { try await body(client) })
         } catch is AppFrozen {
+            if mayRetry && self.appID == nil {
+                await self.connection.reset()
+                let (next, _) = try await self.connection.endpoint(self.find)
+                if next.appID != device.appID {
+                    return try await self.call(body, mayRetry: false)
+                }
+            }
+
             // The forward works, so the connection is kept for when the app is back
             throw device.frozenError
         } catch let error as ClientError where [.unreachable, .disconnected].contains(error.code) {
@@ -68,20 +80,31 @@ struct AndroidAgentClient: Driver {
                 throw notListening
             }
 
+            // A refused connection sent nothing, such as after the adb server restarted and lost the forward
+            if error.code == .unreachable && mayRetry {
+                return try await self.call(body, mayRetry: false)
+            }
+
             throw error.code == .unreachable ? device.refusedError : error
         }
+    }
+
+    @Sendable
+    private func find() async throws -> (AndroidDevice, UInt16) {
+        let device = try await AndroidDevice.resolve(adb: self.adb, serial: self.serial, appID: self.appID)
+        return (device, try await device.forward())
     }
 }
 
 extension AndroidAgentClient {
-    /// How long a call waits for the agent before checking whether Android froze the app.
+    /// How often a call checks whether Android froze the app while it waits for the agent.
     static let frozenCheckDelay: Duration = .seconds(5)
 
     /// Thrown when a call is slow because Android froze the app.
     struct AppFrozen: Error {}
 
-    /// Runs the call, failing it with `AppFrozen` when it is slow because Android froze the app in the
-    /// background, where the call would otherwise wait for its whole timeout.
+    /// Runs the call, failing it with `AppFrozen` when Android froze the app in the background, where the
+    /// call would otherwise wait for its whole timeout. The app is checked every `delay` while the call runs.
     static func failingWhenFrozen<T: Sendable>(delay: Duration = Self.frozenCheckDelay,
                                                isFrozen: @escaping @Sendable () async -> Bool,
                                                call: @escaping @Sendable () async throws -> T)
@@ -90,13 +113,14 @@ extension AndroidAgentClient {
         return try await withThrowingTaskGroup(of: T?.self) { group in
             group.addTask { try await call() }
             group.addTask {
-                try await Task.sleep(for: delay)
-                guard await isFrozen() else {
-                    // Not frozen, so the call keeps its own timeout
-                    return nil
-                }
-
-                throw AppFrozen()
+                // Checked for as long as the call runs, since the app can freeze during a long wait_for
+                repeat {
+                    try await Task.sleep(for: delay)
+                    if await isFrozen() {
+                        throw AppFrozen()
+                    }
+                } while !Task.isCancelled
+                return nil
             }
 
             while let result = try await group.next() {

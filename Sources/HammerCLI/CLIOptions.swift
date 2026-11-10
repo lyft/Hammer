@@ -32,19 +32,24 @@ struct CLIOptions: Equatable {
     /// - returns: The options.
     static func extract(from arguments: inout [String]) throws -> CLIOptions {
         var options = CLIOptions()
-        let android = arguments.contains { $0 == "--android" || $0 == "--android=true" }
+        let values = self.valuePositions(in: arguments)
+        let android = arguments.indices.contains { index in
+            !values.contains(index) && ["--android", "--android=true"].contains(arguments[index])
+        }
         let names = CommandDescriptor.reservedParameterNames(for: android ? .android : .iOS)
             .union(["android"])
         var remaining = [String]()
-        var tokens = arguments[...]
-        while let token = tokens.popFirst() {
+        var index = 0
+        while index < arguments.count {
+            let token = arguments[index]
+            index += 1
             // Keeping empty parts makes an empty argument, such as the value of --label "", one empty part
             let parts = token.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
                 .map(String.init)
             // Options are kebab case, such as --app-id for the reserved name app_id
             let name = parts[0].hasPrefix("--")
                 ? String(parts[0].dropFirst(2)).replacingOccurrences(of: "-", with: "_") : ""
-            guard names.contains(name) else {
+            guard !values.contains(index - 1), names.contains(name) else {
                 remaining.append(token)
                 continue
             }
@@ -60,7 +65,13 @@ struct CLIOptions: Equatable {
                 continue
             }
 
-            guard let value = parts.count == 2 ? parts[1] : tokens.popFirst() else {
+            let value: String
+            if parts.count == 2 {
+                value = parts[1]
+            } else if index < arguments.count {
+                value = arguments[index]
+                index += 1
+            } else {
                 throw UsageError(description: "Missing value for \(parts[0])", hint: "Run `hammer --help`")
             }
 
@@ -70,6 +81,40 @@ struct CLIOptions: Equatable {
         try options.validate()
         arguments = remaining
         return options
+    }
+
+    /// The positions of the arguments that are values of the command's own options, such as `--android` in
+    /// `type-text --text --android`, so they aren't read as the tool's options. This knows the built-in
+    /// commands only, since a custom one is described by the app, so a custom command's value that starts
+    /// with `--` is passed as `--name=value`.
+    static func valuePositions(in arguments: [String]) -> Set<Int> {
+        guard let command = arguments.first else {
+            return []
+        }
+
+        let descriptors = BuiltinCommands.all + BuiltinCommands.all(for: .android) + AndroidSystemCommands.all
+            + SimulatorCommands.all
+        let valueOptions = Set(descriptors.filter { $0.commandLineName == command }
+            .flatMap(\.parameters)
+            .filter { parameter in
+                if case .boolean = parameter.type {
+                    return false
+                }
+                return true
+            }
+            .map(\.optionName))
+        var positions = Set<Int>()
+        var index = 1
+        while index < arguments.count {
+            if valueOptions.contains(arguments[index]) {
+                positions.insert(index + 1)
+                index += 2
+            } else {
+                index += 1
+            }
+        }
+
+        return positions
     }
 
     private mutating func setFlag(_ name: String, to flag: Bool) {

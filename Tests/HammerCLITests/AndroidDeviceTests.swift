@@ -47,24 +47,38 @@ struct AndroidDeviceTests {
         ("""
           mCurrentFocus=Window{585dc4b u0 com.example.app/com.example.app.MainActivity}
           mFocusedApp=ActivityRecord{138529899 u0 com.example.app/com.example.app.MainActivity t121}
-        """, "com.example.app"),
+        """, ["com.example.app"]),
         // API 28 nests the activity record in the window token
         ("""
             mFocusedApp=Token{7c1a5b5 ActivityRecord{4c82dec u0 com.android.launcher3/.Launcher t2}}
           mCurrentFocus=Window{fad6ee7 u0 com.android.launcher3/com.android.launcher3.Launcher}
           mFocusedApp=AppWindowToken{ceee44a token=Token{7c1a5b5 ActivityRecord{4c82dec u0 com.android.launcher3/.Launcher t2}}}
-        """, "com.android.launcher3"),
+        """, ["com.android.launcher3"]),
         ("  mFocusedApp=AppWindowToken{ceee44a token=Token{7c1a5b5 ActivityRecord{4c82dec u0 com.android.launcher3/.Launcher t2}}}\n",
-         "com.android.launcher3"),
+         ["com.android.launcher3"]),
         // The notification shade has focus, so the focused activity decides
         ("""
           mCurrentFocus=Window{c0ffee u0 NotificationShade}
           mFocusedApp=ActivityRecord{1234 u0 com.example.app/com.example.app.MainActivity t121}
-        """, "com.example.app"),
-        ("  mCurrentFocus=null\n  mFocusedApp=null\n", nil),
+        """, ["com.example.app"]),
+        // API 37: a permission dialog is another app's activity, in the task of the app that asked
+        ("""
+          mCurrentFocus=Window{b98b146 u0 com.google.android.permissioncontroller/com.android.permissioncontroller.permission.ui.GrantPermissionsActivity}
+          mFocusedApp=ActivityRecord{25666788 u0 com.google.android.permissioncontroller/com.android.permissioncontroller.permission.ui.GrantPermissionsActivity t142}
+          * Task{c26d958 #142 type=standard A=10268:com.example.app U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=2}
+          * Task{3b54fbf #1 type=home U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
+          * Task{f3d03c7 #126 type=standard A=1000:com.android.settings U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
+        """, ["com.google.android.permissioncontroller", "com.example.app"]),
+        // API 28 lists tasks as TaskRecord, with no uid in the affinity
+        ("""
+          mCurrentFocus=Window{aa11 u0 com.example.dialog/com.example.dialog.Prompt}
+          mFocusedApp=AppWindowToken{bb22 token=Token{cc33 ActivityRecord{dd44 u0 com.example.dialog/.Prompt t17}}}
+            * TaskRecord{807bf19 #17 A=com.example.app U=0 StackId=10 sz=2}
+        """, ["com.example.dialog", "com.example.app"]),
+        ("  mCurrentFocus=null\n  mFocusedApp=null\n", []),
     ])
-    func focusedAppID(output: String, appID: String?) {
-        #expect(AndroidDevice.focusedAppID(in: output) == appID)
+    func focusedAppIDs(output: String, appIDs: [String]) {
+        #expect(AndroidDevice.focusedAppIDs(in: output) == appIDs)
     }
 
     // swiftlint:enable line_length
