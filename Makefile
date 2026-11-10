@@ -60,7 +60,7 @@ test-iPhone-iOS17:
 
 # Builds the Android sample, installs it on the running emulator or ANDROID_SERIAL, and drives it with hammer
 android-e2e:
-	android/e2e.sh
+	bash android/e2e.sh
 
 # List all targets (from https://stackoverflow.com/questions/4219255/how-do-you-get-the-list-of-targets-in-a-makefile)
 
