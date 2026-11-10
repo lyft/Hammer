@@ -29,17 +29,17 @@ A `no_device` error lists the attached devices and their states, such as `unauth
 
 ## Built-in commands
 
-The Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `drag`, `type_text`, `press_key`, `wait_for`, `wait_for_idle` and `screenshot`, with the arguments and output of the [built-in commands](../internal/commands.md). It differs from iOS in a few ways:
+An Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `drag`, `type_text`, `press_key`, `wait_for`, `wait_for_idle` and `screenshot`, with the arguments and output of the [built-in commands](../internal/commands.md). [On Android](../internal/commands.md#on-android) lists the rules every Android agent follows: dp coordinates, how elements get their identifier, label, value and traits, the order of windows, and `deviceBack`, which goes back like the device's back button.
 
-- **Elements:** `describe` lists Views and the merged semantics tree of each Compose root, the tree accessibility services and Compose UI tests see. A View's identifier is its resource id name and a Compose node's is its `testTag`. Views that Compose hosts, such as a map in an `AndroidView`, are placed in the Compose tree where they are drawn.
-- **Coordinates:** frames and points are in screen dp.
-- **Windows:** commands see every window of the app, such as an activity and its dialogs, back to front.
-- **Touches and keys:** apps can't hold the permission to inject events into the input system, so events are dispatched to the window's root view on the main thread, the way Compose UI tests send them.
-- **Back:** `press_key` takes `deviceBack` as well as the keyboard keys. It goes back in the frontmost window the way the back button does, through the activity's `onBackPressed` or a dialog's `OnBackPressedDispatcher`.
-- **Edge swipes:** the system handles back and home gestures outside the app, so `edge_swipe` only reaches the app's own views, such as a drawer. Use `press_key` with `deviceBack` to go back.
-- **Long presses:** a Compose `clickable` without `onLongClick` handles a long press as a tap.
-- **Idle:** `wait_for_idle` waits until the app draws no frames and its main thread has nothing queued.
-- **Screenshots:** a `SurfaceView`'s own surface, such as a map's, shows as blank. `screenshot --system` captures it.
+### Notes on one agent
+
+These describe the agent in Lyft's Android app, not rules for every agent:
+
+- Apps can't hold the permission to inject events into the input system, so it dispatches events to the window's root view on the main thread, the way Compose UI tests send them.
+- `deviceBack` calls the activity's `onBackPressed`, or a dialog's `OnBackPressedDispatcher`.
+- Views that Compose hosts, such as a map in an `AndroidView`, are placed in the Compose tree where they are drawn.
+- A Compose `clickable` without `onLongClick` handles a long press as a tap.
+- A `SurfaceView`'s own surface, such as a map's, shows as blank in screenshots. `screenshot --system` captures it.
 
 ## Security
 
