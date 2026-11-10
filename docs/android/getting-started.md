@@ -50,7 +50,7 @@ To start the agent from your own code, such as to register commands that need yo
 </application>
 ```
 
-Then create the agent in debug code, register your commands and start it:
+Then create the agent in `Application.onCreate`, from debug code, register your commands and start it:
 
 ```kotlin
 val agent = HammerAgent(application)
@@ -58,7 +58,7 @@ agent.register(SignInCommand(session))
 agent.start()
 ```
 
-Keep a reference to `agent` for as long as the app runs. `start()` throws `AgentStartError` when the app isn't debuggable or something else holds the agent's socket: another process, or the auto-started agent when auto-start is still on. Auto-start only logs these, and never throws.
+Create it there, before the first activity starts: the agent learns about activities from their lifecycle callbacks, so one created later doesn't see the activity already on screen until it resumes again. Keep a reference to `agent` for as long as the app runs. `start()` throws `AgentStartError` when the app isn't debuggable or something else holds the agent's socket: another process, or the auto-started agent when auto-start is still on. Auto-start only logs these, and never throws.
 
 ## The socket
 
