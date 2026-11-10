@@ -48,17 +48,29 @@ struct AndroidAgentClient: Driver {
     private func withAgent<T: Sendable>(_ body: @escaping @Sendable (AgentClient) async throws -> T)
         async throws -> T
     {
-        let (device, port) = try await self.connection.endpoint {
-            let device = try await AndroidDevice.resolve(adb: self.adb, serial: self.serial,
-                                                         appID: self.appID)
-            return (device, try await device.forward())
-        }
+        return try await self.call(body, mayRetry: true)
+    }
 
+    /// Calls the agent, retrying once when that can't run the command twice: after a refused connection,
+    /// which sent nothing, or after the app hammer picked was frozen and another app is now in front, since
+    /// an agent drops a request whose connection closed.
+    private func call<T: Sendable>(_ body: @escaping @Sendable (AgentClient) async throws -> T,
+                                   mayRetry: Bool) async throws -> T
+    {
+        let (device, port) = try await self.connection.endpoint(self.find)
         let client = AgentClient(port: port, token: self.token)
         do {
             return try await Self.failingWhenFrozen(isFrozen: { await device.isFrozen() },
                                                     call: { try await body(client) })
         } catch is AppFrozen {
+            if mayRetry && self.appID == nil {
+                await self.connection.reset()
+                let (next, _) = try await self.connection.endpoint(self.find)
+                if next.appID != device.appID {
+                    return try await self.call(body, mayRetry: false)
+                }
+            }
+
             // The forward works, so the connection is kept for when the app is back
             throw device.frozenError
         } catch let error as ClientError where [.unreachable, .disconnected].contains(error.code) {
@@ -68,8 +80,19 @@ struct AndroidAgentClient: Driver {
                 throw notListening
             }
 
+            // A refused connection sent nothing, such as after the adb server restarted and lost the forward
+            if error.code == .unreachable && mayRetry {
+                return try await self.call(body, mayRetry: false)
+            }
+
             throw error.code == .unreachable ? device.refusedError : error
         }
+    }
+
+    @Sendable
+    private func find() async throws -> (AndroidDevice, UInt16) {
+        let device = try await AndroidDevice.resolve(adb: self.adb, serial: self.serial, appID: self.appID)
+        return (device, try await device.forward())
     }
 }
 
