@@ -20,6 +20,13 @@ internal interface AgentEnvironment {
     /** Adapts an app's command to the router. */
     fun wire(command: AgentCommand): WireCommand
 
+    /**
+     * Creates the registrar named [className] and returns its commands.
+     *
+     * @throws RegistrarError if the class can't be a registrar, or whatever the registrar throws.
+     */
+    fun registrarCommands(className: String): List<AgentCommand>
+
     /** @throws IOException if the socket is taken. */
     fun listen(socketName: String, handler: ConnectionHandler): AgentListener
 }
@@ -27,3 +34,6 @@ internal interface AgentEnvironment {
 internal fun interface AgentListener {
     fun close()
 }
+
+/** Why a class named in the manifest can't be a registrar, such as `isn't a HammerCommandRegistrar`. */
+internal class RegistrarError(val problem: String) : Exception(problem)

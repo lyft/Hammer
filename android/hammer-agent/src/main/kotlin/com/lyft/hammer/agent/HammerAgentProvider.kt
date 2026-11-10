@@ -53,7 +53,7 @@ internal object AutoStart {
             log.warning("Hammer agent didn't start; the app isn't debuggable, and auto-start runs only in debuggable builds")
             return null
         }
-        val core = AgentCore(environment, log)
+        val core = AgentCore(environment, log, readsManifestRegistrars = true)
         return try {
             if (core.start(allowsReleaseBuild = false)) core else null
         } catch (error: AgentStartError) {

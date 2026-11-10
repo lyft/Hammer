@@ -20,9 +20,13 @@ public class HammerAgent internal constructor(private val core: AgentCore) {
      * Creates an agent with the built-in commands.
      *
      * @param application the app to drive.
+     * @param readsManifestRegistrars if [start] registers the commands of the [HammerCommandRegistrar]s the
+     *   manifest names, as auto-start does. A registrar's command never replaces one registered with
+     *   [register].
      */
-    public constructor(application: android.app.Application) :
-        this(AgentCore(AndroidEnvironment(application), AgentLog.Logcat))
+    @JvmOverloads
+    public constructor(application: android.app.Application, readsManifestRegistrars: Boolean = true) :
+        this(AgentCore(AndroidEnvironment(application), AgentLog.Logcat, readsManifestRegistrars))
 
     /** The commands the agent runs, in the order they were registered. */
     public val commands: List<CommandDescriptor>
@@ -43,6 +47,9 @@ public class HammerAgent internal constructor(private val core: AgentCore) {
     /**
      * Starts listening for commands. Does nothing if the agent is already listening, or outside the
      * app's main process, where it logs why.
+     *
+     * The first start registers the manifest's registrars first, unless the agent was created without
+     * them. A registrar that can't be created or throws is logged and skipped.
      *
      * @param allowsReleaseBuild if the agent runs in an app that isn't debuggable, where adb can still
      *   connect to it.

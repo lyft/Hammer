@@ -13,6 +13,7 @@ internal class FakeEnvironment(
     override val otherProcessName: String? = null,
     private val socketTaken: Boolean = false,
     private val builtins: List<WireCommand> = emptyList(),
+    private val registrars: Map<String, () -> List<AgentCommand>> = emptyMap(),
 ) : AgentEnvironment {
     override val socketName = "hammer_com.example.app"
     val listens = mutableListOf<String>()
@@ -26,6 +27,9 @@ internal class FakeEnvironment(
         override suspend fun run(arguments: JsonObject): JsonElement =
             command.run(arguments.toJsonValue(), AgentContext(error("No screen in unit tests"))).toGson()
     }
+
+    override fun registrarCommands(className: String): List<AgentCommand> =
+        registrars[className]?.invoke() ?: throw RegistrarError("there is no such class")
 
     override fun listen(socketName: String, handler: ConnectionHandler): AgentListener {
         if (socketTaken) throw IOException("Address already in use")

@@ -155,11 +155,17 @@ public final class com/lyft/hammer/agent/CommandDescriptor$ParameterType$StringV
 
 public final class com/lyft/hammer/agent/HammerAgent {
 	public fun <init> (Landroid/app/Application;)V
+	public fun <init> (Landroid/app/Application;Z)V
+	public synthetic fun <init> (Landroid/app/Application;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getCommands ()Ljava/util/List;
 	public final fun register (Lcom/lyft/hammer/agent/AgentCommand;)V
 	public final fun start (Z)V
 	public static synthetic fun start$default (Lcom/lyft/hammer/agent/HammerAgent;ZILjava/lang/Object;)V
 	public final fun stop ()V
+}
+
+public abstract interface class com/lyft/hammer/agent/HammerCommandRegistrar {
+	public abstract fun commands (Landroid/content/Context;)Ljava/util/List;
 }
 
 public abstract interface class com/lyft/hammer/agent/JsonValue {

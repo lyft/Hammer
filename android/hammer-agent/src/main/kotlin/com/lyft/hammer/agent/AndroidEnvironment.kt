@@ -12,6 +12,7 @@ import com.lyft.hammer.agent.ui.AgentScreen
 import com.lyft.hammer.agent.ui.BuiltinAgentCommands
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.lang.reflect.InvocationTargetException
 
 /** The agent's [AgentEnvironment] in a running app. */
 internal class AndroidEnvironment(private val application: Application) : AgentEnvironment {
@@ -40,6 +41,27 @@ internal class AndroidEnvironment(private val application: Application) : AgentE
         override suspend fun run(arguments: JsonObject): JsonElement = withContext(Dispatchers.Main) {
             command.run(arguments.toJsonValue(), AgentContext(screen)).toGson()
         }
+    }
+
+    override fun registrarCommands(className: String): List<AgentCommand> {
+        val type = try {
+            Class.forName(className, true, application.classLoader)
+        } catch (exception: ClassNotFoundException) {
+            throw RegistrarError("there is no such class")
+        }
+        if (!HammerCommandRegistrar::class.java.isAssignableFrom(type)) throw RegistrarError("it isn't a HammerCommandRegistrar")
+        val constructor = try {
+            type.getDeclaredConstructor()
+        } catch (exception: NoSuchMethodException) {
+            throw RegistrarError("it has no constructor without arguments")
+        }
+        val registrar = try {
+            constructor.isAccessible = true
+            constructor.newInstance() as HammerCommandRegistrar
+        } catch (exception: InvocationTargetException) {
+            throw exception.cause ?: exception
+        }
+        return registrar.commands(application)
     }
 
     override fun listen(socketName: String, handler: ConnectionHandler): AgentListener =
