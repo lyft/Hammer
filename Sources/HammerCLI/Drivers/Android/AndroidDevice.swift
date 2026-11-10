@@ -134,7 +134,7 @@ struct AndroidDevice: Sendable {
         return .failed(AgentErrorBody(error: """
             Android froze \(self.appID) on \(self.serial) in the background, so its Hammer agent can't respond
             """, code: .appFrozen,
-            hint: "Bring the app to the front, then try again. It may run the command once it's back"))
+            hint: "Bring the app to the front and try again. The agent drops the command hammer gave up on"))
     }
 
     // MARK: - Resolving

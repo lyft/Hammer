@@ -21,6 +21,7 @@ An Android agent serves the same routes, rules and errors over a local socket in
 - **Listen in one process only**, the app's main process. Other processes, such as `:remote`, must not start an agent, since they would compete for the name.
 - **Accept only adb's `shell` user (uid 2000), root (uid 0) and the app's own uid**, from the connecting socket's peer credentials, and close any other connection before reading it. Any app on the device can connect to an abstract socket, so this check is what keeps other apps out; clients can't enforce it.
 - **Apply the [request rules](#request-rules)**, since a browser on the Mac can reach the forwarded port.
+- **Not run a request whose connection the client already closed.** Android freezes cached apps in the background, and a request sent while the app is frozen waits in the socket until it thaws. `hammer` gives up on such a call with `app_frozen` and closes the connection, so the agent must check that the connection is still open after reading a request and drop it otherwise, rather than run a command the caller has moved on from. A readable socket with no bytes left to read, from `poll`, shows the client closed its side.
 - Measure frames and points in screen dp, and describe its built-in commands with `BuiltinCommands.all(for: .android)`, so clients can describe them before the app runs.
 - Reserve the parameter names in `CommandDescriptor.reservedParameterNames(for: .android)`, which adds `android`, `serial` and `app_id` to the iOS ones, since `hammer --android` takes them as its own options.
 
