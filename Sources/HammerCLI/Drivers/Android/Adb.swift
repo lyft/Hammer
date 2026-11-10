@@ -35,6 +35,17 @@ struct Adb: Sendable {
     /// - returns: The standard output.
     @discardableResult
     func run(_ arguments: [String]) throws -> String {
+        return String(bytes: try self.runData(arguments), encoding: .utf8) ?? ""
+    }
+
+    /// Runs adb and returns its standard output as bytes, such as an image.
+    ///
+    /// - parameter arguments: The arguments after `adb`.
+    ///
+    /// - throws: A `no_device` `ClientError` if adb can't run or exits with an error.
+    ///
+    /// - returns: The standard output.
+    func runData(_ arguments: [String]) throws -> Data {
         let process = Process()
         process.executableURL = self.executable
         process.arguments = self.leadingArguments + arguments
@@ -61,7 +72,7 @@ struct Adb: Sendable {
                                        hint: "Check `adb devices` lists the device as `device`")
         }
 
-        return String(bytes: stdout, encoding: .utf8) ?? ""
+        return stdout
     }
 }
 

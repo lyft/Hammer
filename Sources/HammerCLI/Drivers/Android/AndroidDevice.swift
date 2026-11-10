@@ -64,7 +64,8 @@ struct AndroidDevice: Sendable {
 
     // MARK: - Resolving
 
-    private static func resolveSerial(adb: Adb, serial: String?) throws -> String {
+    /// The device to drive: the serial passed, or `ANDROID_SERIAL`, or the only attached device.
+    static func resolveSerial(adb: Adb, serial: String?) throws -> String {
         let attached = try self.attachedSerials(adb: adb)
         let requested = serial ?? ProcessInfo.processInfo.environment[Adb.serialEnvironmentKey].flatMap {
             $0.isEmpty ? nil : $0

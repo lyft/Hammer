@@ -39,21 +39,3 @@ struct AndroidAgentClient: Driver {
         }
     }
 }
-
-/// Stands in for the system driver on Android, which Hammer doesn't have yet.
-struct UnavailableDriver: Driver {
-    let reason: String
-
-    func catalog() async -> DriverCatalog {
-        return DriverCatalog(commands: [], note: self.reason)
-    }
-
-    func callableCommands() async throws -> [CommandDescriptor] {
-        return []
-    }
-
-    func run(_ name: String, arguments: [String: JSONValue]) async throws -> Data {
-        let body = AgentErrorBody(error: self.reason, code: .invalidArguments)
-        throw ClientError.failed(body, isInvalidCall: true)
-    }
-}

@@ -21,6 +21,10 @@ Either option implies `--android`. A `no_device` error lists the attached device
 
 Any app on the device can connect to an abstract socket, so the agent only answers connections from adb's `shell` user, root and the app itself. The [request rules](../internal/http-api.md#request-rules) still apply, since a browser on the Mac can reach the forwarded port.
 
+## System UI
+
+`--system` runs `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot` on the whole screen through adb, to reach permission dialogs, the notification shade, the home screen and other apps. See [System UI](system-ui.md#android).
+
 ## Built-in commands
 
 The Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `drag`, `type_text`, `press_key`, `wait_for`, `wait_for_idle` and `screenshot`, with the arguments and output of the [built-in commands](../internal/commands.md). It differs from iOS in a few ways:
@@ -33,10 +37,9 @@ The Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `
 - **Edge swipes:** the system handles back and home gestures outside the app, so `edge_swipe` only reaches the app's own views, such as a drawer. Use `press_key` with `back` to go back.
 - **Long presses:** a Compose `clickable` without `onLongClick` handles a long press as a tap.
 - **Idle:** `wait_for_idle` waits until the app draws no frames and its main thread has nothing queued.
-- **Screenshots:** a `SurfaceView`'s own surface, such as a map's, shows as blank.
+- **Screenshots:** a `SurfaceView`'s own surface, such as a map's, shows as blank. `screenshot --system` captures it.
 
 ## Limits
 
-- `--system` is not available yet.
 - `hierarchy`, `inspect` and live editing are not available.
 - With the app not running, `hammer commands --android` lists no commands, since the built-in commands describe the iOS agent.

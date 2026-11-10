@@ -11,6 +11,9 @@ The `hammer` CLI and MCP server speak one command language and send each call to
 | `AgentClient` | [Drivers/App](../../Sources/HammerCLI/Drivers/App) | Every command, inside the app, through the agent's [HTTP API](http-api.md). |
 | `SimulatorDriver` | [Drivers/Simulator](../../Sources/HammerCLI/Drivers/Simulator) | `describe` and `tap` on the simulator's whole screen, from the Mac. |
 | `AndroidAgentClient` | [Drivers/Android](../../Sources/HammerCLI/Drivers/Android) | Every command, inside an Android app, through `adb forward` to the agent's [HTTP API](http-api.md). |
+| `AndroidSystemDriver` | [Drivers/Android](../../Sources/HammerCLI/Drivers/Android) | `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot` on an Android device's whole screen, through adb. |
+
+The system drivers share [Drivers/Screen](../../Sources/HammerCLI/Drivers/Screen): targets, queries and the describe output for elements read from outside the app.
 
 [`Drivers`](../../Sources/HammerCLI/Drivers/Driver.swift) holds the ones a call can go to, and the caller picks one: the CLI with `--system`, the MCP server with the `system` argument.
 
@@ -31,3 +34,11 @@ It loads Xcode's private frameworks at runtime, the same ones idb and AXe use:
 - **Elements:** AccessibilityPlatformTranslation's `AXPTranslator` reads the frontmost accessibility tree through `SimDevice`, in [SimulatorAccessibility.swift](../../Sources/HammerCLI/Drivers/Simulator/SimulatorAccessibility.swift). Frames are in screen points.
 
 These APIs can change with each Xcode release. When the driver breaks, check the selectors and the signature of `IndigoHIDMessageForMouseNSEvent` against the new SimulatorKit first.
+
+## The Android system driver
+
+It runs adb's `shell` user, which can read and inject input into every window, unlike an app:
+
+- **Elements:** `uiautomator dump --windows` lists the accessibility nodes of every window on screen, falling back to the active window on versions without `--windows`, in [AndroidScreen.swift](../../Sources/HammerCLI/Drivers/Android/AndroidScreen.swift). Bounds are pixels, turned into dp with `wm density`.
+- **Input:** `input tap`, `input swipe`, `input text` and `input keyevent`.
+- **Screenshots:** `screencap -p`, cropped and scaled with ImageIO.
