@@ -112,7 +112,7 @@ Every failure returns an error body:
 
 [ErrorReport.swift](../../Sources/HammerAgent/ErrorReport.swift) maps Swift errors to these: `AgentError` keeps its code, and `HammerError` cases map to the codes above. Any other error becomes `500` with `failed`.
 
-`unreachable` and `disconnected` never come from the agent. The tool reports them when it can't connect or the connection closes before a response.
+`unreachable` and `disconnected` never come from the agent. The tool reports them when it can't connect or the connection closes before a response. On Android it also reports `app_frozen` when a call is slow because Android froze the app in the background, as it does to cached apps soon after they leave the screen.
 
 ## Refs and live changes
 
