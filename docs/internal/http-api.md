@@ -1,6 +1,6 @@
 # Agent HTTP API
 
-The wire contract between an agent and its clients: the `hammer` tool and its MCP server. `HammerAgent` implements it on iOS, and an Android agent implements it over the [Android transport](#android-transport). It is for developing Hammer and agents. Outside tools should use the [command line tool](../cli/getting-started.md), which is the supported interface.
+The wire contract between an agent and its clients: the `hammer` tool and its MCP server. `HammerAgent` implements it on iOS, and the Android agent in `android/` (`com.lyft.hammer:hammer-agent-android`) implements it over the [Android transport](#android-transport). It is for developing Hammer and agents. Outside tools should use the [command line tool](../cli/getting-started.md), which is the supported interface.
 
 The routes, environment variables and shared bodies are defined in [AgentWire.swift](../../Sources/HammerAgentCore/AgentWire.swift), and descriptors in [CommandDescriptor.swift](../../Sources/HammerAgentCore/CommandDescriptor.swift). Both live in `HammerAgentCore`, which the agent and the tool share, so keep this page in sync when changing them. [Built-in commands](commands.md) covers what each command does.
 
