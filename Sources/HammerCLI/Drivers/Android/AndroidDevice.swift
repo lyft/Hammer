@@ -121,6 +121,22 @@ struct AndroidDevice: Sendable {
             """)
     }
 
+    /// Whether Android froze the app's process, as it does to cached apps soon after they leave the screen,
+    /// so its agent can't respond. False when it can't be read.
+    func isFrozen() async -> Bool {
+        let command = ["-s", self.serial, "shell", "dumpsys", "activity", "processes", self.appID]
+        let processes = try? await self.adb.run(command)
+        return processes.map { Self.isFrozen(in: $0, appID: self.appID) } ?? false
+    }
+
+    /// The error for an app Android froze in the background.
+    var frozenError: ClientError {
+        return .failed(AgentErrorBody(error: """
+            Android froze \(self.appID) on \(self.serial) in the background, so its Hammer agent can't respond
+            """, code: .appFrozen,
+            hint: "Bring the app to the front, then try again. It may run the command once it's back"))
+    }
+
     // MARK: - Resolving
 
     private static func resolveAppID(adb: Adb, serial: String) async throws -> String {
@@ -177,6 +193,16 @@ struct AndroidDevice: Sendable {
     }
 
     // MARK: - Parsing
+
+    /// Whether `dumpsys activity processes` shows the app's main process as frozen. Other processes of the
+    /// app, such as `:remote` or a WebView sandbox, are listed apart and don't run the agent.
+    static func isFrozen(in processes: String, appID: String) -> Bool {
+        return processes.components(separatedBy: "*APP*").dropFirst().contains { block in
+            // The header names the process, such as ProcessRecord{9029806 6392:com.example/u0a268}
+            let header = block.prefix { $0 != "\n" }
+            return header.contains(":\(appID)/") && block.contains("isFrozen=true")
+        }
+    }
 
     /// The devices `adb devices` lists, with their state, such as `device`, `unauthorized` or `offline`.
     static func attachedDevices(in output: String) -> [(serial: String, state: String)] {
