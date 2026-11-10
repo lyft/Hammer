@@ -23,17 +23,20 @@ Any app on the device can connect to an abstract socket, so the agent only answe
 
 ## Built-in commands
 
-The Android agent runs `describe`, `tap`, `swipe`, `type_text`, `screenshot` and `wait_for_idle`, with the arguments and output of the [built-in commands](../internal/commands.md). It differs from iOS in a few ways:
+The Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `drag`, `type_text`, `press_key`, `wait_for`, `wait_for_idle` and `screenshot`, with the arguments and output of the [built-in commands](../internal/commands.md). It differs from iOS in a few ways:
 
 - **Elements:** `describe` lists Views and the merged semantics tree of each Compose root, the tree accessibility services and Compose UI tests see. A View's identifier is its resource id name and a Compose node's is its `testTag`. Views that Compose hosts, such as a map in an `AndroidView`, are placed in the Compose tree where they are drawn.
 - **Coordinates:** frames and points are in screen dp.
 - **Windows:** commands see every window of the app, such as an activity and its dialogs, back to front.
 - **Touches and keys:** apps can't hold the permission to inject events into the input system, so events are dispatched to the window's root view on the main thread, the way Compose UI tests send them.
+- **Back:** `press_key` takes `back` as well as the keyboard keys. It goes back in the frontmost window the way the back button does, through the activity's `onBackPressed` or a dialog's `OnBackPressedDispatcher`.
+- **Edge swipes:** the system handles back and home gestures outside the app, so `edge_swipe` only reaches the app's own views, such as a drawer. Use `press_key` with `back` to go back.
+- **Long presses:** a Compose `clickable` without `onLongClick` handles a long press as a tap.
 - **Idle:** `wait_for_idle` waits until the app draws no frames and its main thread has nothing queued.
 - **Screenshots:** a `SurfaceView`'s own surface, such as a map's, shows as blank.
 
 ## Limits
 
 - `--system` is not available yet.
-- `long_press`, `edge_swipe`, `drag`, `press_key`, `wait_for`, `hierarchy`, `inspect` and live editing are not available yet.
+- `hierarchy`, `inspect` and live editing are not available.
 - With the app not running, `hammer commands --android` lists no commands, since the built-in commands describe the iOS agent.

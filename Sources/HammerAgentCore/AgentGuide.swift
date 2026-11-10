@@ -69,7 +69,8 @@ public enum AgentGuide {
         In the simulator, {system} runs `describe` and `tap` on the whole screen from the Mac instead of \
         inside the app, to reach system UI such as a permission alert: call `describe` with {system} to see \
         its buttons, then tap one by label, such as {systemTap}. Its elements have no refs, and frames and \
-        points are in screen points. Android has no {system} yet.
+        points are in screen points. Android has no {system} yet, and its system back gesture is outside \
+        the app: call `press_key` with the key `back` to go back.
 
         ## Live editing (iOS)
 
