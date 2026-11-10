@@ -15,6 +15,9 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Build hammer
         run: swift build --product hammer
+      - name: Test hammer
+        # Builds only the CLI's tests, since the library targets need UIKit
+        run: swift build --target HammerCLITests && swift test --skip-build
   test_ipad:
     name: Test-iPad
     runs-on: xcode-27

@@ -14,7 +14,7 @@ Hammer is a touch, stylus and keyboard synthesis library for emulating user inte
 
 ## Installation
 
-Hammer requires Swift 6.0 and iOS 17.0 or later. Add it with [SwiftPM](https://swift.org/package-manager):
+Hammer requires Swift 6.0 and iOS 17.0 or later. Add it with [SwiftPM](https://swift.org/package-manager). The `hammer` tool also drives Android apps that run a Hammer agent, see [Android](docs/cli/android.md).
 
 ```swift
 .package(url: "https://github.com/lyft/Hammer.git", from: "2.0.0")
@@ -104,6 +104,7 @@ Learn more:
 - [Live editing](docs/cli/live-editing.md) views before changing them in code
 - [Custom commands](docs/agent/custom-commands.md) for your app
 - [MCP server and agent skills](docs/cli/mcp.md)
+- [Android apps](docs/cli/android.md), through adb
 
 ## Documentation
 

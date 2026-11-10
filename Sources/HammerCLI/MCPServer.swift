@@ -42,7 +42,7 @@ struct MCPServer {
                 "protocolVersion": params["protocolVersion"] ?? "2025-06-18",
                 "capabilities": ["tools": [:]],
                 "serverInfo": ["name": "hammer", "version": "1.0.0"],
-                "instructions": .string(AgentGuide.overview(style: .tools)),
+                "instructions": .string(AgentGuide.overview(style: .tools, platform: self.drivers.platform)),
             ]
         case "ping":
             return [:]

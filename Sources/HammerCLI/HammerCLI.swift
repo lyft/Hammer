@@ -25,57 +25,15 @@ struct HammerCLI {
         the only booted one
           --android        Drive an Android app through adb instead of an iOS app
           --serial <serial>
-                           The Android device, implies --android. Defaults to \(Adb.serialEnvironmentKey) or \
-        the only attached one
+                           The Android device, with --android. Defaults to \(Adb.serialEnvironmentKey) or \
+        the only one attached
           --app-id <application id>
-                           The Android app, implies --android. Defaults to the only app running an agent, or \
-        the foreground one
+                           The Android app, with --android. Defaults to the only app running an agent, or \
+        the focused one
 
         Start with `hammer describe` to see the elements on screen, and `hammer guide` for how to target \
         them and handle errors.
         """
-
-    private struct Options {
-        var port = AgentEndpoint.port()
-        var outputPath: String?
-        var system = false
-        var udid: String?
-        var android = false
-        var serial: String?
-        var appID: String?
-
-        /// The options that take true or false, and are true when given alone.
-        static let flagNames: Set<String> = ["system", "android"]
-
-        mutating func setFlag(_ name: String, to flag: Bool) {
-            if name == "system" {
-                self.system = flag
-            } else {
-                self.android = flag
-            }
-        }
-
-        mutating func set(_ name: String, to value: String) throws {
-            switch name {
-            case "output":
-                self.outputPath = value
-            case "udid":
-                self.udid = value
-            case "serial":
-                self.serial = value
-                self.android = true
-            case "app_id":
-                self.appID = value
-                self.android = true
-            default:
-                guard let port = UInt16(value) else {
-                    throw UsageError(description: "Invalid port \"\(value)\", expected a number up to 65535")
-                }
-
-                self.port = port
-            }
-        }
-    }
 
     static func main() async {
         do {
@@ -98,7 +56,7 @@ struct HammerCLI {
 
     private static func run(_ arguments: [String]) async throws {
         var arguments = arguments
-        let options = try self.extractOptions(from: &arguments)
+        let options = try CLIOptions.extract(from: &arguments)
         var remaining = arguments[...]
         let drivers = try self.drivers(for: options)
         let driver = drivers.driver(system: options.system)
@@ -117,8 +75,9 @@ struct HammerCLI {
             print(self.commandList(await driver.catalog()))
         case "guide":
             let catalog = await driver.catalog()
-            try self.write(Data(AgentGuide.markdown(commands: catalog.commands, style: .commandLine).utf8),
-                           name: "guide", to: options.outputPath)
+            let guide = AgentGuide.markdown(commands: catalog.commands, style: .commandLine,
+                                            platform: options.platform)
+            try self.write(Data(guide.utf8), name: "guide", to: options.outputPath)
             if let note = catalog.note {
                 FileHandle.standardError.write(Data("note: \(note)\n".utf8))
             }
@@ -126,54 +85,18 @@ struct HammerCLI {
             try await MCPServer(drivers: drivers).run()
         case let name?:
             let descriptor = try self.descriptor(named: name, in: try await driver.callableCommands())
+            try self.checkAndroidOptions(in: remaining, for: descriptor, options: options)
             let commandArguments = try descriptor.arguments(from: Array(remaining))
             let output = try await driver.run(descriptor.name, arguments: commandArguments)
             try self.write(output, name: descriptor.commandLineName, to: options.outputPath)
         }
     }
 
-    /// Removes the tool's own options, which can go anywhere since commands can't use their names.
-    private static func extractOptions(from arguments: inout [String]) throws -> Options {
-        var options = Options()
-        var remaining = [String]()
-        var tokens = arguments[...]
-        while let token = tokens.popFirst() {
-            let parts = token.split(separator: "=", maxSplits: 1).map(String.init)
-            // Options are kebab case, such as --app-id for the reserved name app_id
-            let name = parts[0].hasPrefix("--")
-                ? String(parts[0].dropFirst(2)).replacingOccurrences(of: "-", with: "_") : ""
-            guard CommandDescriptor.reservedParameterNames.contains(name) else {
-                remaining.append(token)
-                continue
-            }
-
-            if Options.flagNames.contains(name) {
-                guard let flag = parts.count == 2 ? Bool(parts[1]) : true else {
-                    throw UsageError(description: """
-                        Invalid value "\(parts[1])" for \(parts[0]), expected true or false
-                        """)
-                }
-
-                options.setFlag(name, to: flag)
-                continue
-            }
-
-            guard let value = parts.count == 2 ? parts[1] : tokens.popFirst() else {
-                throw UsageError(description: "Missing value for \(parts[0])", hint: "Run `hammer --help`")
-            }
-
-            try options.set(name, to: value)
-        }
-
-        arguments = remaining
-        return options
-    }
-
-    private static func drivers(for options: Options) throws -> Drivers {
+    private static func drivers(for options: CLIOptions) throws -> Drivers {
         let token = AgentEndpoint.token()
         guard options.android else {
-            return Drivers(app: AgentClient(port: options.port, token: token),
-                           system: SimulatorDriver(udid: options.udid))
+            return Drivers(app: AgentClient(port: options.port ?? AgentEndpoint.port(), token: token),
+                           system: SimulatorDriver(udid: options.udid), platform: .iOS)
         }
 
         guard !options.system else {
@@ -183,7 +106,27 @@ struct HammerCLI {
 
         return Drivers(app: AndroidAgentClient(adb: Adb(), serial: options.serial, appID: options.appID,
                                                token: token),
-                       system: UnavailableDriver(reason: "--system is not available for Android yet"))
+                       system: UnavailableDriver(reason: "--system is not available for Android yet"),
+                       platform: .android)
+    }
+
+    /// Explains that `--serial` and `--app-id` need `--android`, rather than calling them unknown arguments.
+    private static func checkAndroidOptions(in arguments: ArraySlice<String>,
+                                            for descriptor: CommandDescriptor, options: CLIOptions) throws
+    {
+        guard !options.android else {
+            return
+        }
+
+        let names = Set(descriptor.parameters.map(\.name))
+        for option in ["--serial", "--app-id"] {
+            let name = String(option.dropFirst(2)).replacingOccurrences(of: "-", with: "_")
+            let given = arguments.contains { $0 == option || $0.hasPrefix(option + "=") }
+            if given && !names.contains(name) {
+                throw UsageError(description: "\(option) only applies with --android",
+                                 hint: "Add --android to drive an Android app")
+            }
+        }
     }
 
     /// Prints the output or writes it to the path. Images are always written to a file, as image data.
