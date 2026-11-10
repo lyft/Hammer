@@ -2,8 +2,8 @@ package com.lyft.hammer.agent.ui
 
 import android.os.Looper
 import android.view.ViewTreeObserver
-import com.lyft.hammer.agent.core.AgentError
-import com.lyft.hammer.agent.core.AgentErrorCode
+import com.lyft.hammer.agent.AgentError
+import com.lyft.hammer.agent.AgentErrorCode
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay

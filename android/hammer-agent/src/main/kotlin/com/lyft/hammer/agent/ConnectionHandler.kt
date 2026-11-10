@@ -1,6 +1,5 @@
 package com.lyft.hammer.agent
 
-import com.lyft.hammer.agent.core.AgentErrorCode
 import java.io.InputStream
 import java.io.OutputStream
 

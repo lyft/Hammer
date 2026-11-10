@@ -2,8 +2,7 @@ package com.lyft.hammer.agent
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.lyft.hammer.agent.core.AgentCommand
-import com.lyft.hammer.agent.core.CommandDescriptor
+import com.lyft.hammer.agent.core.WireCommand
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
@@ -68,7 +67,7 @@ class ConnectionHandlerTest {
         return output.toString(Charsets.UTF_8.name())
     }
 
-    private class CountingCommand(override val descriptor: CommandDescriptor) : AgentCommand {
+    private class CountingCommand(override val descriptor: CommandDescriptor) : WireCommand {
         var runs = 0
 
         override suspend fun run(arguments: JsonObject): JsonElement {

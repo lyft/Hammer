@@ -7,8 +7,8 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
-import com.lyft.hammer.agent.core.AgentError
-import com.lyft.hammer.agent.core.AgentErrorCode
+import com.lyft.hammer.agent.AgentError
+import com.lyft.hammer.agent.AgentErrorCode
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext

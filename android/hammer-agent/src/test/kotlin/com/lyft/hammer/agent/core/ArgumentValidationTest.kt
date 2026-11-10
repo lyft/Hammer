@@ -2,6 +2,7 @@ package com.lyft.hammer.agent.core
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.lyft.hammer.agent.CommandDescriptor
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.catchThrowableOfType

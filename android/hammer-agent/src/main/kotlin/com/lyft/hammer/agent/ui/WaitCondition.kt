@@ -1,7 +1,7 @@
 package com.lyft.hammer.agent.ui
 
-import com.lyft.hammer.agent.core.AgentError
-import com.lyft.hammer.agent.core.AgentErrorCode
+import com.lyft.hammer.agent.AgentError
+import com.lyft.hammer.agent.AgentErrorCode
 
 /** What `wait_for` waits for, with Hammer's rules for each. */
 internal enum class WaitCondition(val argument: String, private val expectedState: String) {

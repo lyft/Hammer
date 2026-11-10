@@ -4,7 +4,7 @@ import com.google.gson.JsonObject
 import java.util.Base64
 
 /** A command's image output, which clients recognize by `"type": "image"`. Mirrors `AgentImage` in Hammer. */
-object AgentImage {
+internal object AgentImage {
     fun png(bytes: ByteArray): JsonObject = JsonObject().apply {
         addProperty("type", "image")
         addProperty("mimeType", "image/png")

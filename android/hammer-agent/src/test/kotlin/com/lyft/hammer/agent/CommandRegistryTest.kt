@@ -3,8 +3,7 @@ package com.lyft.hammer.agent
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.lyft.hammer.agent.core.AgentCommand
-import com.lyft.hammer.agent.core.CommandDescriptor
+import com.lyft.hammer.agent.core.WireCommand
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
@@ -103,7 +102,7 @@ class CommandRegistryTest {
         summary: String,
         vararg parameters: CommandDescriptor.Parameter,
         run: suspend () -> JsonElement = { JsonObject() },
-    ): AgentCommand = object : AgentCommand {
+    ): WireCommand = object : WireCommand {
         override val descriptor = CommandDescriptor(name, summary, parameters.toList())
 
         override suspend fun run(arguments: JsonObject): JsonElement = run()

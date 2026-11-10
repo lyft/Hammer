@@ -5,12 +5,9 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
-import com.lyft.hammer.agent.core.AgentCommand
-import com.lyft.hammer.agent.core.AgentError
-import com.lyft.hammer.agent.core.AgentErrorCode
 import com.lyft.hammer.agent.core.ArgumentsError
-import com.lyft.hammer.agent.core.CommandDescriptor
 import com.lyft.hammer.agent.core.JsonArrays
+import com.lyft.hammer.agent.core.WireCommand
 import com.lyft.hammer.agent.core.argumentsHint
 import com.lyft.hammer.agent.core.closestMatch
 import com.lyft.hammer.agent.core.validate
@@ -25,7 +22,7 @@ import kotlinx.coroutines.sync.withLock
  */
 internal class CommandRouter(private val registry: CommandRegistry) {
 
-    constructor(commands: List<AgentCommand>) : this(CommandRegistry.of(commands, AgentLog.Logcat))
+    constructor(commands: List<WireCommand>) : this(CommandRegistry.of(commands, AgentLog.Logcat))
 
     private val mutex = Mutex()
 

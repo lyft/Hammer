@@ -1,6 +1,5 @@
 package com.lyft.hammer.agent
 
-import com.lyft.hammer.agent.core.AgentErrorCode
 
 /**
  * Hammer's request rules. A browser on the host can reach the agent through the `adb forward` port,

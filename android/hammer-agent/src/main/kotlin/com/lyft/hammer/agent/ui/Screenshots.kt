@@ -9,8 +9,8 @@ import android.view.PixelCopy
 import android.view.View
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
-import com.lyft.hammer.agent.core.AgentError
-import com.lyft.hammer.agent.core.AgentErrorCode
+import com.lyft.hammer.agent.AgentError
+import com.lyft.hammer.agent.AgentErrorCode
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext

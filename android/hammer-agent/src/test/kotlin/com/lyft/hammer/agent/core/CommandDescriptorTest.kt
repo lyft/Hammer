@@ -1,7 +1,8 @@
 package com.lyft.hammer.agent.core
 
 import com.google.gson.JsonParser
-import com.google.gson.JsonPrimitive
+import com.lyft.hammer.agent.CommandDescriptor
+import com.lyft.hammer.agent.JsonValue
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 
@@ -16,7 +17,7 @@ class CommandDescriptorTest {
                 CommandDescriptor.Parameter("key", CommandDescriptor.ParameterType.StringValue, "The key.", isRequired = true),
                 CommandDescriptor.Parameter("type", CommandDescriptor.ParameterType.Choice(listOf("boolean", "int")), "The type."),
             ),
-            examples = listOf(CommandDescriptor.Example("Enable a flag", mapOf("key" to JsonPrimitive("my_flag")))),
+            examples = listOf(CommandDescriptor.Example("Enable a flag", mapOf("key" to JsonValue.String("my_flag")))),
         )
 
         assertThat(descriptor.toJson()).isEqualTo(

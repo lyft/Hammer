@@ -7,8 +7,8 @@ import kotlinx.coroutines.withContext
 /** The screen state built-in commands share: windows, refs and the ways to act on them. */
 internal class AgentScreen(application: Application) {
 
-    private val activities = ForegroundActivities(application)
-    private val references = References()
+    val activities = ForegroundActivities(application)
+    val references = References()
     private val reader = ScreenReader(activities)
     private val main = Dispatchers.Main
 

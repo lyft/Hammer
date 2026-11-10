@@ -3,10 +3,7 @@ package com.lyft.hammer.agent
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.lyft.hammer.agent.core.AgentCommand
-import com.lyft.hammer.agent.core.AgentError
-import com.lyft.hammer.agent.core.AgentErrorCode
-import com.lyft.hammer.agent.core.CommandDescriptor
+import com.lyft.hammer.agent.core.WireCommand
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
@@ -194,7 +191,7 @@ class CommandRouterTest {
     private class StubCommand(
         override val descriptor: CommandDescriptor,
         private val output: suspend () -> JsonElement = { JsonObject() },
-    ) : AgentCommand {
+    ) : WireCommand {
         val calls = mutableListOf<JsonObject>()
 
         override suspend fun run(arguments: JsonObject): JsonElement {

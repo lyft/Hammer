@@ -1,7 +1,6 @@
 package com.lyft.hammer.agent
 
-import com.lyft.hammer.agent.core.AgentCommand
-import com.lyft.hammer.agent.core.CommandDescriptor
+import com.lyft.hammer.agent.core.WireCommand
 
 /** Where a command came from, which decides what replaces what when two have the same name. */
 internal enum class CommandSource {
@@ -16,7 +15,7 @@ internal enum class CommandSource {
  */
 internal class CommandRegistry(private val log: AgentLog) {
 
-    private class Registration(val command: AgentCommand, val source: CommandSource, val origin: String)
+    private class Registration(val command: WireCommand, val source: CommandSource, val origin: String)
 
     private val registrations = LinkedHashMap<String, Registration>()
 
@@ -27,7 +26,7 @@ internal class CommandRegistry(private val log: AgentLog) {
         @Synchronized get() = registrations.keys.toList()
 
     @Synchronized
-    fun command(name: String): AgentCommand? = registrations[name]?.command
+    fun command(name: String): WireCommand? = registrations[name]?.command
 
     /**
      * Adds [command], from [origin] such as a registrar's class name.
@@ -35,7 +34,7 @@ internal class CommandRegistry(private val log: AgentLog) {
      * @throws IllegalArgumentException if it uses a reserved parameter name or one parameter twice.
      */
     @Synchronized
-    fun register(command: AgentCommand, source: CommandSource, origin: String) {
+    fun register(command: WireCommand, source: CommandSource, origin: String) {
         val descriptor = command.descriptor
         validate(descriptor)
         val existing = registrations[descriptor.name]
@@ -51,7 +50,7 @@ internal class CommandRegistry(private val log: AgentLog) {
 
     private fun validate(descriptor: CommandDescriptor) {
         val names = descriptor.parameters.map { it.name }
-        val reserved = names.filter { it in CommandDescriptor.RESERVED_PARAMETER_NAMES }
+        val reserved = names.filter { it in CommandDescriptor.reservedParameterNames }
         require(reserved.isEmpty()) { "Command ${descriptor.name} uses reserved parameter names: $reserved" }
         require(names.toSet().size == names.size) { "Command ${descriptor.name} has duplicate parameters: $names" }
     }
@@ -60,7 +59,7 @@ internal class CommandRegistry(private val log: AgentLog) {
         const val BUILTIN_ORIGIN = "the built-in commands"
         const val APP_ORIGIN = "the app"
 
-        fun of(commands: List<AgentCommand>, log: AgentLog): CommandRegistry = CommandRegistry(log).apply {
+        fun of(commands: List<WireCommand>, log: AgentLog): CommandRegistry = CommandRegistry(log).apply {
             commands.forEach { register(it, CommandSource.BUILTIN, BUILTIN_ORIGIN) }
         }
     }

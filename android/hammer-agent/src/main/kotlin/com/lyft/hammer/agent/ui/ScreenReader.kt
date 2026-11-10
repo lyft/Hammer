@@ -7,8 +7,8 @@ import android.graphics.Rect
 import android.os.Build
 import android.view.View
 import android.view.inspector.WindowInspector
-import com.lyft.hammer.agent.core.AgentError
-import com.lyft.hammer.agent.core.AgentErrorCode
+import com.lyft.hammer.agent.AgentError
+import com.lyft.hammer.agent.AgentErrorCode
 
 /** Reads the app's foreground windows into a [Snapshot]. Every method runs on the main thread. */
 internal class ScreenReader(private val activities: ForegroundActivities) {

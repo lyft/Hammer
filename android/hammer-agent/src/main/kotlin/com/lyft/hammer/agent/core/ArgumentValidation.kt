@@ -2,9 +2,10 @@ package com.lyft.hammer.agent.core
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.lyft.hammer.agent.CommandDescriptor
 
 /** A problem with a command's arguments, explained so the caller can correct them. */
-class ArgumentsError(val description: String, val hint: String) : Exception(description)
+internal class ArgumentsError(val description: String, val hint: String) : Exception(description)
 
 /**
  * Checks that [arguments] are declared, have their parameter's type and include the required ones.
@@ -13,7 +14,7 @@ class ArgumentsError(val description: String, val hint: String) : Exception(desc
  *
  * @throws ArgumentsError naming the argument and what it expects.
  */
-fun CommandDescriptor.validate(arguments: JsonObject) {
+internal fun CommandDescriptor.validate(arguments: JsonObject) {
     for ((name, value) in arguments.entrySet().sortedBy { it.key }) {
         val parameter = parameters.firstOrNull { it.name == name }
         if (parameter == null) {
@@ -36,7 +37,7 @@ fun CommandDescriptor.validate(arguments: JsonObject) {
 }
 
 /** Lists the arguments the command takes, to show next to an argument error. */
-val CommandDescriptor.argumentsHint: String
+internal val CommandDescriptor.argumentsHint: String
     get() {
         if (parameters.isEmpty()) return "$name takes no arguments"
         return "$name takes " + parameters.joinToString("; ") { parameter ->
@@ -58,7 +59,7 @@ private fun CommandDescriptor.ParameterType.accepts(value: JsonElement): Boolean
 }
 
 /** The candidate closest to [name], to suggest it for a typo, or null if none is close. */
-fun closestMatch(name: String, candidates: List<String>): String? {
+internal fun closestMatch(name: String, candidates: List<String>): String? {
     val (candidate, distance) = candidates
         .map { it to editDistance(name.lowercase(), it.lowercase()) }
         .minByOrNull { it.second } ?: return null

@@ -2,17 +2,17 @@ package com.lyft.hammer.agent.ui
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.lyft.hammer.agent.core.AgentCommand
+import com.lyft.hammer.agent.CommandDescriptor
 import com.lyft.hammer.agent.core.AgentImage
 import com.lyft.hammer.agent.core.BuiltinCommands
-import com.lyft.hammer.agent.core.CommandDescriptor
+import com.lyft.hammer.agent.core.WireCommand
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** The built-in commands the Android agent runs, with the behavior Hammer's commands reference describes. */
 internal class BuiltinAgentCommands(private val screen: AgentScreen) {
 
-    val all: List<AgentCommand> = listOf(
+    val all: List<WireCommand> = listOf(
         command(BuiltinCommands.describe) { arguments ->
             DescribeOutput.json(screen.snapshot(), all = arguments.boolean("all") ?: false)
         },
@@ -99,8 +99,8 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
         },
     )
 
-    private fun command(descriptor: CommandDescriptor, run: suspend (JsonObject) -> JsonElement): AgentCommand =
-        object : AgentCommand {
+    private fun command(descriptor: CommandDescriptor, run: suspend (JsonObject) -> JsonElement): WireCommand =
+        object : WireCommand {
             override val descriptor = descriptor
 
             override suspend fun run(arguments: JsonObject): JsonElement = run(arguments)

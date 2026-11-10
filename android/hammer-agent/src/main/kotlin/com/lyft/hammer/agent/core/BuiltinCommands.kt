@@ -1,16 +1,16 @@
 package com.lyft.hammer.agent.core
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonPrimitive
-import com.lyft.hammer.agent.core.CommandDescriptor.Example
-import com.lyft.hammer.agent.core.CommandDescriptor.Parameter
-import com.lyft.hammer.agent.core.CommandDescriptor.ParameterType
+import com.lyft.hammer.agent.CommandDescriptor
+import com.lyft.hammer.agent.CommandDescriptor.Example
+import com.lyft.hammer.agent.CommandDescriptor.Parameter
+import com.lyft.hammer.agent.CommandDescriptor.ParameterType
+import com.lyft.hammer.agent.JsonValue
 
 /**
  * The descriptors of the commands the Android agent runs. Mirrors `BuiltinCommands.Android` in Hammer's
  * `HammerAgentCore`, which is the source of truth for names, parameters and examples.
  */
-object BuiltinCommands {
+internal object BuiltinCommands {
 
     val SWIPE_DIRECTIONS = listOf("up", "down", "left", "right")
 
@@ -44,7 +44,7 @@ object BuiltinCommands {
         ),
         examples = listOf(
             Example("List the elements on screen"),
-            Example("Include every view, such as to find one without accessibility information", mapOf("all" to JsonPrimitive(true))),
+            Example("Include every view, such as to find one without accessibility information", mapOf("all" to JsonValue.Bool(true))),
         ),
     )
 
@@ -53,15 +53,15 @@ object BuiltinCommands {
         summary = "Taps an element or a point. Elements match every identifier, label, value and traits given.",
         parameters = targetParameters() + Parameter("count", ParameterType.IntegerValue, "The number of taps, 2 for a double tap. Defaults to 1."),
         examples = listOf(
-            Example("Tap the element with an accessibility identifier", mapOf("identifier" to JsonPrimitive("sign_in"))),
+            Example("Tap the element with an accessibility identifier", mapOf("identifier" to JsonValue.String("sign_in"))),
             Example(
                 "Tap the button labeled Continue",
-                mapOf("label" to JsonPrimitive("Continue"), "traits" to JsonArray().apply { add("button") }),
+                mapOf("label" to JsonValue.String("Continue"), "traits" to JsonValue.Array(JsonValue.String("button"))),
             ),
-            Example("Tap an element from describe", mapOf("ref" to JsonPrimitive("e12"))),
+            Example("Tap an element from describe", mapOf("ref" to JsonValue.String("e12"))),
             Example(
                 "Double tap a point",
-                mapOf("x" to JsonPrimitive(120), "y" to JsonPrimitive(340), "count" to JsonPrimitive(2)),
+                mapOf("x" to JsonValue.Number(120), "y" to JsonValue.Number(340), "count" to JsonValue.Number(2)),
             ),
         ),
     )
@@ -73,7 +73,7 @@ object BuiltinCommands {
         examples = listOf(
             Example(
                 "Long press a cell to open its menu",
-                mapOf("label" to JsonPrimitive("Inbox"), "duration" to JsonPrimitive(1)),
+                mapOf("label" to JsonValue.String("Inbox"), "duration" to JsonValue.Number(1)),
             ),
         ),
     )
@@ -89,11 +89,11 @@ object BuiltinCommands {
         examples = listOf(
             Example(
                 "Scroll a list down to reveal more rows",
-                mapOf("identifier" to JsonPrimitive("results"), "direction" to JsonPrimitive("up")),
+                mapOf("identifier" to JsonValue.String("results"), "direction" to JsonValue.String("up")),
             ),
             Example(
                 "Swipe a cell left to show its actions",
-                mapOf("label" to JsonPrimitive("Inbox"), "direction" to JsonPrimitive("left")),
+                mapOf("label" to JsonValue.String("Inbox"), "direction" to JsonValue.String("left")),
             ),
         ),
     )
@@ -112,7 +112,7 @@ object BuiltinCommands {
             Parameter("distance", ParameterType.NumberValue, "The dp the finger moves. Defaults to 200."),
             Parameter("duration", ParameterType.NumberValue, "The seconds the swipe takes. Defaults to 0.2."),
         ),
-        examples = listOf(Example("Open a navigation drawer", mapOf("direction" to JsonPrimitive("right")))),
+        examples = listOf(Example("Open a navigation drawer", mapOf("direction" to JsonValue.String("right")))),
     )
 
     val drag = CommandDescriptor(
@@ -124,11 +124,11 @@ object BuiltinCommands {
         examples = listOf(
             Example(
                 "Move a slider's thumb to a point",
-                mapOf("identifier" to JsonPrimitive("volume"), "to_x" to JsonPrimitive(300), "to_y" to JsonPrimitive(420)),
+                mapOf("identifier" to JsonValue.String("volume"), "to_x" to JsonValue.Number(300), "to_y" to JsonValue.Number(420)),
             ),
             Example(
                 "Drag a row onto another one",
-                mapOf("ref" to JsonPrimitive("e4"), "to_ref" to JsonPrimitive("e9"), "duration" to JsonPrimitive(1)),
+                mapOf("ref" to JsonValue.String("e4"), "to_ref" to JsonValue.String("e9"), "duration" to JsonValue.Number(1)),
             ),
         ),
     )
@@ -140,9 +140,9 @@ object BuiltinCommands {
         examples = listOf(
             Example(
                 "Tap a field and type into it",
-                mapOf("identifier" to JsonPrimitive("email"), "text" to JsonPrimitive("me@example.com")),
+                mapOf("identifier" to JsonValue.String("email"), "text" to JsonValue.String("me@example.com")),
             ),
-            Example("Type into the field that is already focused", mapOf("text" to JsonPrimitive("hello"))),
+            Example("Type into the field that is already focused", mapOf("text" to JsonValue.String("hello"))),
         ),
     )
 
@@ -159,8 +159,8 @@ object BuiltinCommands {
             ),
         ),
         examples = listOf(
-            Example("Submit the focused field", mapOf("key" to JsonPrimitive("returnOrEnter"))),
-            Example("Go back, such as to close a screen or a dialog", mapOf("key" to JsonPrimitive("deviceBack"))),
+            Example("Submit the focused field", mapOf("key" to JsonValue.String("returnOrEnter"))),
+            Example("Go back, such as to close a screen or a dialog", mapOf("key" to JsonValue.String("deviceBack"))),
         ),
     )
 
@@ -178,11 +178,11 @@ object BuiltinCommands {
         examples = listOf(
             Example(
                 "Wait for the next screen after a tap",
-                mapOf("identifier" to JsonPrimitive("home_title"), "condition" to JsonPrimitive("visible")),
+                mapOf("identifier" to JsonValue.String("home_title"), "condition" to JsonValue.String("visible")),
             ),
             Example(
                 "Wait for a spinner to go away",
-                mapOf("identifier" to JsonPrimitive("loading"), "condition" to JsonPrimitive("gone")),
+                mapOf("identifier" to JsonValue.String("loading"), "condition" to JsonValue.String("gone")),
             ),
         ),
     )
@@ -201,8 +201,8 @@ object BuiltinCommands {
             Parameter("scale", ParameterType.NumberValue, "The pixels per dp. Defaults to 1."),
         examples = listOf(
             Example("See the screen"),
-            Example("Capture it at a typical device's resolution", mapOf("scale" to JsonPrimitive(3))),
-            Example("Capture one element", mapOf("ref" to JsonPrimitive("e3"), "scale" to JsonPrimitive(2))),
+            Example("Capture it at a typical device's resolution", mapOf("scale" to JsonValue.Number(3))),
+            Example("Capture one element", mapOf("ref" to JsonValue.String("e3"), "scale" to JsonValue.Number(2))),
         ),
     )
 }

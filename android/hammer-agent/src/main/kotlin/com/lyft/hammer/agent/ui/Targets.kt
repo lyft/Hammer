@@ -1,8 +1,8 @@
 package com.lyft.hammer.agent.ui
 
 import com.google.gson.JsonObject
-import com.lyft.hammer.agent.core.AgentError
-import com.lyft.hammer.agent.core.AgentErrorCode
+import com.lyft.hammer.agent.AgentError
+import com.lyft.hammer.agent.AgentErrorCode
 import com.lyft.hammer.agent.core.closestMatch
 
 /** What a command acts on, parsed from its target arguments as Hammer's `Target` does. */

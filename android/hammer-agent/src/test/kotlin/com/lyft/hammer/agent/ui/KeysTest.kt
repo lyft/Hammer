@@ -1,7 +1,7 @@
 package com.lyft.hammer.agent.ui
 
 import android.view.KeyEvent
-import com.lyft.hammer.agent.core.AgentError
+import com.lyft.hammer.agent.AgentError
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowableOfType
 import org.junit.Test
