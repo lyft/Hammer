@@ -6,6 +6,9 @@ import com.google.gson.JsonParser
 import com.lyft.hammer.agent.core.WireCommand
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
@@ -148,6 +151,20 @@ class CommandRouterTest {
         assertThat(slowResponse.await().status).isEqualTo(200)
         assertThat(fastResponse.await().status).isEqualTo(200)
         assertThat(fast.calls).hasSize(1)
+    }
+
+    @Test
+    fun respond_cancelledWhileCommandRuns_isCancelledWithoutResponding() = runTest {
+        val hang = StubCommand(CommandDescriptor("hang", "")) { awaitCancellation() }
+        val router = CommandRouter(listOf(hang))
+        var response: HttpResponse? = null
+
+        val job = launch { response = router.respond(request("POST", "/commands/hang")) }
+        runCurrent()
+        job.cancelAndJoin()
+
+        assertThat(hang.calls).hasSize(1)
+        assertThat(response).isNull()
     }
 
     @Test
