@@ -7,7 +7,7 @@ description: Drive and inspect a running iOS or Android app that has Hammer's ag
 
 `hammer` talks to `HammerAgent` running inside the app and sends real touches and key presses from inside it.
 
-If `hammer` isn't installed, download the prebuilt one from the latest release: `curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.zip -o /tmp/hammer-macos.zip && unzip -o /tmp/hammer-macos.zip -d ~/.local/bin`.
+If `hammer` isn't installed, download the prebuilt one from the latest release: `curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.zip -o /tmp/hammer-macos.zip && unzip -o /tmp/hammer-macos.zip -d ~/.local/bin`. On Linux, which drives Android only, extract `hammer-linux-x86_64.tar.gz` or `hammer-linux-aarch64.tar.gz` from the same release into `~/.local/bin`.
 
 1. Run `hammer guide` first. It prints the full instructions and every command the app runs, including the ones the app adds, so it is always up to date.
 2. Start each task with `hammer describe` to see the elements on screen and their refs.

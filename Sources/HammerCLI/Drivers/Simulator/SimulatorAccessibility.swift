@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import CoreGraphics
 import Foundation
@@ -146,3 +147,4 @@ private final class AccessibilityBridge: NSObject, @unchecked Sendable {
 private final class ResponseBox: @unchecked Sendable {
     var value: AnyObject?
 }
+#endif

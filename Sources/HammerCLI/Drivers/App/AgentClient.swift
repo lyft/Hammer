@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import HammerAgentCore
 
 /// Talks to the agent running in the app.

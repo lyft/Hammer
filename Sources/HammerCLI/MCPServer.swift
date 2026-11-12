@@ -9,8 +9,22 @@ import HammerAgentCore
 struct MCPServer {
     let drivers: Drivers
 
+    /// Reads standard input on a thread of its own, so waiting for the client holds none of Swift
+    /// concurrency's threads. Linux's Foundation has no `FileHandle.bytes` to do it.
+    private static func standardInputLines() -> AsyncStream<String> {
+        return AsyncStream { continuation in
+            Thread {
+                while let line = readLine() {
+                    continuation.yield(line)
+                }
+
+                continuation.finish()
+            }.start()
+        }
+    }
+
     func run() async throws {
-        for try await line in FileHandle.standardInput.bytes.lines where !line.isEmpty {
+        for await line in Self.standardInputLines() where !line.isEmpty {
             let message = try? JSONDecoder().decode([String: JSONValue].self, from: Data(line.utf8))
             guard let message else {
                 let error: JSONValue = ["code": -32700, "message": "Parse error"]
@@ -111,7 +125,7 @@ struct MCPServer {
         properties[self.systemArgument] = [
             "type": "boolean",
             "description": .string("""
-                Run on the simulator's or Android device's whole screen from the Mac, to reach system UI \
+                Run on the simulator's or Android device's whole screen, to reach system UI \
                 such as permission alerts. \(arguments).
                 """),
         ]
