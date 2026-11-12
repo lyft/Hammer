@@ -1,6 +1,6 @@
 # Agent HTTP API
 
-The wire contract between an agent and its clients: the `hammer` tool and its MCP server. `HammerAgent` implements it on iOS, and an Android agent implements it over the [Android transport](#android-transport). It is for developing Hammer and agents. Outside tools should use the [command line tool](../cli/getting-started.md), which is the supported interface.
+The wire contract between an agent and its clients: the `hammer` tool and its MCP server. `HammerAgent` implements it on iOS, and the Android agent in `android/` (`com.lyft.hammer:hammer-agent-android`) implements it over the [Android transport](#android-transport). It is for developing Hammer and agents. Outside tools should use the [command line tool](../cli/getting-started.md), which is the supported interface.
 
 The routes, environment variables and shared bodies are defined in [AgentWire.swift](../../Sources/HammerAgentCore/AgentWire.swift), and descriptors in [CommandDescriptor.swift](../../Sources/HammerAgentCore/CommandDescriptor.swift). Both live in `HammerAgentCore`, which the agent and the tool share, so keep this page in sync when changing them. [Built-in commands](commands.md) covers what each command does.
 
@@ -21,13 +21,15 @@ An Android agent serves the same routes, rules and errors over a local socket in
 - **Listen in one process only**, the app's main process. Other processes, such as `:remote`, must not start an agent, since they would compete for the name.
 - **Accept only adb's `shell` user (uid 2000), root (uid 0) and the app's own uid**, from the connecting socket's peer credentials, and close any other connection before reading it. Any app on the device can connect to an abstract socket, so this check is what keeps other apps out; clients can't enforce it.
 - **Apply the [request rules](#request-rules)**, since a browser on the Mac can reach the forwarded port.
-- **Not run a request whose connection the client already closed.** Android freezes cached apps in the background, and a request sent while the app is frozen waits in the socket until it thaws. `hammer` gives up on such a call with `app_frozen` and closes the connection, so the agent must check that the connection is still open after reading a request and drop it otherwise, rather than run a command the caller has moved on from. A readable socket with no bytes left to read, from `poll`, shows the client closed its side.
+- **Not run a request whose connection the client already closed.** Android freezes cached apps in the background, and a request sent while the app is frozen waits in the socket until it thaws. `hammer` gives up on such a call with `app_frozen` and closes the connection, so the agent must check that the connection is still open after reading a request, and again when a request that waited for another command is about to run, and drop it otherwise, rather than run a command the caller has moved on from. A readable socket with no bytes left to read, from `poll`, shows the client closed its side.
 - Measure frames and points in screen dp, and describe its built-in commands with `BuiltinCommands.all(for: .android)`, so clients can describe them before the app runs.
 - Reserve the parameter names in `CommandDescriptor.reservedParameterNames(for: .android)`, which adds `android`, `serial` and `app_id` to the iOS ones, since `hammer --android` takes them as its own options.
 
 The abstract namespace is shared by every user of the device, so only one instance of an app can run an agent, such as the personal and not the work profile one.
 
-`hammer` sends `HAMMER_AGENT_TOKEN` as on iOS. An agent may require a token as well as the peer check, and must answer a missing or wrong one with `401`.
+`hammer` sends `HAMMER_AGENT_TOKEN` as on iOS. An agent may require a token as well as the peer check, and must answer a missing or wrong one with `401`. The agent in `android/` doesn't require one, since Android apps have no environment to read it from.
+
+The agent in `android/` implements this transport. Its built-in descriptors, the reserved parameter names and the error codes are checked against Swift's in CI, see [The Android agent's contract files](android-contract.md).
 
 ## Routes
 

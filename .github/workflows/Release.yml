@@ -33,3 +33,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" hammer-macos.zip --clobber
+  upload_android:
+    name: Upload-Android
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build hammer-agent-android
+        run: ./gradlew :hammer-agent:publishReleasePublicationToReleaseRepository -PVERSION_NAME="$TAG"
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The POM lists the agent's dependencies, for apps that host the AAR in their own Maven repository
+        run: gh release upload "$TAG" hammer-agent/build/release/com/lyft/hammer/hammer-agent-android/"$TAG"/hammer-agent-android-"$TAG".{aar,pom} --clobber

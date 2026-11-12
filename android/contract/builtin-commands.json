@@ -1,0 +1,816 @@
+[
+  {
+    "examples" : [
+      {
+        "arguments" : {
+
+        },
+        "summary" : "List the elements on screen"
+      },
+      {
+        "arguments" : {
+          "all" : true
+        },
+        "summary" : "Include every view, such as to find one without accessibility information"
+      }
+    ],
+    "name" : "describe",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "all",
+        "summary" : "Include every visible view, even without accessibility information.",
+        "type" : {
+          "type" : "boolean"
+        }
+      }
+    ],
+    "summary" : "Returns the tree of visible Views and Jetpack Compose semantics nodes in the app's windows, with their identifier, label, value, traits, frame in screen dp and whether touches reach them. Each has a ref, such as e12, that other commands take to target it. Containers without accessibility information are left out unless `all` is set."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+          "identifier" : "sign_in"
+        },
+        "summary" : "Tap the element with an accessibility identifier"
+      },
+      {
+        "arguments" : {
+          "label" : "Continue",
+          "traits" : [
+            "button"
+          ]
+        },
+        "summary" : "Tap the button labeled Continue"
+      },
+      {
+        "arguments" : {
+          "ref" : "e12"
+        },
+        "summary" : "Tap an element from describe"
+      },
+      {
+        "arguments" : {
+          "count" : 2,
+          "x" : 120,
+          "y" : 340
+        },
+        "summary" : "Double tap a point"
+      }
+    ],
+    "name" : "tap",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "ref",
+        "summary" : "The ref of the element from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "identifier",
+        "summary" : "The resource id name of the element's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "label",
+        "summary" : "The content description of the element, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "value",
+        "summary" : "The text of a text field, or the state of the element.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "traits",
+        "summary" : "Traits the element must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "x",
+        "summary" : "The x coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "y",
+        "summary" : "The y coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "count",
+        "summary" : "The number of taps, 2 for a double tap. Defaults to 1.",
+        "type" : {
+          "type" : "integer"
+        }
+      }
+    ],
+    "summary" : "Taps an element or a point. Elements match every identifier, label, value and traits given."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+          "duration" : 1,
+          "label" : "Inbox"
+        },
+        "summary" : "Long press a cell to open its menu"
+      }
+    ],
+    "name" : "long_press",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "ref",
+        "summary" : "The ref of the element from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "identifier",
+        "summary" : "The resource id name of the element's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "label",
+        "summary" : "The content description of the element, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "value",
+        "summary" : "The text of a text field, or the state of the element.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "traits",
+        "summary" : "Traits the element must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "x",
+        "summary" : "The x coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "y",
+        "summary" : "The y coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "duration",
+        "summary" : "The seconds to hold. Defaults to 2.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Touches an element or a point and holds it."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+          "direction" : "up",
+          "identifier" : "results"
+        },
+        "summary" : "Scroll a list down to reveal more rows"
+      },
+      {
+        "arguments" : {
+          "direction" : "left",
+          "label" : "Inbox"
+        },
+        "summary" : "Swipe a cell left to show its actions"
+      }
+    ],
+    "name" : "swipe",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "ref",
+        "summary" : "The ref of the element from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "identifier",
+        "summary" : "The resource id name of the element's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "label",
+        "summary" : "The content description of the element, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "value",
+        "summary" : "The text of a text field, or the state of the element.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "traits",
+        "summary" : "Traits the element must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "x",
+        "summary" : "The x coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "y",
+        "summary" : "The y coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : true,
+        "name" : "direction",
+        "summary" : "The direction the finger moves.",
+        "type" : {
+          "type" : "choice",
+          "values" : [
+            "up",
+            "down",
+            "left",
+            "right"
+          ]
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "distance",
+        "summary" : "The dp the finger moves. Defaults to 200.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "duration",
+        "summary" : "The seconds the swipe takes. Defaults to 0.2.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Swipes over an element or a point, such as to scroll. Swiping up scrolls the content down."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+          "direction" : "right"
+        },
+        "summary" : "Open a navigation drawer"
+      }
+    ],
+    "name" : "edge_swipe",
+    "parameters" : [
+      {
+        "isRequired" : true,
+        "name" : "direction",
+        "summary" : "The direction the finger moves, starting from the opposite edge.",
+        "type" : {
+          "type" : "choice",
+          "values" : [
+            "up",
+            "down",
+            "left",
+            "right"
+          ]
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "distance",
+        "summary" : "The dp the finger moves. Defaults to 200.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "duration",
+        "summary" : "The seconds the swipe takes. Defaults to 0.2.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Swipes from the edge of the app's window, such as right from the left edge to open a drawer. The system's back and home gestures are outside the app: press_key with deviceBack goes back."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+          "identifier" : "volume",
+          "to_x" : 300,
+          "to_y" : 420
+        },
+        "summary" : "Move a slider's thumb to a point"
+      },
+      {
+        "arguments" : {
+          "duration" : 1,
+          "ref" : "e4",
+          "to_ref" : "e9"
+        },
+        "summary" : "Drag a row onto another one"
+      }
+    ],
+    "name" : "drag",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "ref",
+        "summary" : "The ref of the element to start from from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "identifier",
+        "summary" : "The resource id name of the element to start from's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "label",
+        "summary" : "The content description of the element to start from, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "value",
+        "summary" : "The text of a text field, or the state of the element to start from.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "traits",
+        "summary" : "Traits the element to start from must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "x",
+        "summary" : "The x coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "y",
+        "summary" : "The y coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "to_ref",
+        "summary" : "The ref of the element to end at from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "to_identifier",
+        "summary" : "The resource id name of the element to end at's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "to_label",
+        "summary" : "The content description of the element to end at, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "to_value",
+        "summary" : "The text of a text field, or the state of the element to end at.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "to_traits",
+        "summary" : "Traits the element to end at must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "to_x",
+        "summary" : "The x coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "to_y",
+        "summary" : "The y coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "duration",
+        "summary" : "The seconds the drag takes. Defaults to 0.5.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Touches an element or a point, moves the finger to another one and lifts it."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+          "identifier" : "email",
+          "text" : "me@example.com"
+        },
+        "summary" : "Tap a field and type into it"
+      },
+      {
+        "arguments" : {
+          "text" : "hello"
+        },
+        "summary" : "Type into the field that is already focused"
+      }
+    ],
+    "name" : "type_text",
+    "parameters" : [
+      {
+        "isRequired" : true,
+        "name" : "text",
+        "summary" : "The text to type.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "ref",
+        "summary" : "The ref of the element from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "identifier",
+        "summary" : "The resource id name of the element's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "label",
+        "summary" : "The content description of the element, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "value",
+        "summary" : "The text of a text field, or the state of the element.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "traits",
+        "summary" : "Traits the element must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "x",
+        "summary" : "The x coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "y",
+        "summary" : "The y coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Types text with the hardware keyboard into the focused field. Pass an element to tap it first."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+          "key" : "returnOrEnter"
+        },
+        "summary" : "Submit the focused field"
+      },
+      {
+        "arguments" : {
+          "key" : "deviceBack"
+        },
+        "summary" : "Go back, such as to close a screen or a dialog"
+      }
+    ],
+    "name" : "press_key",
+    "parameters" : [
+      {
+        "isRequired" : true,
+        "name" : "key",
+        "summary" : "The key: a character, a key name such as returnOrEnter, escape, deleteOrBackspace, tab or arrowUp, or deviceBack to go back like the back button.",
+        "type" : {
+          "type" : "string"
+        }
+      }
+    ],
+    "summary" : "Presses a hardware keyboard key, or the device's back button."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+          "condition" : "visible",
+          "identifier" : "home_title"
+        },
+        "summary" : "Wait for the next screen after a tap"
+      },
+      {
+        "arguments" : {
+          "condition" : "gone",
+          "identifier" : "loading"
+        },
+        "summary" : "Wait for a spinner to go away"
+      }
+    ],
+    "name" : "wait_for",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "ref",
+        "summary" : "The ref of the element from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "identifier",
+        "summary" : "The resource id name of the element's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "label",
+        "summary" : "The content description of the element, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "value",
+        "summary" : "The text of a text field, or the state of the element.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "traits",
+        "summary" : "Traits the element must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "x",
+        "summary" : "The x coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "y",
+        "summary" : "The y coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "condition",
+        "summary" : "What to wait for. Defaults to hittable.",
+        "type" : {
+          "type" : "choice",
+          "values" : [
+            "exists",
+            "visible",
+            "hittable",
+            "gone"
+          ]
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "timeout",
+        "summary" : "The seconds to wait. Defaults to 10.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Waits until an element exists, is visible, is hittable or is gone."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+
+        },
+        "summary" : "Wait for a transition to finish before describing the screen"
+      }
+    ],
+    "name" : "wait_for_idle",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "timeout",
+        "summary" : "The seconds to wait. Defaults to 10.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Waits until the app draws no frames and its main thread has nothing queued."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
+
+        },
+        "summary" : "See the screen"
+      },
+      {
+        "arguments" : {
+          "scale" : 3
+        },
+        "summary" : "Capture it at a typical device's resolution"
+      },
+      {
+        "arguments" : {
+          "ref" : "e3",
+          "scale" : 2
+        },
+        "summary" : "Capture one element"
+      }
+    ],
+    "name" : "screenshot",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "ref",
+        "summary" : "The ref of the element to capture, or none for the screen from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "identifier",
+        "summary" : "The resource id name of the element to capture, or none for the screen's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "label",
+        "summary" : "The content description of the element to capture, or none for the screen, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "value",
+        "summary" : "The text of a text field, or the state of the element to capture, or none for the screen.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "traits",
+        "summary" : "Traits the element to capture, or none for the screen must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "scale",
+        "summary" : "The pixels per dp. Defaults to 1.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Returns a PNG image of the app's windows, or of the area of one element."
+  }
+]

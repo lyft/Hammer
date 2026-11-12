@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hammer Views sample</string>
+    <string name="title">Views only</string>
+    <string name="name_hint">Name</string>
+    <string name="greet">Greet</string>
+    <string name="greeting">Hello, %1$s</string>
+</resources>
