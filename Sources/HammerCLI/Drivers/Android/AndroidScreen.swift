@@ -1,5 +1,10 @@
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 import Foundation
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
 import HammerAgentCore
 
 /// An accessibility node on an Android device's screen, from `uiautomator dump`.
@@ -110,9 +115,10 @@ struct AndroidScreen: Sendable {
         try await self.shell("input keyevent \(keyCode)")
     }
 
-    /// The screen as PNG data, with the surfaces of maps and videos that the app's agent can't capture.
+    /// The screen's raw pixels, with the surfaces of maps and videos that the app's agent can't capture.
+    /// Encoding a PNG on the device takes about a second, longer than sending the pixels.
     func screenshot() async throws -> Data {
-        return try await self.adb.runData(["-s", self.serial, "exec-out", "screencap -p"])
+        return try await self.adb.runData(["-s", self.serial, "exec-out", "screencap"])
     }
 
     @discardableResult
@@ -305,8 +311,8 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
             return .zero
         }
 
-        return CGRect(x: numbers[0], y: numbers[1], width: numbers[2] - numbers[0],
-                      height: numbers[3] - numbers[1])
-            .applying(CGAffineTransform(scaleX: 1 / self.scale, y: 1 / self.scale))
+        return CGRect(x: numbers[0] / self.scale, y: numbers[1] / self.scale,
+                      width: (numbers[2] - numbers[0]) / self.scale,
+                      height: (numbers[3] - numbers[1]) / self.scale)
     }
 }
