@@ -1,6 +1,6 @@
 # The hammer command line tool
 
-`hammer` drives an app that runs the [Hammer agent](../agent/getting-started.md), from the Mac. It sends real touches and key presses from inside the app, so it works for scripts, quick checks and AI agents alike.
+`hammer` drives an app that runs the [Hammer agent](../agent/getting-started.md), from a Mac, or from Linux for Android apps. It sends real touches and key presses from inside the app, so it works for scripts, quick checks and AI agents alike.
 
 ## Install
 
@@ -10,6 +10,13 @@ Each release has a prebuilt `hammer` for macOS:
 mkdir -p ~/.local/bin
 curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.zip -o /tmp/hammer-macos.zip
 unzip -o /tmp/hammer-macos.zip -d ~/.local/bin
+```
+
+On Linux, which drives Android only, take the build for your CPU, `x86_64` or `aarch64`:
+
+```bash
+mkdir -p ~/.local/bin
+curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-linux-x86_64.tar.gz | tar -xz -C ~/.local/bin
 ```
 
 From a checkout of this repo you can use `swift run hammer` instead.

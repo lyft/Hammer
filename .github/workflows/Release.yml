@@ -33,6 +33,39 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" hammer-macos.zip --clobber
+  upload_linux:
+    name: Upload-Linux
+    runs-on: ubuntu-latest
+    container: swift:6.4.2
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - name: Install the Static Linux SDK
+        # It must match the container's Swift version; the checksum is the one swift.org publishes with it
+        run: |
+          swift sdk install \
+            https://download.swift.org/swift-6.4.2-release/static-sdk/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz \
+            --checksum 3786b179936d9cc9e266dd506bd1654176358d7b25288e243359f4d17cc4dc5a
+      - name: Build and package hammer
+        # Statically linked against musl, so it runs on any Linux without Swift or its libraries
+        run: |
+          for arch in x86_64 aarch64; do
+            swift build -c release --product hammer --swift-sdk "$arch-swift-linux-musl" -Xlinker -s
+            bin_path="$(swift build -c release --product hammer --swift-sdk "$arch-swift-linux-musl" --show-bin-path)"
+            tar -czf "hammer-linux-$arch.tar.gz" -C "$bin_path" hammer
+          done
+      - name: Install the GitHub CLI
+        run: apt-get update && apt-get install -y gh
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          gh release upload "$TAG" hammer-linux-x86_64.tar.gz hammer-linux-aarch64.tar.gz --clobber
   upload_android:
     name: Upload-Android
     runs-on: ubuntu-latest

@@ -18,6 +18,18 @@ jobs:
       - name: Test hammer
         # Builds only the CLI's tests, since the library targets need UIKit
         run: swift build --target HammerCLITests && swift test --skip-build
+  test_cli_linux:
+    name: Test-CLI-Linux
+    runs-on: ubuntu-latest
+    container: swift:6.4.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Build hammer
+        run: swift build --product hammer
+      - name: Test hammer
+        # On Linux the tests' runner is its own product, which `--target HammerCLITests` doesn't build
+        run: swift build --product HammerPackageTests && swift test --skip-build
   test_ipad:
     name: Test-iPad
     runs-on: xcode-27

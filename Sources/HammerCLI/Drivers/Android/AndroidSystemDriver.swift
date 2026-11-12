@@ -1,8 +1,8 @@
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 import Foundation
 import HammerAgentCore
-import ImageIO
-import UniformTypeIdentifiers
 
 /// Runs commands on an Android device's whole screen through adb, like a person holding the device, so they
 /// reach system UI the app's agent can't, such as permission dialogs and the notification shade.
@@ -163,52 +163,47 @@ struct AndroidSystemDriver: Driver {
     }
 
     /// Crops the screenshot to the area in dp and scales it to the pixels per dp.
-    private static func png(_ data: Data, area: CGRect?, scale: Double,
-                            metrics: AndroidScreen.Metrics) throws -> Data
+    static func png(_ data: Data, area: CGRect?, scale: Double, metrics: AndroidScreen.Metrics) throws
+        -> Data
     {
         guard scale > 0 && scale <= 4 else {
             throw ClientError.invalidArguments("Invalid scale \(scale)",
                                                hint: "Pass a scale above 0 and up to 4")
         }
 
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-        else {
-            throw ClientError.failed(.init(error: "screencap returned no image", code: .failed,
-                                           hint: "Check `adb exec-out screencap -p` works on the device"))
+        let image: ScreenImage
+        do {
+            image = try ScreenImage(screencap: data)
+        } catch {
+            throw ClientError.failed(.init(error: String(describing: error), code: .failed,
+                                           hint: "Check `adb exec-out screencap` works on the device"))
         }
 
         let screen = metrics.bounds
         let crop = (area ?? screen).intersection(screen)
-        guard !crop.isEmpty, let cropped = image.cropping(to: crop.applying(
-            CGAffineTransform(scaleX: metrics.scale, y: metrics.scale)).integral)
-        else {
+        guard !crop.isEmpty else {
+            throw ClientError.invalidArguments("The element's frame is empty or off screen",
+                                               hint: "Call describe to check its frame")
+        }
+
+        let left = max(0, Int((crop.minX * metrics.scale).rounded(.down)))
+        let top = max(0, Int((crop.minY * metrics.scale).rounded(.down)))
+        let right = min(image.width, Int((crop.maxX * metrics.scale).rounded(.up)))
+        let bottom = min(image.height, Int((crop.maxY * metrics.scale).rounded(.up)))
+        guard right > left, bottom > top else {
             throw ClientError.invalidArguments("The element's frame is empty or off screen",
                                                hint: "Call describe to check its frame")
         }
 
         let width = max(1, Int((crop.width * scale).rounded()))
         let height = max(1, Int((crop.height * scale).rounded()))
-        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
-                                      bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
-                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else {
-            throw ClientError.failed(.init(error: "Unable to scale the screenshot", code: .failed))
+        do {
+            return try image.cropped(x: left, y: top, width: right - left, height: bottom - top)
+                .scaled(width: width, height: height)
+                .png()
+        } catch {
+            throw ClientError.failed(.init(error: String(describing: error), code: .failed))
         }
-
-        context.interpolationQuality = .high
-        context.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
-        let output = NSMutableData()
-        guard let scaled = context.makeImage(),
-              let destination = CGImageDestinationCreateWithData(output, UTType.png.identifier as CFString,
-                                                                 1, nil)
-        else {
-            throw ClientError.failed(.init(error: "Unable to encode the screenshot", code: .failed))
-        }
-
-        CGImageDestinationAddImage(destination, scaled, nil)
-        CGImageDestinationFinalize(destination)
-        return output as Data
     }
 }
 
@@ -239,12 +234,12 @@ struct SwipeArguments: Decodable {
         self.duration = try container.decodeIfPresent(Double.self, forKey: .duration)
     }
 
-    private var vector: CGVector {
+    private var vector: (dx: Double, dy: Double) {
         switch self.direction {
-        case .up: return CGVector(dx: 0, dy: -1)
-        case .down: return CGVector(dx: 0, dy: 1)
-        case .left: return CGVector(dx: -1, dy: 0)
-        case .right: return CGVector(dx: 1, dy: 0)
+        case .up: return (0, -1)
+        case .down: return (0, 1)
+        case .left: return (-1, 0)
+        case .right: return (1, 0)
         }
     }
 

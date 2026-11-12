@@ -18,6 +18,10 @@ debugImplementation("com.lyft.hammer:hammer-agent-android:<version>")
 
 See [Adding the agent to an Android app](../android/getting-started.md). Until the app runs, `hammer commands --android` lists the built-in commands, and calls fail with `unreachable`. Other agents implement the [Android transport](../internal/http-api.md#android-transport) and the [built-in commands](../internal/commands.md).
 
+## On Linux
+
+The Linux build of `hammer` drives Android only: iOS needs a Mac, and `--system` without `--android` fails. It is statically linked, so it needs nothing else installed but adb.
+
 ## Picking the device and app
 
 - `--serial <serial>` picks the device or emulator, as `adb devices` lists it. It defaults to `ANDROID_SERIAL`, or the only device that is ready.

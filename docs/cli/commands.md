@@ -43,4 +43,4 @@ See [Live editing](live-editing.md) for how they fit together.
 
 ## System UI
 
-`describe` and `tap` take `--system` to act on the simulator's whole screen from the Mac, such as a permission alert. On Android, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot` take it too. See [System UI](system-ui.md).
+`describe` and `tap` take `--system` to act on the simulator's or Android device's whole screen, such as a permission alert. On Android, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot` take it too. See [System UI](system-ui.md).
