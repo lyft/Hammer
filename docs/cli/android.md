@@ -39,7 +39,7 @@ A `no_device` error lists the attached devices and their states, such as `unauth
 
 ## Built-in commands
 
-An Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `drag`, `type_text`, `press_key`, `wait_for`, `wait_for_idle` and `screenshot`, with the arguments and output of the [built-in commands](../internal/commands.md). [On Android](../internal/commands.md#on-android) lists the rules every Android agent follows: dp coordinates, how elements get their identifier, label, value and traits, the order of windows, and `deviceBack`, which goes back like the device's back button. [How it works](../android/getting-started.md#how-it-works) covers what's particular to Hammer's agent, such as how it sends events and what screenshots leave out.
+An Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `drag`, `pinch`, `type_text`, `press_key`, `wait_for`, `wait_for_idle` and `screenshot`, with the arguments and output of the [built-in commands](../internal/commands.md). [On Android](../internal/commands.md#on-android) lists the rules every Android agent follows: dp coordinates, how elements get their identifier, label, value and traits, the order of windows, and `deviceBack`, which goes back like the device's back button. [How it works](../android/getting-started.md#how-it-works) covers what's particular to Hammer's agent, such as how it sends events and what screenshots leave out.
 
 ## Security
 

@@ -61,6 +61,17 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             screen.injector.drag(from, to, snapshot.density, arguments.double("duration") ?: DEFAULT_DRAG_SECONDS)
             JsonObject()
         },
+        BuiltinCommands.pinch to { arguments ->
+            val target = Target.parse(arguments)
+            val snapshot = screen.snapshot()
+            val (from, to) = Gestures.pinch(
+                center = TargetResolver.touchPoint(target, snapshot),
+                scale = arguments.get("scale").asDouble,
+                distance = arguments.double("distance") ?: DEFAULT_PINCH_DISTANCE,
+            )
+            screen.injector.pinch(from, to, snapshot.density, arguments.double("duration") ?: DEFAULT_PINCH_SECONDS)
+            JsonObject()
+        },
         BuiltinCommands.typeText to { arguments ->
             val target = Target.parse(arguments)
             if (target != Target.None) {
@@ -120,6 +131,8 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
         const val DEFAULT_SWIPE_SECONDS = 0.2
         const val DEFAULT_LONG_PRESS_SECONDS = 2.0
         const val DEFAULT_DRAG_SECONDS = 0.5
+        const val DEFAULT_PINCH_DISTANCE = 200.0
+        const val DEFAULT_PINCH_SECONDS = 0.5
         const val WAIT_POLL_MILLIS = 100L
         const val MILLIS_PER_SECOND = 1000
         const val DEFAULT_TIMEOUT_SECONDS = 10.0

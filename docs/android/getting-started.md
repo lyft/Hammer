@@ -71,6 +71,7 @@ With `debugImplementation`, release builds don't contain the agent, so nothing s
 ## How it works
 
 - Apps can't hold the permission to inject events into the input system, so the agent dispatches touches and keys to the window's root view on the main thread, the way Compose UI tests send them.
+- `pinch` sends two fingers as one multi-touch gesture to the window the first one lands in, with pointer ids 0 and 1.
 - `deviceBack` calls the activity's `onBackPressed`, which runs the app's own back handling, or a dialog's `OnBackPressedDispatcher`.
 - Views that Compose hosts, such as a map in an `AndroidView`, are placed in the Compose tree where they are drawn.
 - A Compose `clickable` without `onLongClick` handles a long press as a tap.

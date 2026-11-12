@@ -133,6 +133,30 @@ internal object BuiltinCommands {
         ),
     )
 
+    val pinch = CommandDescriptor(
+        name = "pinch",
+        summary = "Touches two fingers on either side of an element or a point and moves them apart or together, " +
+            "such as to zoom a map. A scale above 1 spreads them to zoom in, and below 1 brings them together to zoom out.",
+        parameters = targetParameters() + listOf(
+            Parameter(
+                "scale",
+                ParameterType.NumberValue,
+                "The distance between the fingers at the end divided by the one at the start, such as 2 to zoom in or 0.5 " +
+                    "to zoom out.",
+                isRequired = true,
+            ),
+            Parameter("distance", ParameterType.NumberValue, "The dp between the fingers when they're farthest apart. Defaults to 200."),
+            Parameter("duration", ParameterType.NumberValue, "The seconds the pinch takes. Defaults to 0.5."),
+        ),
+        examples = listOf(
+            Example("Zoom a map in", mapOf("identifier" to JsonValue.String("map"), "scale" to JsonValue.Number(2.0))),
+            Example(
+                "Zoom out around a point",
+                mapOf("x" to JsonValue.Number(200.0), "y" to JsonValue.Number(400.0), "scale" to JsonValue.Number(0.5)),
+            ),
+        ),
+    )
+
     val typeText = CommandDescriptor(
         name = "type_text",
         summary = "Types text with the hardware keyboard into the focused field. Pass an element to tap it first.",
@@ -208,6 +232,6 @@ internal object BuiltinCommands {
 
     /** Every built-in command, in the order the agent lists them. */
     val all: List<CommandDescriptor> = listOf(
-        describe, tap, longPress, swipe, edgeSwipe, drag, typeText, pressKey, waitFor, waitForIdle, screenshot,
+        describe, tap, longPress, swipe, edgeSwipe, drag, pinch, typeText, pressKey, waitFor, waitForIdle, screenshot,
     )
 }

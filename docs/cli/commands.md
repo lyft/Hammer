@@ -20,6 +20,7 @@ These are the built-in commands. Run `hammer help <command>` for a command's arg
 | `swipe` | Swipes over an element, such as to scroll. Swiping up scrolls the content down. |
 | `edge-swipe` | Swipes from the edge of the screen, such as right to go back. |
 | `drag` | Drags from one element or point to another. |
+| `pinch` | Pinches around an element or point to zoom in or out. |
 | `type-text` | Types into the focused field, or taps a field first. |
 | `press-key` | Presses a key, such as `returnOrEnter` or `escape`. |
 

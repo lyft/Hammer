@@ -507,6 +507,109 @@
     "examples" : [
       {
         "arguments" : {
+          "identifier" : "map",
+          "scale" : 2
+        },
+        "summary" : "Zoom a map in"
+      },
+      {
+        "arguments" : {
+          "scale" : 0.5,
+          "x" : 200,
+          "y" : 400
+        },
+        "summary" : "Zoom out around a point"
+      }
+    ],
+    "name" : "pinch",
+    "parameters" : [
+      {
+        "isRequired" : false,
+        "name" : "ref",
+        "summary" : "The ref of the element from describe.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "identifier",
+        "summary" : "The resource id name of the element's View, or its Compose test tag.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "label",
+        "summary" : "The content description of the element, or its text.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "value",
+        "summary" : "The text of a text field, or the state of the element.",
+        "type" : {
+          "type" : "string"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "traits",
+        "summary" : "Traits the element must have, such as button, header or selected.",
+        "type" : {
+          "type" : "stringList"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "x",
+        "summary" : "The x coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "y",
+        "summary" : "The y coordinate in screen dp, instead of an element.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : true,
+        "name" : "scale",
+        "summary" : "The distance between the fingers at the end divided by the one at the start, such as 2 to zoom in or 0.5 to zoom out.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "distance",
+        "summary" : "The dp between the fingers when they're farthest apart. Defaults to 200.",
+        "type" : {
+          "type" : "number"
+        }
+      },
+      {
+        "isRequired" : false,
+        "name" : "duration",
+        "summary" : "The seconds the pinch takes. Defaults to 0.5.",
+        "type" : {
+          "type" : "number"
+        }
+      }
+    ],
+    "summary" : "Touches two fingers on either side of an element or a point and moves them apart or together, such as to zoom a map. A scale above 1 spreads them to zoom in, and below 1 brings them together to zoom out."
+  },
+  {
+    "examples" : [
+      {
+        "arguments" : {
           "identifier" : "email",
           "text" : "me@example.com"
         },

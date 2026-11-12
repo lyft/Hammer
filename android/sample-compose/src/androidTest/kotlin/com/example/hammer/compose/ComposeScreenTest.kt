@@ -73,6 +73,30 @@ class ComposeScreenTest {
     }
 
     @Test
+    fun pinch_zoomInThenOut_scalesTheArea() {
+        agent.runOk("pinch", arguments("identifier" to "zoom_area", "scale" to 2))
+        val zoomedIn = zoom()
+        agent.runOk("pinch", arguments("identifier" to "zoom_area", "scale" to 0.5))
+        val zoomedOut = zoom() / zoomedIn
+
+        // Compose starts the transform once the fingers pass the touch slop, so it measures a little less
+        assertThat(zoomedIn).isBetween(1.5, 2.0)
+        assertThat(zoomedOut).isBetween(0.5, 0.67)
+    }
+
+    @Test
+    fun pinch_scaleOfOne_isInvalid() {
+        val response = agent.run("pinch", arguments("identifier" to "zoom_area", "scale" to 1))
+
+        assertThat(response.status).isEqualTo(400)
+        assertThat(JSONObject(response.body).getString("code")).isEqualTo("invalid_arguments")
+        assertThat(zoom()).isEqualTo(1.0)
+    }
+
+    private fun zoom(): Double =
+        agent.element { it.optString("identifier") == "zoom" }!!.getString("label").removePrefix("Zoom: ").toDouble()
+
+    @Test
     fun screenshot_oneElement_isAPng() {
         val image = JSONObject(agent.runOk("screenshot", arguments("identifier" to "count_button")))
 
