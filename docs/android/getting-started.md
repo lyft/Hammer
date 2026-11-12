@@ -14,7 +14,7 @@ dependencies {
 }
 ```
 
-`<version>` is the Hammer release, the same as the `hammer` tool's. That's all: the library's manifest adds a `ContentProvider` that starts the agent when a debuggable build launches, before `Application.onCreate`. The app needs no permission, no code and no `Application` subclass. Logcat shows where it listens:
+`<version>` is the Hammer release, the same as the `hammer` tool's. Each [release](https://github.com/lyft/Hammer/releases) attaches `hammer-agent-android-<version>.aar` and its `.pom`; publish both to a Maven repository your build reads from, so Gradle also resolves the agent's dependencies. That's all: the library's manifest adds a `ContentProvider` that starts the agent when a debuggable build launches, before `Application.onCreate`. The app needs no permission, no code and no `Application` subclass. Logcat shows where it listens:
 
 ```
 I Hammer  : Hammer agent listening on @hammer_com.example.app, adb and this app can control it

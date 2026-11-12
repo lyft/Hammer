@@ -33,42 +33,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" hammer-macos.zip --clobber
-  publish_android:
-    name: Publish-Android
+  upload_android:
+    name: Upload-Android
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
-      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
-      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
     defaults:
       run:
         working-directory: android
     steps:
-      - name: Check for the Maven Central secrets
-        id: secrets
-        run: |
-          if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ] || [ -z "$ORG_GRADLE_PROJECT_signingInMemoryKey" ]; then
-            echo "::notice::Skipping the Android agent: MAVEN_CENTRAL_USERNAME, MAVEN_CENTRAL_PASSWORD, SIGNING_KEY and SIGNING_KEY_PASSWORD aren't set"
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
-        working-directory: .
       - name: Checkout
-        if: steps.secrets.outputs.ready == 'true'
         uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
       - uses: actions/setup-java@v6
-        if: steps.secrets.outputs.ready == 'true'
         with:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
-        if: steps.secrets.outputs.ready == 'true'
-      - name: Upload hammer-agent-android to Maven Central
-        if: steps.secrets.outputs.ready == 'true'
-        # Uploads without releasing; a maintainer releases the deployment in the Central Portal
-        run: ./gradlew :hammer-agent:publishToMavenCentral -PVERSION_NAME="$TAG"
+      - name: Build hammer-agent-android
+        run: ./gradlew :hammer-agent:publishReleasePublicationToReleaseRepository -PVERSION_NAME="$TAG"
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The POM lists the agent's dependencies, for apps that host the AAR in their own Maven repository
+        run: gh release upload "$TAG" hammer-agent/build/release/com/lyft/hammer/hammer-agent-android/"$TAG"/hammer-agent-android-"$TAG".{aar,pom} --clobber
