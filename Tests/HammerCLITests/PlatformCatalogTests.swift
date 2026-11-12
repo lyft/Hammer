@@ -15,7 +15,7 @@ struct PlatformCatalogTests {
     @Test
     func androidCatalogLeavesOutUIKitCommands() {
         #expect(BuiltinCommands.all(for: .android).map(\.name) == [
-            "describe", "tap", "long_press", "swipe", "edge_swipe", "drag", "type_text", "press_key",
+            "describe", "tap", "long_press", "swipe", "edge_swipe", "drag", "pinch", "type_text", "press_key",
             "wait_for", "wait_for_idle", "screenshot",
         ])
         #expect(BuiltinCommands.all(for: .iOS) == BuiltinCommands.all)

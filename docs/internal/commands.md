@@ -17,6 +17,7 @@ Android agents run most of these commands too, with the rules in [On Android](#o
 | [`swipe`](#swipe) | Gesture | Core |
 | [`edge_swipe`](#edge_swipe) | Gesture | Core |
 | [`drag`](#drag) | Gesture | Core |
+| [`pinch`](#pinch) | Gesture | Core |
 | [`type_text`](#type_text) | Keyboard | Core |
 | [`press_key`](#press_key) | Keyboard | Core, with platform key names |
 | [`wait_for`](#wait_for) | Waiting | Core |
@@ -242,6 +243,21 @@ Touches the start, moves to the end and lifts.
 | `duration` | number | `0.5` | Seconds the drag takes. |
 
 Missing either target fails with `invalid_arguments`.
+
+### pinch
+
+Touches two fingers side by side around the target, moves them apart or together and lifts them.
+
+| Parameter | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| target | | center | The point between the fingers. |
+| `scale` | number | required | The distance between the fingers at the end divided by the one at the start. Above 1 zooms in, below 1 zooms out. |
+| `distance` | number | `200` | The distance between the fingers where they're farthest apart: at the end of a zoom in and the start of a zoom out. |
+| `duration` | number | `0.5` | Seconds the pinch takes. |
+
+- **Distances:** `PinchDistances` in `HammerAgentCore` sets them, so every agent pinches the same way. A scale of 4 moves the fingers from 50 to 200 apart, and 0.25 from 200 to 50.
+- **Errors:** a scale that isn't above 0, or is 1, and a distance that isn't above 0 fail with `invalid_arguments`.
+- **Measured scale:** gesture recognizers start once the fingers have moved a little, so they report a little less than the scale, such as 1.85 for 2.
 
 ## Keyboard
 

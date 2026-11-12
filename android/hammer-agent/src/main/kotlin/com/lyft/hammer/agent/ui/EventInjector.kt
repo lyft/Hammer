@@ -52,6 +52,31 @@ internal class EventInjector(
         gesture.end(to)
     }
 
+    /** Puts two fingers down at [from], moves them to [to] over [durationSeconds] and lifts them, for pinches. */
+    suspend fun pinch(from: List<Point>, to: List<Point>, density: Double, durationSeconds: Double) {
+        val durationMillis = durationSeconds.millis
+        val steps = max(MIN_MOVES, (durationMillis / MOVE_INTERVAL_MILLIS).toInt())
+        val gesture = gestureAt(from[0], density)
+        withContext(main) {
+            gesture.dispatchFingers(MotionEvent.ACTION_DOWN, from.take(1))
+            gesture.dispatchFingers(secondFinger(MotionEvent.ACTION_POINTER_DOWN), from)
+        }
+        for (step in 1..steps) {
+            delay(durationMillis / steps)
+            val fraction = step.toDouble() / steps
+            val fingers = from.zip(to) { start, end ->
+                Point(start.x + (end.x - start.x) * fraction, start.y + (end.y - start.y) * fraction)
+            }
+            withContext(main) { gesture.dispatchFingers(MotionEvent.ACTION_MOVE, fingers) }
+        }
+        withContext(main) {
+            gesture.dispatchFingers(secondFinger(MotionEvent.ACTION_POINTER_UP), to)
+            gesture.dispatchFingers(MotionEvent.ACTION_UP, to.take(1))
+        }
+    }
+
+    private fun secondFinger(action: Int) = action or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+
     /** Types [text] as hardware key presses into the focused window, holding shift where a character needs it. */
     suspend fun type(text: String) {
         val keyMap = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD)
@@ -101,12 +126,16 @@ internal class EventInjector(
     }
 
     /** Puts a finger down in the frontmost window at [start]. */
-    private suspend fun begin(start: Point, density: Double): Gesture = withContext(main) {
+    private suspend fun begin(start: Point, density: Double): Gesture =
+        gestureAt(start, density).also { withContext(main) { it.dispatch(MotionEvent.ACTION_DOWN, start) } }
+
+    /** A touch in the frontmost window at [start], before any finger is down. */
+    private suspend fun gestureAt(start: Point, density: Double): Gesture = withContext(main) {
         val x = (start.x * density).toInt()
         val y = (start.y * density).toInt()
         val roots = reader.windowRoots()
         val window = roots.lastOrNull { ScreenReader.screenBounds(it).contains(x, y) } ?: roots.lastOrNull() ?: throw notReady()
-        Gesture(window, density).also { it.dispatch(MotionEvent.ACTION_DOWN, start) }
+        Gesture(window, density)
     }
 
     /** One finger's touch, sent to the window it went down in until it lifts. */
@@ -129,6 +158,45 @@ internal class EventInjector(
                 0,
             )
             event.source = InputDevice.SOURCE_TOUCHSCREEN
+            send(event)
+        }
+
+        /** Sends an event with a finger at each of [points], the first one's pointer id 0, the next one's 1. */
+        fun dispatchFingers(action: Int, points: List<Point>) {
+            val properties = Array(points.size) { index ->
+                MotionEvent.PointerProperties().apply {
+                    id = index
+                    toolType = MotionEvent.TOOL_TYPE_FINGER
+                }
+            }
+            val coordinates = Array(points.size) { index ->
+                MotionEvent.PointerCoords().apply {
+                    x = (points[index].x * density - origin[0]).toFloat()
+                    y = (points[index].y * density - origin[1]).toFloat()
+                    pressure = 1f
+                    size = 1f
+                }
+            }
+            val event = MotionEvent.obtain(
+                downTime,
+                SystemClock.uptimeMillis(),
+                action,
+                points.size,
+                properties,
+                coordinates,
+                0,
+                0,
+                1f,
+                1f,
+                0,
+                0,
+                InputDevice.SOURCE_TOUCHSCREEN,
+                0,
+            )
+            send(event)
+        }
+
+        private fun send(event: MotionEvent) {
             try {
                 window.dispatchTouchEvent(event)
             } finally {
