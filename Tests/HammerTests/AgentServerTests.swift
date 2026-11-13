@@ -57,4 +57,19 @@ final class AgentServerTests: XCTestCase {
         let address = try await agent.rawRequest("GET /commands HTTP/1.1\r\nHost: 127.0.0.1:\(port)")
         XCTAssertEqual(address, 200)
     }
+
+    func testRejectsAnInvalidContentLength() async throws {
+        let agent = HammerAgent(port: 0, token: nil)
+        try await agent.start()
+        defer { agent.stop() }
+
+        let port = try XCTUnwrap(agent.port)
+        for length in ["-1", "abc", "99999999999999999999"] {
+            let status = try await agent.rawRequest("""
+                POST /commands/describe HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nContent-Type: application/json\r\n\
+                Content-Length: \(length)
+                """)
+            XCTAssertEqual(status, 400, length)
+        }
+    }
 }

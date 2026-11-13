@@ -55,7 +55,8 @@ internal class CommandRouter(private val registry: CommandRegistry) {
             } catch (error: AgentError) {
                 val status = if (error.code == AgentErrorCode.INVALID_ARGUMENTS) HttpResponse.BAD_REQUEST else HttpResponse.INTERNAL_SERVER_ERROR
                 HttpResponse.error(status, error.code, error.message.orEmpty(), error.hint)
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
+                // Errors too, such as a StackOverflowError, so one command can't end the app
                 currentCoroutineContext().ensureActive()
                 HttpResponse.error(HttpResponse.INTERNAL_SERVER_ERROR, AgentErrorCode.FAILED, error.message ?: error.toString())
             }

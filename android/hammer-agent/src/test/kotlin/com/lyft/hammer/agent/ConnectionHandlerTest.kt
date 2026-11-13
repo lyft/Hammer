@@ -85,6 +85,39 @@ class ConnectionHandlerTest {
         assertThat(output).endsWith("""{"error":"Invalid request line","code":"invalid_request"}""")
     }
 
+    @Test
+    fun respond_negativeContentLength_isABadRequest() = runTest {
+        val output = respond("POST /commands/tap HTTP/1.1\r\nContent-Length: -1\r\n\r\n", peerUid = 2000)
+
+        assertThat(output).startsWith("HTTP/1.1 400 Bad Request\r\n")
+        assertThat(output).endsWith("""{"error":"Invalid Content-Length","code":"invalid_request"}""")
+    }
+
+    @Test
+    fun respond_deeplyNestedArguments_isABadRequest() = runTest {
+        val body = "{\"a\":" + "[".repeat(100_000) + "]".repeat(100_000) + "}"
+        val output = respond(
+            "POST /commands/tap HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: ${body.length}\r\n\r\n$body",
+            peerUid = 2000,
+        )
+
+        assertThat(output).startsWith("HTTP/1.1 400 Bad Request\r\n")
+        assertThat(output).contains("\"code\":\"invalid_arguments\"")
+        assertThat(tap.runs).isEqualTo(0)
+    }
+
+    @Test
+    fun respond_commandThrowsAnError_answersWithAFailure() = runTest {
+        val handler = ConnectionHandler(CommandRouter(listOf(ThrowingCommand(CommandDescriptor("tap", "Taps.")))))
+        val output = ByteArrayOutputStream()
+
+        handler.respond(TAP_REQUEST.byteInputStream(), output, peerUid = 2000, ownUid = 10123) { false }
+
+        assertThat(output.toString(Charsets.UTF_8.name()))
+            .startsWith("HTTP/1.1 500 Internal Server Error\r\n")
+            .endsWith("""{"error":"java.lang.StackOverflowError","code":"failed"}""")
+    }
+
     private suspend fun respond(raw: String, peerUid: Int, isClientGone: Boolean = false): String {
         val output = ByteArrayOutputStream()
         handler.respond(raw.byteInputStream(), output, peerUid, ownUid = 10123) { isClientGone }
@@ -107,6 +140,10 @@ class ConnectionHandlerTest {
             release.await()
             return emptyJsonObject
         }
+    }
+
+    private class ThrowingCommand(override val descriptor: CommandDescriptor) : WireCommand {
+        override suspend fun run(arguments: JsonValue.Object): JsonValue = throw StackOverflowError()
     }
 
     private companion object {
