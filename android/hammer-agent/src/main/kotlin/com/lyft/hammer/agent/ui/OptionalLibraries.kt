@@ -11,6 +11,18 @@ internal object OptionalLibraries {
     /** `androidx.activity` 1.5 or later, whose back dispatchers [BackDispatchers] calls. */
     val hasActivity: Boolean by lazy { isPresent("androidx.activity.ViewTreeOnBackPressedDispatcherOwner") }
 
+    /**
+     * Espresso's registry of idling resources, which apps fill to tell tests they are busy. Read by
+     * reflection, so the agent doesn't depend on Espresso. Null without it.
+     */
+    val idlingRegistry: Class<*>? by lazy {
+        try {
+            Class.forName("androidx.test.espresso.IdlingRegistry", true, OptionalLibraries::class.java.classLoader)
+        } catch (exception: ClassNotFoundException) {
+            null
+        }
+    }
+
     private fun isPresent(className: String): Boolean = try {
         Class.forName(className, false, OptionalLibraries::class.java.classLoader)
         true

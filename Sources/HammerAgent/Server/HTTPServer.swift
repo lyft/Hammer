@@ -202,6 +202,23 @@ private struct HTTPRequestError: Error {
     let message: String
 }
 
+extension HTTPRequest {
+    /// The body's length from a `Content-Length` header, 0 without one.
+    ///
+    /// - throws: An `HTTPRequestError` if the header isn't a length, such as `-1`.
+    fileprivate static func contentLength(_ header: String?) throws -> Int {
+        guard let header else {
+            return 0
+        }
+
+        guard let length = Int(header), length >= 0 else {
+            throw HTTPRequestError(message: "Invalid Content-Length")
+        }
+
+        return length
+    }
+}
+
 /// Resumes a continuation the first time it is called, since listeners report states after `ready`.
 private final class OneShot: @unchecked Sendable {
     private let lock = NSLock()
@@ -253,7 +270,7 @@ extension NWConnection {
             }
         }
 
-        let contentLength = headers["content-length"].flatMap { Int($0) } ?? 0
+        let contentLength = try HTTPRequest.contentLength(headers["content-length"])
 
         guard contentLength <= limit else {
             throw HTTPRequestError(message: "Request body is too large")

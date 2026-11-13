@@ -1,8 +1,8 @@
 package com.lyft.hammer.agent.ui
 
-import com.google.gson.JsonObject
 import com.lyft.hammer.agent.AgentError
 import com.lyft.hammer.agent.AgentErrorCode
+import com.lyft.hammer.agent.JsonValue
 import com.lyft.hammer.agent.core.closestMatch
 
 /** What a command acts on, parsed from its target arguments as Hammer's `Target` does. */
@@ -21,14 +21,14 @@ internal sealed interface Target {
 
     companion object {
         /** Reads the target from [arguments], whose names may be prefixed, such as `to_ref`. */
-        fun parse(arguments: JsonObject, prefix: String = ""): Target {
-            fun string(name: String) = arguments.get(prefix + name)?.asString
+        fun parse(arguments: JsonValue.Object, prefix: String = ""): Target {
+            fun string(name: String) = arguments[prefix + name]?.stringValue
             val ref = string("ref")
-            val traits = arguments.getAsJsonArray(prefix + "traits")?.map { it.asString }.orEmpty()
+            val traits = arguments[prefix + "traits"]?.arrayValue?.mapNotNull { it.stringValue }.orEmpty()
             val query = Query(string("identifier"), string("label"), string("value"), traits)
                 .takeIf { it.identifier != null || it.label != null || it.value != null || traits.isNotEmpty() }
-            val x = arguments.get(prefix + "x")?.asDouble
-            val y = arguments.get(prefix + "y")?.asDouble
+            val x = arguments[prefix + "x"]?.numberValue
+            val y = arguments[prefix + "y"]?.numberValue
             if ((x == null) != (y == null)) {
                 throw invalid("Pass both ${prefix}x and ${prefix}y for a point")
             }

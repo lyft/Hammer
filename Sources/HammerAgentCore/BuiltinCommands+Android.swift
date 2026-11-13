@@ -130,7 +130,10 @@ extension BuiltinCommands {
 
         public static let typeText = CommandDescriptor(
             name: "type_text",
-            summary: BuiltinCommands.typeText.summary,
+            summary: """
+                Types text into the focused text field, any characters, and presses enter for each line \
+                break. Pass an element to tap it first.
+                """,
             parameters: [.init("text", .string, "The text to type.", isRequired: true)] + targetParameters(),
             examples: BuiltinCommands.typeText.examples
         )
@@ -163,7 +166,11 @@ extension BuiltinCommands {
 
         public static let waitForIdle = CommandDescriptor(
             name: "wait_for_idle",
-            summary: "Waits until the app draws no frames and its main thread has nothing queued.",
+            summary: """
+                Waits until the app draws no frames, its main thread has nothing queued, Compose has no \
+                pending work and Espresso's idling resources, if the app registers any, are idle. Work that \
+                finishes later, such as a network response, needs wait_for.
+                """,
             parameters: BuiltinCommands.waitForIdle.parameters,
             examples: BuiltinCommands.waitForIdle.examples
         )

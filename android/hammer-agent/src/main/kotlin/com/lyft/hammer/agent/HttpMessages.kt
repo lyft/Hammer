@@ -1,7 +1,7 @@
 package com.lyft.hammer.agent
 
-import com.google.gson.JsonElement
 import com.lyft.hammer.agent.core.AgentErrorBody
+import com.lyft.hammer.agent.core.Json
 
 internal class HttpRequest(
     val method: String,
@@ -30,7 +30,7 @@ internal class HttpResponse(val status: Int, val body: String) {
         const val UNSUPPORTED_MEDIA_TYPE = 415
         const val INTERNAL_SERVER_ERROR = 500
 
-        fun json(status: Int, body: JsonElement) = HttpResponse(status, body.toString())
+        fun json(status: Int, body: JsonValue) = HttpResponse(status, Json.encode(body))
 
         fun error(status: Int, code: String, error: String, hint: String? = null) =
             json(status, AgentErrorBody(error = error, code = code, hint = hint).toJson())

@@ -27,11 +27,11 @@ The Linux build of `hammer` drives Android only: iOS needs a Mac, and `--system`
 - `--serial <serial>` picks the device or emulator, as `adb devices` lists it. It defaults to `ANDROID_SERIAL`, or the only device that is ready.
 - `--app-id <application id>` picks the app. It defaults to the only app running an agent, or the focused one when several are.
 
-Both only apply with `--android`, so iOS commands can still take parameters named `serial` and `app_id`. `--port` and `--udid` don't apply with `--android`, and `hammer` rejects them.
+Both only apply with `--android`, so iOS commands can still take parameters named `serial` and `app_id`. `--android` itself chooses the platform before `hammer` knows it, so no command can take a parameter named `android`. `--port` and `--udid` don't apply with `--android`, and `hammer` rejects them.
 
 A `no_device` error lists the attached devices and their states, such as `unauthorized` when the device still shows the USB debugging prompt. An `unreachable` error lists the apps that run an agent.
 
-`hammer` finds `adb` in `ANDROID_HOME` or `ANDROID_SDK_ROOT`, in Android Studio's default SDK, or on the `PATH`, and stops any adb call after 30 seconds. It forwards a local port to the app's socket once and reuses that forward, so `adb forward --list` shows one per app; `adb forward --remove-all` removes them. The MCP server also keeps the device and app it found until a call can't reach the agent.
+`hammer` finds `adb` in `ANDROID_HOME` or `ANDROID_SDK_ROOT`, in Android Studio's default SDK (`~/Library/Android/sdk` on macOS, `~/Android/Sdk` on Linux), or on the `PATH`, and fails with `no_device` and how to install it when there is none. It stops any adb call after 30 seconds with SIGTERM, then SIGKILL, and returns once adb exits, even if a server adb started keeps its output open. It forwards a local port to the app's socket once and reuses that forward, so `adb forward --list` shows one per app; `adb forward --remove-all` removes them. The MCP server also keeps the device and app it found until a call can't reach the agent.
 
 ## System UI
 

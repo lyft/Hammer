@@ -7,12 +7,14 @@ import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import android.system.StructPollfd
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Listens on the abstract socket [socketName] and answers each connection with [handler]. One socket
@@ -26,7 +28,10 @@ internal class SocketListener(
     private val log: AgentLog,
 ) : AgentListener {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // A failure in one connection must never reach the app's uncaught exception handler and end the app
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, error -> log.error("Hammer agent connection failed", error) },
+    )
     private val server = LocalServerSocket(socketName)
 
     @Volatile
@@ -68,6 +73,11 @@ internal class SocketListener(
                 }
             } catch (exception: IOException) {
                 log.warning("Hammer agent connection failed", exception)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                // Such as a StackOverflowError from a command, which would otherwise end the app
+                log.error("Hammer agent couldn't answer a request", error)
             }
         }
     }

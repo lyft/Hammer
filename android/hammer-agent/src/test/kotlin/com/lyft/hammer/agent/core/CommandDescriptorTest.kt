@@ -1,6 +1,5 @@
 package com.lyft.hammer.agent.core
 
-import com.google.gson.JsonParser
 import com.lyft.hammer.agent.CommandDescriptor
 import com.lyft.hammer.agent.JsonValue
 import org.assertj.core.api.Assertions.assertThat
@@ -21,7 +20,7 @@ class CommandDescriptorTest {
         )
 
         assertThat(descriptor.toJson()).isEqualTo(
-            JsonParser.parseString(
+            Json.parse(
                 """
                 {
                   "name": "set_override",
@@ -42,7 +41,7 @@ class CommandDescriptorTest {
         val descriptor = CommandDescriptor(name = "ping", summary = "Pings.")
 
         assertThat(descriptor.toJson()).isEqualTo(
-            JsonParser.parseString("""{"name": "ping", "summary": "Pings.", "parameters": [], "examples": []}"""),
+            Json.parse("""{"name": "ping", "summary": "Pings.", "parameters": [], "examples": []}"""),
         )
     }
 
@@ -62,8 +61,8 @@ class CommandDescriptorTest {
             parameters = types.map { CommandDescriptor.Parameter(it.wireName, it, "") },
         )
 
-        val typeNames = descriptor.toJson().getAsJsonArray("parameters")
-            .map { it.asJsonObject.getAsJsonObject("type").get("type").asString }
+        val typeNames = descriptor.toJson()["parameters"]?.arrayValue.orEmpty()
+            .map { it.objectValue?.get("type")?.objectValue?.get("type")?.stringValue }
 
         assertThat(typeNames).containsExactly("string", "integer", "number", "boolean", "stringList", "json")
     }

@@ -34,7 +34,6 @@ Its dependencies are the oldest versions it works with, so it doesn't change the
 | Library | Version | |
 | --- | --- | --- |
 | kotlinx-coroutines | 1.6.4 or later | |
-| Gson | 2.8.6 or later | |
 | Compose UI | 1.4 or later | Optional: used when the app has it, never added |
 | AndroidX `activity` | 1.5 or later | Optional: used when the app has it, for back in dialogs |
 
@@ -70,13 +69,16 @@ With `debugImplementation`, release builds don't contain the agent, so nothing s
 
 ## How it works
 
-- Apps can't hold the permission to inject events into the input system, so the agent dispatches touches and keys to the window's root view on the main thread, the way Compose UI tests send them.
+- Apps can't hold the permission to inject events into the input system, so the agent dispatches touches and keys to the window's root view on the main thread, the way Compose UI tests send them. A touch goes to the window the input system would pick: windows that aren't touchable, such as a toast, are skipped, and a modal window, such as a dialog, also takes the touches outside it, so a tap there cancels the dialog rather than reaching the screen behind it. `describe` calls the elements behind a modal window not hittable.
+- A gesture that fails or is cancelled after a finger went down sends `ACTION_CANCEL`, so the view doesn't stay pressed.
 - `pinch` sends two fingers as one multi-touch gesture to the window the first one lands in, with pointer ids 0 and 1.
-- `deviceBack` calls the activity's `onBackPressed`, which runs the app's own back handling, or a dialog's `OnBackPressedDispatcher`.
+- `deviceBack` calls the activity's `onBackPressed`, which runs the app's own back handling, a dialog's `OnBackPressedDispatcher`, such as a `ComponentDialog`'s or a Compose dialog's, or a plain `Dialog`'s `onBackPressed`. Callbacks the app registers with the platform's `OnBackInvokedDispatcher` directly only run for the system's back: `hammer press-key --key deviceBack --system`.
+- `type_text` commits the text through the focused field's input connection, as a keyboard app does, so it types any characters, and presses enter for each line break. It fails with `not_found` when no text field has focus.
+- `wait_for_idle` also waits while Compose has pending work, and while an Espresso idling resource the app registers is busy. Windows that open during the wait count too. Work that ends later, such as a network response, needs `wait_for`.
 - Views that Compose hosts, such as a map in an `AndroidView`, are placed in the Compose tree where they are drawn.
 - A Compose `clickable` without `onLongClick` handles a long press as a tap.
 - A `SurfaceView`'s own surface, such as a map's, shows as blank in screenshots. `screenshot --system` captures it.
-- On Android 9 (API 28), the agent sees only the resumed activity's window, not its dialogs or popups. From Android 10 it sees every window of the app.
+- On Android 9 (API 28), the agent reads the app's windows from `WindowManagerGlobal` by reflection, as Espresso does, since Android 9 has no public API for them, and falls back to the resumed activity's window. From Android 10 it uses `WindowInspector`.
 
 ## Next steps
 

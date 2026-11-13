@@ -1,8 +1,8 @@
 package com.lyft.hammer.agent.ui
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.lyft.hammer.agent.core.JsonArrays
+import com.lyft.hammer.agent.JsonValue
+import com.lyft.hammer.agent.core.json
+import com.lyft.hammer.agent.core.jsonObject
 
 /**
  * The output of `describe`: visible elements only, and without `all` only those with accessibility
@@ -12,9 +12,9 @@ internal object DescribeOutput {
 
     private const val FRAME_DECIMALS = 1
 
-    fun json(snapshot: Snapshot, all: Boolean): JsonArray = JsonArrays.of(nodes(snapshot.roots, all))
+    fun json(snapshot: Snapshot, all: Boolean): JsonValue.Array = JsonValue.Array(nodes(snapshot.roots, all))
 
-    private fun nodes(elements: List<Element>, all: Boolean): List<JsonObject> = elements.flatMap { element ->
+    private fun nodes(elements: List<Element>, all: Boolean): List<JsonValue.Object> = elements.flatMap { element ->
         val children = nodes(element.children, all)
         when {
             !element.visible -> emptyList()
@@ -23,17 +23,17 @@ internal object DescribeOutput {
         }
     }
 
-    private fun node(element: Element, children: List<JsonObject>): JsonObject = JsonObject().apply {
-        addProperty("ref", element.ref)
-        addProperty("type", element.type)
-        element.identifier?.takeIf { it.isNotEmpty() }?.let { addProperty("identifier", it) }
-        element.label?.takeIf { it.isNotEmpty() }?.let { addProperty("label", it) }
-        element.value?.takeIf { it.isNotEmpty() }?.let { addProperty("value", it) }
-        if (element.traits.isNotEmpty()) {
-            add("traits", JsonArray().also { array -> Traits.ALL.filter { it in element.traits }.forEach(array::add) })
-        }
-        add("frame", element.frame.toJson(FRAME_DECIMALS))
-        addProperty("hittable", element.hittable)
-        if (children.isNotEmpty()) add("children", JsonArrays.of(children))
-    }
+    private fun node(element: Element, children: List<JsonValue.Object>): JsonValue.Object = jsonObject(
+        "ref" to element.ref.json,
+        "type" to element.type.json,
+        "identifier" to element.identifier?.takeIf { it.isNotEmpty() }?.json,
+        "label" to element.label?.takeIf { it.isNotEmpty() }?.json,
+        "value" to element.value?.takeIf { it.isNotEmpty() }?.json,
+        "traits" to element.traits.takeIf { it.isNotEmpty() }?.let { traits ->
+            JsonValue.Array(Traits.ALL.filter { it in traits }.map { it.json })
+        },
+        "frame" to element.frame.toJson(FRAME_DECIMALS),
+        "hittable" to element.hittable.json,
+        "children" to children.takeIf { it.isNotEmpty() }?.let { JsonValue.Array(it) },
+    )
 }

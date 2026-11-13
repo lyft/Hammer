@@ -1,8 +1,7 @@
 package com.lyft.hammer.agent
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.lyft.hammer.agent.core.WireCommand
+import com.lyft.hammer.agent.core.emptyJsonObject
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.Test
@@ -142,7 +141,7 @@ class AgentCoreTest {
     private fun builtin(name: String): WireCommand = object : WireCommand {
         override val descriptor = CommandDescriptor(name, "")
 
-        override suspend fun run(arguments: JsonObject): JsonElement = JsonObject()
+        override suspend fun run(arguments: JsonValue.Object): JsonValue = emptyJsonObject
     }
 
     private fun appCommand(name: String, vararg parameters: CommandDescriptor.Parameter): AgentCommand = object : AgentCommand {

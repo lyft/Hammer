@@ -1,15 +1,14 @@
 package com.lyft.hammer.agent
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.lyft.hammer.agent.core.WireCommand
+import com.lyft.hammer.agent.core.emptyJsonObject
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.Test
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.Test
 import java.io.ByteArrayOutputStream
 
 class ConnectionHandlerTest {
@@ -86,6 +85,39 @@ class ConnectionHandlerTest {
         assertThat(output).endsWith("""{"error":"Invalid request line","code":"invalid_request"}""")
     }
 
+    @Test
+    fun respond_negativeContentLength_isABadRequest() = runTest {
+        val output = respond("POST /commands/tap HTTP/1.1\r\nContent-Length: -1\r\n\r\n", peerUid = 2000)
+
+        assertThat(output).startsWith("HTTP/1.1 400 Bad Request\r\n")
+        assertThat(output).endsWith("""{"error":"Invalid Content-Length","code":"invalid_request"}""")
+    }
+
+    @Test
+    fun respond_deeplyNestedArguments_isABadRequest() = runTest {
+        val body = "{\"a\":" + "[".repeat(100_000) + "]".repeat(100_000) + "}"
+        val output = respond(
+            "POST /commands/tap HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: ${body.length}\r\n\r\n$body",
+            peerUid = 2000,
+        )
+
+        assertThat(output).startsWith("HTTP/1.1 400 Bad Request\r\n")
+        assertThat(output).contains("\"code\":\"invalid_arguments\"")
+        assertThat(tap.runs).isEqualTo(0)
+    }
+
+    @Test
+    fun respond_commandThrowsAnError_answersWithAFailure() = runTest {
+        val handler = ConnectionHandler(CommandRouter(listOf(ThrowingCommand(CommandDescriptor("tap", "Taps.")))))
+        val output = ByteArrayOutputStream()
+
+        handler.respond(TAP_REQUEST.byteInputStream(), output, peerUid = 2000, ownUid = 10123) { false }
+
+        assertThat(output.toString(Charsets.UTF_8.name()))
+            .startsWith("HTTP/1.1 500 Internal Server Error\r\n")
+            .endsWith("""{"error":"java.lang.StackOverflowError","code":"failed"}""")
+    }
+
     private suspend fun respond(raw: String, peerUid: Int, isClientGone: Boolean = false): String {
         val output = ByteArrayOutputStream()
         handler.respond(raw.byteInputStream(), output, peerUid, ownUid = 10123) { isClientGone }
@@ -95,19 +127,23 @@ class ConnectionHandlerTest {
     private class CountingCommand(override val descriptor: CommandDescriptor) : WireCommand {
         var runs = 0
 
-        override suspend fun run(arguments: JsonObject): JsonElement {
+        override suspend fun run(arguments: JsonValue.Object): JsonValue {
             runs += 1
-            return JsonObject()
+            return emptyJsonObject
         }
     }
 
     private class BlockingCommand(override val descriptor: CommandDescriptor) : WireCommand {
         val release = CompletableDeferred<Unit>()
 
-        override suspend fun run(arguments: JsonObject): JsonElement {
+        override suspend fun run(arguments: JsonValue.Object): JsonValue {
             release.await()
-            return JsonObject()
+            return emptyJsonObject
         }
+    }
+
+    private class ThrowingCommand(override val descriptor: CommandDescriptor) : WireCommand {
+        override suspend fun run(arguments: JsonValue.Object): JsonValue = throw StackOverflowError()
     }
 
     private companion object {

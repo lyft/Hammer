@@ -43,6 +43,8 @@ dependencies {
     // The one line an app adds; the agent starts on its own in debug builds
     debugImplementation(project(":hammer-agent"))
     "nonDebuggableImplementation"(project(":hammer-agent"))
+    // Apps register Espresso idling resources from debug code, which wait_for_idle then waits for
+    debugImplementation(libs.androidx.test.espresso.idling.resource)
 
     androidTestImplementation(project(":test-client"))
     androidTestImplementation(libs.androidx.test.core)

@@ -23,7 +23,7 @@ An Android agent serves the same routes, rules and errors over a local socket in
 - **Apply the [request rules](#request-rules)**, since a browser on the Mac can reach the forwarded port.
 - **Not run a request whose connection the client already closed.** Android freezes cached apps in the background, and a request sent while the app is frozen waits in the socket until it thaws. `hammer` gives up on such a call with `app_frozen` and closes the connection, so the agent must check that the connection is still open after reading a request, and again when a request that waited for another command is about to run, and drop it otherwise, rather than run a command the caller has moved on from. A readable socket with no bytes left to read, from `poll`, shows the client closed its side.
 - Measure frames and points in screen dp, and describe its built-in commands with `BuiltinCommands.all(for: .android)`, so clients can describe them before the app runs.
-- Reserve the parameter names in `CommandDescriptor.reservedParameterNames(for: .android)`, which adds `android`, `serial` and `app_id` to the iOS ones, since `hammer --android` takes them as its own options.
+- Reserve the parameter names in `CommandDescriptor.reservedParameterNames(for: .android)`, which adds `serial` and `app_id` to the iOS ones, since `hammer --android` takes them as its own options. Both platforms reserve `android`, which chooses the platform.
 
 The abstract namespace is shared by every user of the device, so only one instance of an app can run an agent, such as the personal and not the work profile one.
 

@@ -1,6 +1,7 @@
 package com.lyft.hammer.agent.ui
 
-import com.google.gson.JsonParser
+import com.lyft.hammer.agent.JsonValue
+import com.lyft.hammer.agent.core.Json
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
 
@@ -22,7 +23,7 @@ class DescribeOutputTest {
     @Test
     fun json_default_keepsOnlyAccessibleVisibleElements() {
         assertThat(DescribeOutput.json(snapshot, all = false)).isEqualTo(
-            JsonParser.parseString(
+            Json.parse(
                 """
                 [{"ref": "e3", "type": "android.view.View", "identifier": "sign_in", "traits": ["button", "selected"],
                   "frame": {"x": 16, "y": 600, "width": 343, "height": 50}, "hittable": true,
@@ -36,10 +37,10 @@ class DescribeOutputTest {
     @Test
     fun json_all_keepsContainersButNotHiddenElements() {
         val refs = mutableListOf<String>()
-        fun collect(nodes: com.google.gson.JsonArray) {
-            nodes.forEach { node ->
-                refs += node.asJsonObject["ref"].asString
-                node.asJsonObject.getAsJsonArray("children")?.let(::collect)
+        fun collect(nodes: JsonValue) {
+            nodes.arrayValue.orEmpty().forEach { node ->
+                refs += node.objectValue?.get("ref")?.stringValue.orEmpty()
+                node.objectValue?.get("children")?.let(::collect)
             }
         }
 

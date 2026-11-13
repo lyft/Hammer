@@ -29,7 +29,7 @@ hammer sign-in --user test
 ```
 
 - **Names:** use snake case. The tool shows them in kebab case, so `sign_in` becomes `hammer sign-in`.
-- **Parameters:** must match the keys `Arguments` decodes. The agent checks arguments against them before running the command. `output` and `port` are reserved for the tool's own options.
+- **Parameters:** must match the keys `Arguments` decodes. The agent checks arguments against them before running the command. `output`, `port`, `system` and `udid` are reserved for the tool's own options; the agent stops on a command that uses one. Don't use `android` either: `hammer` reads `--android` as its own option to choose the platform, so such a command can't be called with it.
 - **Output:** any `Encodable` value, returned as JSON. Return `NoOutput()` when there is nothing to report.
 - **Events:** `context.eventGenerator()` returns an event generator for the key window, to send touches and keys like the built-in commands.
 - **Errors:** throw `AgentError` with a message and a hint on how to fix the call. Give errors clients may handle a code of their own:

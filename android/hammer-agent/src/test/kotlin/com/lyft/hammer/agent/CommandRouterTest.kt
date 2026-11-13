@@ -1,9 +1,11 @@
 package com.lyft.hammer.agent
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.lyft.hammer.agent.core.Json
 import com.lyft.hammer.agent.core.WireCommand
+import com.lyft.hammer.agent.core.emptyJsonObject
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.Test
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
@@ -11,9 +13,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.Test
 
 class CommandRouterTest {
 
@@ -23,7 +22,7 @@ class CommandRouterTest {
             summary = "Signs in.",
             parameters = listOf(CommandDescriptor.Parameter("user", CommandDescriptor.ParameterType.StringValue, "The user.", isRequired = true)),
         ),
-    ) { JsonParser.parseString("""{"zeta": 1, "alpha": {"b": 2, "a": 1}}""") }
+    ) { Json.parse("""{"zeta": 1, "alpha": {"b": 2, "a": 1}}""") }
 
     @Test
     fun respond_getCommands_listsDescriptorsInRegistrationOrder() = runTest {
@@ -32,7 +31,7 @@ class CommandRouterTest {
         val response = router.respond(request("GET", "/commands"))
 
         assertThat(response.status).isEqualTo(200)
-        assertThat(JsonParser.parseString(response.body).asJsonArray.map { it.asJsonObject["name"].asString })
+        assertThat(Json.parse(response.body).arrayValue.orEmpty().map { it.objectValue?.get("name")?.stringValue })
             .containsExactly("sign_in", "ping")
     }
 
@@ -44,7 +43,7 @@ class CommandRouterTest {
 
         assertThat(response.status).isEqualTo(200)
         assertThat(response.body).isEqualTo("""{"alpha":{"a":1,"b":2},"zeta":1}""")
-        assertThat(signIn.calls).containsExactly(JsonParser.parseString("""{"user": "test"}""").asJsonObject)
+        assertThat(signIn.calls).containsExactly(Json.parse("""{"user": "test"}""") as JsonValue.Object)
     }
 
     @Test
@@ -55,7 +54,7 @@ class CommandRouterTest {
 
         assertThat(response.status).isEqualTo(200)
         assertThat(response.body).isEqualTo("{}")
-        assertThat(ping.calls).containsExactly(JsonObject())
+        assertThat(ping.calls).containsExactly(emptyJsonObject)
     }
 
     @Test
@@ -136,7 +135,7 @@ class CommandRouterTest {
         val release = CompletableDeferred<Unit>()
         val slow = StubCommand(CommandDescriptor("slow", "")) {
             release.await()
-            JsonObject()
+            emptyJsonObject
         }
         val fast = StubCommand(CommandDescriptor("fast", ""))
         val router = CommandRouter(listOf(slow, fast))
@@ -207,11 +206,11 @@ class CommandRouterTest {
 
     private class StubCommand(
         override val descriptor: CommandDescriptor,
-        private val output: suspend () -> JsonElement = { JsonObject() },
+        private val output: suspend () -> JsonValue = { emptyJsonObject },
     ) : WireCommand {
-        val calls = mutableListOf<JsonObject>()
+        val calls = mutableListOf<JsonValue.Object>()
 
-        override suspend fun run(arguments: JsonObject): JsonElement {
+        override suspend fun run(arguments: JsonValue.Object): JsonValue {
             calls += arguments
             return output()
         }
