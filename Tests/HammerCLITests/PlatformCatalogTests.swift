@@ -9,7 +9,9 @@ struct PlatformCatalogTests {
 
     @Test
     func androidIsReservedOnBothPlatformsSinceItChoosesThePlatform() {
-        #expect(CommandDescriptor.reservedParameterNames(for: .iOS) == ["output", "port", "system", "udid", "android"])
+        #expect(CommandDescriptor.reservedParameterNames(for: .iOS) == [
+            "output", "port", "system", "udid", "android",
+        ])
         #expect(CommandDescriptor.reservedParameterNames(for: .android) == [
             "output", "port", "system", "udid", "android", "serial", "app_id",
         ])

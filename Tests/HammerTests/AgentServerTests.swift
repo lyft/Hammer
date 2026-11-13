@@ -66,8 +66,8 @@ final class AgentServerTests: XCTestCase {
         let port = try XCTUnwrap(agent.port)
         for length in ["-1", "abc", "99999999999999999999"] {
             let status = try await agent.rawRequest("""
-                POST /commands/describe HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nContent-Type: application/json\r\n\
-                Content-Length: \(length)
+                POST /commands/describe HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\
+                Content-Type: application/json\r\nContent-Length: \(length)
                 """)
             XCTAssertEqual(status, 400, length)
         }

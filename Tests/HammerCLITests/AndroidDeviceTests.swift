@@ -183,8 +183,8 @@ struct AndroidDeviceTests {
     @Test
     func adbIsFoundOnThePathWithoutAnSDK() async throws {
         let fake = try FakeAdb(devices: "", script: "echo from-path; exit 0")
-        let adb = Adb(environment: ["PATH": "/nonexistent:\(fake.home.appending(path: "platform-tools").path)"],
-                      home: "/nonexistent")
+        let tools = fake.home.appending(path: "platform-tools").path
+        let adb = Adb(environment: ["PATH": "/nonexistent:\(tools)"], home: "/nonexistent")
 
         #expect(try await adb.run(["version"]) == "from-path\n")
     }
@@ -192,7 +192,8 @@ struct AndroidDeviceTests {
     @Test
     func adbIsFoundInTheLinuxSDK() async throws {
         let home = FileManager.default.temporaryDirectory.appending(path: "hammer-home-\(UUID().uuidString)")
-        let fake = try FakeAdb(devices: "", script: "echo linux-sdk; exit 0", home: home.appending(path: "Android/Sdk"))
+        let fake = try FakeAdb(devices: "", script: "echo linux-sdk; exit 0",
+                               home: home.appending(path: "Android/Sdk"))
         let adb = Adb(environment: ["PATH": "/nonexistent"], home: home.path)
 
         #expect(fake.home.path.hasSuffix("Android/Sdk"))
@@ -226,10 +227,11 @@ struct AndroidDeviceTests {
 struct FakeAdb {
     let home: URL
 
-    init(devices: String, failure: String? = nil, hang: Bool = false, noisy: Bool = false, script: String? = nil,
-         home: URL? = nil) throws
+    init(devices: String, failure: String? = nil, hang: Bool = false, noisy: Bool = false,
+         script: String? = nil, home: URL? = nil) throws
     {
-        self.home = home ?? FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
+        self.home = home
+            ?? FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
         let tools = self.home.appending(path: "platform-tools")
         try FileManager.default.createDirectory(at: tools, withIntermediateDirectories: true)
         let script = """

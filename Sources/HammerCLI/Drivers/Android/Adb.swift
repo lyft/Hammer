@@ -86,7 +86,8 @@ struct Adb: Sendable {
         return result.stdout
     }
 
-    static let installHint = "Install the Android SDK platform tools, and set ANDROID_HOME or put adb on the PATH"
+    static let installHint =
+        "Install the Android SDK platform tools, and set ANDROID_HOME or put adb on the PATH"
 }
 
 /// One adb process, read and waited for on a thread of its own, off the cooperative thread pool.
@@ -126,11 +127,14 @@ private final class AdbProcess: @unchecked Sendable {
     func run(timeout: Duration) async throws -> Result {
         let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
         return try await withCheckedThrowingContinuation { continuation in
-            Thread { continuation.resume(with: Swift.Result { try self.runBlocking(timeout: seconds) }) }.start()
+            Thread {
+                continuation.resume(with: Swift.Result { try self.runBlocking(timeout: seconds) })
+            }.start()
         }
     }
 
-    /// Stops adb, as when the caller is cancelled. Only adb: a server it started is shared with other clients.
+    /// Stops adb, as when the caller is cancelled. Only adb: a server it started is shared with other
+    /// clients.
     func terminate() {
         let pid = self.lock.withLock {
             self.cancelled = true
@@ -145,7 +149,8 @@ private final class AdbProcess: @unchecked Sendable {
         var outputPipe: [Int32] = [-1, -1]
         var errorPipe: [Int32] = [-1, -1]
         guard pipe(&outputPipe) == 0, pipe(&errorPipe) == 0 else {
-            throw ClientError.noDevice("Unable to run adb: \(String(cString: strerror(errno)))", hint: Adb.installHint)
+            throw ClientError.noDevice("Unable to run adb: \(String(cString: strerror(errno)))",
+                                       hint: Adb.installHint)
         }
 
         // The child gets copies on 1 and 2; these ends stay out of it and of what it starts
@@ -207,7 +212,8 @@ private final class AdbProcess: @unchecked Sendable {
         posix_spawnattr_init(&attributes)
         defer { posix_spawnattr_destroy(&attributes) }
         let open = (try? FileManager.default.contentsOfDirectory(atPath: "/proc/self/fd")) ?? []
-        for descriptor in open.compactMap({ Int32($0) }) where descriptor > 2 && descriptor != output && descriptor != error {
+        let inherited = open.compactMap { Int32($0) }.filter { $0 > 2 && $0 != output && $0 != error }
+        for descriptor in inherited {
             posix_spawn_file_actions_addclose(&actions, descriptor)
         }
         #endif
@@ -224,7 +230,8 @@ private final class AdbProcess: @unchecked Sendable {
             result = posix_spawn(&pid, self.executable.path, &actions, &attributes, argv, environment)
         }
         guard result == 0 else {
-            throw ClientError.noDevice("Unable to run adb: \(String(cString: strerror(result)))", hint: Adb.installHint)
+            throw ClientError.noDevice("Unable to run adb: \(String(cString: strerror(result)))",
+                                       hint: Adb.installHint)
         }
 
         return pid
@@ -234,8 +241,10 @@ private final class AdbProcess: @unchecked Sendable {
     /// they closed or went quiet, stopping adb when it takes longer than [timeout].
     private func read(output: Int32, error: Int32, pid: pid_t, timeout: TimeInterval) -> Result {
         var data = [Data(), Data()]
-        var descriptors = [pollfd(fd: output, events: Int16(POLLIN), revents: 0),
-                           pollfd(fd: error, events: Int16(POLLIN), revents: 0)]
+        var descriptors = [
+            pollfd(fd: output, events: Int16(POLLIN), revents: 0),
+            pollfd(fd: error, events: Int16(POLLIN), revents: 0),
+        ]
         let deadline = Date(timeIntervalSinceNow: timeout)
         var timedOut = false
         var killAt: Date?
@@ -251,16 +260,12 @@ private final class AdbProcess: @unchecked Sendable {
 
             let open = descriptors.contains { $0.fd >= 0 }
             if let status, !open || Date().timeIntervalSince(lastActivity) >= Self.drainIdle {
-                return Result(status: Self.exitCode(status), stdout: data[0], stderr: data[1], timedOut: timedOut)
+                return Result(status: Self.exitCode(status), stdout: data[0], stderr: data[1],
+                              timedOut: timedOut)
             }
 
-            if status == nil, !timedOut, Date() >= deadline {
-                timedOut = true
-                kill(pid, SIGTERM)
-                killAt = Date(timeIntervalSinceNow: Self.killGrace)
-            } else if status == nil, let due = killAt, Date() >= due {
-                kill(pid, SIGKILL)
-                killAt = nil
+            if status == nil {
+                Self.stopIfLate(pid: pid, deadline: deadline, timedOut: &timedOut, killAt: &killAt)
             }
 
             guard open else {
@@ -272,8 +277,12 @@ private final class AdbProcess: @unchecked Sendable {
                 continue
             }
 
-            for index in descriptors.indices where descriptors[index].fd >= 0 && descriptors[index].revents != 0 {
-                let count = buffer.withUnsafeMutableBytes { Foundation.read(descriptors[index].fd, $0.baseAddress, $0.count) }
+            let ready = descriptors.indices.filter { descriptors[$0].fd >= 0 && descriptors[$0].revents != 0 }
+            for index in ready {
+                let descriptor = descriptors[index].fd
+                let count = buffer.withUnsafeMutableBytes {
+                    Foundation.read(descriptor, $0.baseAddress, $0.count)
+                }
                 if count > 0 {
                     data[index].append(contentsOf: buffer[0..<count])
                     lastActivity = Date()
@@ -281,6 +290,18 @@ private final class AdbProcess: @unchecked Sendable {
                     descriptors[index].fd = -1
                 }
             }
+        }
+    }
+
+    /// Sends SIGTERM once [deadline] passes, then SIGKILL if adb is still running after the grace period.
+    private static func stopIfLate(pid: pid_t, deadline: Date, timedOut: inout Bool, killAt: inout Date?) {
+        if !timedOut, Date() >= deadline {
+            timedOut = true
+            kill(pid, SIGTERM)
+            killAt = Date(timeIntervalSinceNow: Self.killGrace)
+        } else if let due = killAt, Date() >= due {
+            kill(pid, SIGKILL)
+            killAt = nil
         }
     }
 
