@@ -42,6 +42,13 @@ class ViewsOnlyTest {
     }
 
     @Test
+    fun describe_blankContentDescription_labelsTheTextViewWithItsText() {
+        val note = agent.element { it.optString("identifier") == "note" }
+
+        assertThat(note?.optString("label")).isEqualTo("Greetings are not saved")
+    }
+
+    @Test
     fun typeTextThenTap_greetsTheName() {
         agent.runOk("type_text", arguments("identifier" to "name_field", "text" to "Ada"))
         agent.runOk("tap", arguments("label" to "Greet"))

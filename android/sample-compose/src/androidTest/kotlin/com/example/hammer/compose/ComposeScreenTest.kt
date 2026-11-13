@@ -42,6 +42,13 @@ class ComposeScreenTest {
     }
 
     @Test
+    fun describe_blankContentDescription_labelsTheElementWithItsText() {
+        val row = agent.element { it.optString("identifier") == "blank_description_row" }
+
+        assertThat(row?.optString("label")).isEqualTo("Add to count")
+    }
+
+    @Test
     fun tapByIdentifierLabelAndRef_countsEachTap() {
         agent.runOk("tap", arguments("identifier" to "count_button"))
         agent.runOk("wait_for", arguments("label" to "Count: 1", "timeout" to 5))

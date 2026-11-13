@@ -5,4 +5,5 @@
     <string name="name_hint">Name</string>
     <string name="greet">Greet</string>
     <string name="greeting">Hello, %1$s</string>
+    <string name="note">Greetings are not saved</string>
 </resources>
