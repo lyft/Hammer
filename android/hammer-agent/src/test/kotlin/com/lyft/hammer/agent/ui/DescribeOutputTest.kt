@@ -51,14 +51,16 @@ class DescribeOutputTest {
 
     @Test
     fun json_default_keepsUnlabeledElementsWhoseContentNeedsASystemRead() {
-        val web = element("e6", Frame(0.0, 100.0, 400.0, 600.0), needsSystemRead = true)
+        val web = element(
+            "e6", Frame(0.0, 100.0, 400.0, 600.0), needsSystemRead = true, accessibilityClass = "android.webkit.WebView",
+        )
         val page = Snapshot(listOf(window(element("e2", SCREEN, children = listOf(web)))), SCREEN)
 
         assertThat(DescribeOutput.json(page, all = false)).isEqualTo(
             Json.parse(
                 """
                 [{"ref": "e6", "type": "android.view.View", "frame": {"x": 0, "y": 100, "width": 400, "height": 600},
-                  "hittable": true, "needsSystemRead": true}]
+                  "hittable": true, "needsSystemRead": true, "accessibilityClass": "android.webkit.WebView"}]
                 """,
             ),
         )

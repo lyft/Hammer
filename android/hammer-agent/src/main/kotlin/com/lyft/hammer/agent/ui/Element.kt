@@ -9,6 +9,8 @@ package com.lyft.hammer.agent.ui
  *   or a window's root, which decides what else is hittable.
  * @property needsSystemRead whether its content exists only for accessibility services, such as a web
  *   page's, which the hammer tool reads through its system helper.
+ * @property accessibilityClass the class accessibility services read a [needsSystemRead] view as, such as
+ *   `android.webkit.WebView` for a web view of any subclass, so the tool finds it in the helper's read.
  */
 internal class Element(
     val owner: Any,
@@ -23,6 +25,7 @@ internal class Element(
     val consumesTouches: Boolean,
     val children: List<Element>,
     val needsSystemRead: Boolean = false,
+    val accessibilityClass: String? = null,
 ) {
     var ref: String = ""
     var hittable: Boolean = false
@@ -37,7 +40,7 @@ internal class Element(
         get() = consumesTouches || traits.any { it in ACTIONABLE_TRAITS }
 
     fun withChildren(children: List<Element>) =
-        Element(owner, nodeId, type, identifier, label, value, traits, frame, visible, consumesTouches, children, needsSystemRead)
+        Element(owner, nodeId, type, identifier, label, value, traits, frame, visible, consumesTouches, children, needsSystemRead, accessibilityClass)
             .also { it.ref = ref }
 
     private companion object {

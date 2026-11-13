@@ -11,6 +11,7 @@ internal fun element(
     consumesTouches: Boolean = false,
     children: List<Element> = emptyList(),
     needsSystemRead: Boolean = false,
+    accessibilityClass: String? = null,
 ) = Element(
     owner = Any(),
     nodeId = null,
@@ -24,6 +25,7 @@ internal fun element(
     consumesTouches = consumesTouches,
     children = children,
     needsSystemRead = needsSystemRead,
+    accessibilityClass = accessibilityClass,
 ).also { it.ref = ref }
 
 internal val SCREEN = Frame(0.0, 0.0, 400.0, 800.0)

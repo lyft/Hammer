@@ -35,6 +35,7 @@ internal object DescribeOutput {
         "frame" to element.frame.toJson(FRAME_DECIMALS),
         "hittable" to element.hittable.json,
         "needsSystemRead" to element.needsSystemRead.takeIf { it }?.json,
+        "accessibilityClass" to element.accessibilityClass?.takeIf { element.needsSystemRead }?.json,
         "children" to children.takeIf { it.isNotEmpty() }?.let { JsonValue.Array(it) },
     )
 }

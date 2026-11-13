@@ -117,7 +117,7 @@ struct AndroidAgentClient: Driver {
 }
 
 extension AndroidAgentClient {
-    /// How many times describe reads a marked view whose content is empty, and how long it waits between.
+    /// How many times describe reads a web view whose content is empty, and how long it waits between.
     static let systemReadAttempts = 3
     static let systemReadRetryDelay: Duration = .milliseconds(300)
 
@@ -137,10 +137,11 @@ extension AndroidAgentClient {
             var contents: [[JSONValue]?] = []
             for attempt in 1...Self.systemReadAttempts {
                 let windows = try await self.appWindows()
-                contents = regions.map { SystemReads.content(of: $0, in: windows) }
-                // A web view builds its accessibility tree on the first read, so that one can come back empty
-                let isEmpty = contents.contains { $0?.isEmpty ?? true }
-                guard attempt < Self.systemReadAttempts, isEmpty else {
+                contents = SystemReads.contents(of: regions, in: windows)
+                // A web view builds its accessibility tree on the first read, so that one can come back
+                // empty. Other views read the same every time, and a view the helper didn't find won't appear
+                let isBuilding = zip(regions, contents).contains { $0.isWebView && $1?.isEmpty == true }
+                guard attempt < Self.systemReadAttempts, isBuilding else {
                     break
                 }
 
@@ -213,7 +214,7 @@ extension AndroidAgentClient {
             return nil
         }
 
-        let content = regions.compactMap { SystemReads.content(of: $0, in: windows) }.flatMap { $0 }
+        let content = SystemReads.contents(of: regions, in: windows).compactMap { $0 }.flatMap { $0 }
         let matches = SystemReads.matches(query, in: content)
         guard matches.count < 2 else {
             throw ClientError.failed(.init(
@@ -224,16 +225,31 @@ extension AndroidAgentClient {
         return matches.first.flatMap { SystemReads.frame(of: $0) }.map { CGPoint(x: $0.midX, y: $0.midY) }
     }
 
-    /// The app's windows through the system helper, in dp.
+    /// The app's windows through the system helper, in dp. App commands use a helper that already runs, since
+    /// starting one takes UiAutomation from UI tests and uiautomator, unless
+    /// `HAMMER_SYSTEM_HELPER=auto` lets them start it.
     private func appWindows() async throws -> [AndroidElement] {
         let (device, _) = try await self.connection.endpoint(self.find)
-        guard AndroidSystemHelper.isEnabled(environment: self.adb.environment) else {
+        let environment = self.adb.environment
+        guard AndroidSystemHelper.isEnabled(environment: environment) else {
             throw AndroidSystemHelper.Unavailable(
                 description: "\(AndroidSystemHelper.enabledEnvironmentKey) is 0")
         }
 
         let helper = AndroidSystemHelper(adb: self.adb, serial: device.serial)
-        let screen = HelperScreen(client: try await helper.client(), adb: self.adb, serial: device.serial)
+        let client: AgentClient
+        if AndroidSystemHelper.startsForAppCommands(environment: environment) {
+            client = try await helper.client()
+        } else if let running = try await helper.runningClient() {
+            client = running
+        } else {
+            throw AndroidSystemHelper.Unavailable(description: """
+                the system helper isn't running. Start it with `hammer system start --android`, or set \
+                \(AndroidSystemHelper.enabledEnvironmentKey)=auto to let app commands start it
+                """)
+        }
+
+        let screen = HelperScreen(client: client, adb: self.adb, serial: device.serial)
         let metrics = try await screen.metrics()
         return try await screen.windows(of: device.appID, scale: metrics.scale)
     }

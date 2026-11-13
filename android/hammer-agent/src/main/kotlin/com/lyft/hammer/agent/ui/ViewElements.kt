@@ -35,6 +35,7 @@ internal class ViewElements(private val density: Double) {
         } else {
             views
         }
+        val needsSystemRead = !isComposeRoot && hasVirtualContent(view)
         return Element(
             owner = view,
             nodeId = null,
@@ -47,7 +48,8 @@ internal class ViewElements(private val density: Double) {
             visible = visible,
             consumesTouches = isWindowRoot || consumesTouches(view),
             children = children,
-            needsSystemRead = !isComposeRoot && hasVirtualContent(view),
+            needsSystemRead = needsSystemRead,
+            accessibilityClass = if (needsSystemRead) view.accessibilityClassName?.toString() else null,
         )
     }
 
