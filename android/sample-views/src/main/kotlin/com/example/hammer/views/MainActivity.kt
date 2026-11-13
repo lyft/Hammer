@@ -14,6 +14,8 @@ class MainActivity : ComponentActivity() {
         setContentView(R.layout.activity_main)
         val name = findViewById<EditText>(R.id.name_field)
         val greeting = findViewById<TextView>(R.id.greeting)
+        // Text with an empty content description, as text with optional accessibility text has
+        findViewById<TextView>(R.id.note).contentDescription = ""
         findViewById<Button>(R.id.greet_button).setOnClickListener {
             greeting.text = getString(R.string.greeting, name.text)
         }

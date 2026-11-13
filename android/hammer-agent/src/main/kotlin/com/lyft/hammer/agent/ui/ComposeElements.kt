@@ -49,8 +49,7 @@ internal class ComposeElements(private val density: Double) {
             nodeId = node.id,
             type = type(config, editable != null),
             identifier = config.getOrNull(SemanticsProperties.TestTag),
-            label = config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(", ")
-                ?: config.getOrNull(SemanticsProperties.Text)?.joinToString(" ") { it.text },
+            label = label(config),
             value = editable?.text ?: config.getOrNull(SemanticsProperties.StateDescription) ?: toggleValue(config),
             traits = traits(config, editable != null),
             frame = (if (visible) visibleBounds else bounds).toFrame(density),
@@ -58,6 +57,17 @@ internal class ComposeElements(private val density: Double) {
             consumesTouches = consumesTouches(config),
             children = node.children.map { element(it, root, windowOrigin, if (visible) visibleBounds else Rect(), visible) },
         )
+    }
+
+    /**
+     * The content description, or the text when there is none. A merged node collects its children's
+     * descriptions, and a blank one, such as optional accessibility text left empty, would hide the text
+     * that accessibility services read instead.
+     */
+    private fun label(config: SemanticsConfiguration): String? {
+        val descriptions = config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().filter { it.isNotBlank() }
+        if (descriptions.isNotEmpty()) return descriptions.joinToString(", ")
+        return config.getOrNull(SemanticsProperties.Text)?.joinToString(" ") { it.text }
     }
 
     private fun type(config: SemanticsConfiguration, editable: Boolean): String {
