@@ -31,7 +31,7 @@ Both only apply with `--android`, so iOS commands can still take parameters name
 
 A `no_device` error lists the attached devices and their states, such as `unauthorized` when the device still shows the USB debugging prompt. An `unreachable` error lists the apps that run an agent.
 
-`hammer` finds `adb` in `ANDROID_HOME` or `ANDROID_SDK_ROOT`, in Android Studio's default SDK, or on the `PATH`, and stops any adb call after 30 seconds. It forwards a local port to the app's socket once and reuses that forward, so `adb forward --list` shows one per app; `adb forward --remove-all` removes them. The MCP server also keeps the device and app it found until a call can't reach the agent.
+`hammer` finds `adb` in `ANDROID_HOME` or `ANDROID_SDK_ROOT`, in Android Studio's default SDK (`~/Library/Android/sdk` on macOS, `~/Android/Sdk` on Linux), or on the `PATH`, and fails with `no_device` and how to install it when there is none. It stops any adb call after 30 seconds with SIGTERM, then SIGKILL, and returns once adb exits, even if a server adb started keeps its output open. It forwards a local port to the app's socket once and reuses that forward, so `adb forward --list` shows one per app; `adb forward --remove-all` removes them. The MCP server also keeps the device and app it found until a call can't reach the agent.
 
 ## System UI
 
