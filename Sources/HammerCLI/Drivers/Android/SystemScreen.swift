@@ -19,7 +19,7 @@ protocol SystemScreen: Sendable {
 
     func type(_ text: String) async throws
 
-    /// Presses a key by its name after `KEYCODE_`, such as `BACK`.
+    /// Presses a key by its `KeyEvent` name, such as `KEYCODE_BACK`.
     func press(keyCode: String) async throws
 
     /// A PNG of the screen, or of an area in dp, at `scale` pixels per dp.
@@ -75,7 +75,7 @@ struct HelperScreen: SystemScreen {
     }
 
     func press(keyCode: String) async throws {
-        _ = try await self.client.run("press_key", arguments: ["key": .string("KEYCODE_\(keyCode)")])
+        _ = try await self.client.run("press_key", arguments: ["key": .string(keyCode)])
     }
 
     func png(area: CGRect?, scale: Double, metrics: AndroidScreen.Metrics) async throws -> Data {

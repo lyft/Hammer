@@ -334,3 +334,18 @@ struct SwipeArgumentsTests {
         #expect(throws: DecodingError.self) { try self.swipe(#"{"direction": "diagonal"}"#) }
     }
 }
+
+struct HelperScreenTests {
+    @Test
+    func keysAreSentByTheirKeyEventNames() async throws {
+        let server = try FakeHelperServer(version: "", proofKey: { nil })
+        let adb = Adb(environment: ["ANDROID_HOME": "/nonexistent"])
+        let screen = HelperScreen(client: AgentClient(port: server.port, token: nil), adb: adb,
+                                  serial: "emulator-5554")
+
+        try await screen.press(keyCode: try #require(AndroidSystemCommands.keyCodes["arrowLeft"]))
+
+        #expect(server.paths == ["/commands/press_key"])
+        #expect(server.bodies == [#"{"key":"KEYCODE_DPAD_LEFT"}"#])
+    }
+}
