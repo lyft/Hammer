@@ -1,15 +1,14 @@
 package com.lyft.hammer.agent
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.lyft.hammer.agent.core.WireCommand
+import com.lyft.hammer.agent.core.emptyJsonObject
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.Test
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.Test
 import java.io.ByteArrayOutputStream
 
 class ConnectionHandlerTest {
@@ -95,18 +94,18 @@ class ConnectionHandlerTest {
     private class CountingCommand(override val descriptor: CommandDescriptor) : WireCommand {
         var runs = 0
 
-        override suspend fun run(arguments: JsonObject): JsonElement {
+        override suspend fun run(arguments: JsonValue.Object): JsonValue {
             runs += 1
-            return JsonObject()
+            return emptyJsonObject
         }
     }
 
     private class BlockingCommand(override val descriptor: CommandDescriptor) : WireCommand {
         val release = CompletableDeferred<Unit>()
 
-        override suspend fun run(arguments: JsonObject): JsonElement {
+        override suspend fun run(arguments: JsonValue.Object): JsonValue {
             release.await()
-            return JsonObject()
+            return emptyJsonObject
         }
     }
 

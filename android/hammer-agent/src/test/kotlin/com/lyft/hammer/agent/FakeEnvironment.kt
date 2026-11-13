@@ -1,10 +1,6 @@
 package com.lyft.hammer.agent
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.lyft.hammer.agent.core.WireCommand
-import com.lyft.hammer.agent.core.toGson
-import com.lyft.hammer.agent.core.toJsonValue
 import java.io.IOException
 
 internal class FakeEnvironment(
@@ -25,8 +21,8 @@ internal class FakeEnvironment(
     override fun wire(command: AgentCommand): WireCommand = object : WireCommand {
         override val descriptor = command.descriptor
 
-        override suspend fun run(arguments: JsonObject): JsonElement =
-            command.run(arguments.toJsonValue(), AgentContext(error("No screen in unit tests"))).toGson()
+        override suspend fun run(arguments: JsonValue.Object): JsonValue =
+            command.run(arguments, AgentContext(error("No screen in unit tests")))
     }
 
     override fun registrarCommands(className: String): List<AgentCommand> =

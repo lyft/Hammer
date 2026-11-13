@@ -1,6 +1,6 @@
 package com.lyft.hammer.agent.core
 
-import com.google.gson.JsonObject
+import com.lyft.hammer.agent.JsonValue
 
 /** The body of a failed response. Mirrors `AgentErrorBody` in Hammer's `HammerAgentCore`. */
 internal data class AgentErrorBody(
@@ -8,9 +8,5 @@ internal data class AgentErrorBody(
     val code: String? = null,
     val hint: String? = null,
 ) {
-    fun toJson(): JsonObject = JsonObject().apply {
-        addProperty("error", error)
-        code?.let { addProperty("code", it) }
-        hint?.let { addProperty("hint", it) }
-    }
+    fun toJson(): JsonValue.Object = jsonObject("error" to error.json, "code" to code?.json, "hint" to hint?.json)
 }

@@ -42,7 +42,6 @@ dependencies {
     // Optional: used only when the app has them, see OptionalLibraries
     compileOnly(libs.agent.activity)
     compileOnly(libs.agent.compose.ui)
-    implementation(libs.agent.gson)
     implementation(libs.agent.coroutines.android)
 
     testImplementation(libs.junit)

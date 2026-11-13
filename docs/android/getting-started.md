@@ -34,7 +34,6 @@ Its dependencies are the oldest versions it works with, so it doesn't change the
 | Library | Version | |
 | --- | --- | --- |
 | kotlinx-coroutines | 1.6.4 or later | |
-| Gson | 2.8.6 or later | |
 | Compose UI | 1.4 or later | Optional: used when the app has it, never added |
 | AndroidX `activity` | 1.5 or later | Optional: used when the app has it, for back in dialogs |
 

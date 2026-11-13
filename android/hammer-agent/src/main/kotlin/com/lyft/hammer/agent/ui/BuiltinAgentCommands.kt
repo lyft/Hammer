@@ -1,18 +1,18 @@
 package com.lyft.hammer.agent.ui
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.lyft.hammer.agent.CommandDescriptor
+import com.lyft.hammer.agent.JsonValue
 import com.lyft.hammer.agent.core.AgentImage
 import com.lyft.hammer.agent.core.BuiltinCommands
 import com.lyft.hammer.agent.core.WireCommand
+import com.lyft.hammer.agent.core.emptyJsonObject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** The built-in commands the Android agent runs, with the behavior Hammer's commands reference describes. */
 internal class BuiltinAgentCommands(private val screen: AgentScreen) {
 
-    private val runs: Map<CommandDescriptor, suspend (JsonObject) -> JsonElement> = mapOf(
+    private val runs: Map<CommandDescriptor, suspend (JsonValue.Object) -> JsonValue> = mapOf(
         BuiltinCommands.describe to { arguments ->
             DescribeOutput.json(screen.snapshot(), all = arguments.boolean("all") ?: false)
         },
@@ -22,28 +22,28 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             val target = Target.parse(arguments)
             val snapshot = screen.snapshot()
             screen.injector.tap(TargetResolver.touchPoint(target, snapshot), snapshot.density, count)
-            JsonObject()
+            emptyJsonObject
         },
         BuiltinCommands.longPress to { arguments ->
             val target = Target.parse(arguments)
             val snapshot = screen.snapshot()
             val point = TargetResolver.touchPoint(target, snapshot)
             screen.injector.longPress(point, snapshot.density, arguments.double("duration") ?: DEFAULT_LONG_PRESS_SECONDS)
-            JsonObject()
+            emptyJsonObject
         },
         BuiltinCommands.swipe to { arguments ->
             val target = Target.parse(arguments)
             val snapshot = screen.snapshot()
             val center = TargetResolver.touchPoint(target, snapshot)
-            val (from, to) = Gestures.swipe(center, arguments.get("direction").asString, arguments.distance)
+            val (from, to) = Gestures.swipe(center, arguments.string("direction"), arguments.distance)
             screen.injector.drag(from, to, snapshot.density, arguments.swipeDuration)
-            JsonObject()
+            emptyJsonObject
         },
         BuiltinCommands.edgeSwipe to { arguments ->
             val snapshot = screen.snapshot()
-            val (from, to) = Gestures.edgeSwipe(snapshot.windowFrame, arguments.get("direction").asString, arguments.distance)
+            val (from, to) = Gestures.edgeSwipe(snapshot.windowFrame, arguments.string("direction"), arguments.distance)
             screen.injector.drag(from, to, snapshot.density, arguments.swipeDuration)
-            JsonObject()
+            emptyJsonObject
         },
         BuiltinCommands.drag to { arguments ->
             val start = Target.parse(arguments)
@@ -59,18 +59,18 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
             val from = TargetResolver.touchPoint(start, snapshot)
             val to = TargetResolver.touchPoint(end, snapshot)
             screen.injector.drag(from, to, snapshot.density, arguments.double("duration") ?: DEFAULT_DRAG_SECONDS)
-            JsonObject()
+            emptyJsonObject
         },
         BuiltinCommands.pinch to { arguments ->
             val target = Target.parse(arguments)
             val snapshot = screen.snapshot()
             val (from, to) = Gestures.pinch(
                 center = TargetResolver.touchPoint(target, snapshot),
-                scale = arguments.get("scale").asDouble,
+                scale = checkNotNull(arguments.double("scale")) { "Missing scale" },
                 distance = arguments.double("distance") ?: DEFAULT_PINCH_DISTANCE,
             )
             screen.injector.pinch(from, to, snapshot.density, arguments.double("duration") ?: DEFAULT_PINCH_SECONDS)
-            JsonObject()
+            emptyJsonObject
         },
         BuiltinCommands.typeText to { arguments ->
             val target = Target.parse(arguments)
@@ -80,25 +80,25 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
                 // The tap can open a screen that focuses its field once it settles
                 screen.idle.settle(FOCUS_SETTLE_SECONDS)
             }
-            screen.injector.type(arguments.get("text").asString)
-            JsonObject()
+            screen.injector.type(arguments.string("text"))
+            emptyJsonObject
         },
         BuiltinCommands.pressKey to { arguments ->
-            screen.injector.press(Keys.parse(arguments.get("key").asString))
-            JsonObject()
+            screen.injector.press(Keys.parse(arguments.string("key")))
+            emptyJsonObject
         },
         BuiltinCommands.waitFor to { arguments ->
             val query = WaitCondition.query(Target.parse(arguments))
-            val condition = WaitCondition.parse(arguments.get("condition")?.asString)
+            val condition = WaitCondition.parse(arguments["condition"]?.stringValue)
             val timeout = arguments.double("timeout") ?: DEFAULT_TIMEOUT_SECONDS
             withTimeoutOrNull((timeout * MILLIS_PER_SECOND).toLong()) {
                 while (!condition.isMet(query, screen.snapshotOrNull())) delay(WAIT_POLL_MILLIS)
             } ?: throw condition.timedOut(query, timeout, WaitCondition.EXISTS.isMet(query, screen.snapshotOrNull()))
-            JsonObject()
+            emptyJsonObject
         },
         BuiltinCommands.waitForIdle to { arguments ->
             screen.idle.await(arguments.double("timeout") ?: DEFAULT_TIMEOUT_SECONDS)
-            JsonObject()
+            emptyJsonObject
         },
         BuiltinCommands.screenshot to { arguments ->
             val scale = arguments.double("scale") ?: 1.0
@@ -113,18 +113,21 @@ internal class BuiltinAgentCommands(private val screen: AgentScreen) {
     /** The commands in [BuiltinCommands.all]'s order, which the contract with Hammer fixes. */
     val all: List<WireCommand> = BuiltinCommands.all.map { command(it, runs.getValue(it)) }
 
-    private fun command(descriptor: CommandDescriptor, run: suspend (JsonObject) -> JsonElement): WireCommand =
+    private fun command(descriptor: CommandDescriptor, run: suspend (JsonValue.Object) -> JsonValue): WireCommand =
         object : WireCommand {
             override val descriptor = descriptor
 
-            override suspend fun run(arguments: JsonObject): JsonElement = run(arguments)
+            override suspend fun run(arguments: JsonValue.Object): JsonValue = run(arguments)
         }
 
-    private fun JsonObject.boolean(name: String) = get(name)?.asBoolean
-    private fun JsonObject.int(name: String) = get(name)?.asInt
-    private fun JsonObject.double(name: String) = get(name)?.asDouble
-    private val JsonObject.distance get() = double("distance") ?: DEFAULT_SWIPE_DISTANCE
-    private val JsonObject.swipeDuration get() = double("duration") ?: DEFAULT_SWIPE_SECONDS
+    private fun JsonValue.Object.boolean(name: String) = get(name)?.boolValue
+    private fun JsonValue.Object.int(name: String) = get(name)?.numberValue?.toInt()
+    private fun JsonValue.Object.double(name: String) = get(name)?.numberValue
+
+    // Validation has checked that a required argument is there and has its type
+    private fun JsonValue.Object.string(name: String) = checkNotNull(get(name)?.stringValue) { "Missing $name" }
+    private val JsonValue.Object.distance get() = double("distance") ?: DEFAULT_SWIPE_DISTANCE
+    private val JsonValue.Object.swipeDuration get() = double("duration") ?: DEFAULT_SWIPE_SECONDS
 
     private companion object {
         const val DEFAULT_SWIPE_DISTANCE = 200.0
