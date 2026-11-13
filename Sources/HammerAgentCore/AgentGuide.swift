@@ -115,8 +115,11 @@ public enum AgentGuide {
         uiautomator can't start; `hammer system stop --android` stops it.
 
         A view the agent can't read inside, such as a web page, has `"needsSystemRead": true` in the app's \
-        `describe`, and `hammer` fills in its content from the helper. Those elements have refs starting \
-        with `s`, which stop working once the element moves, such as after scrolling: call `describe` again.
+        `describe`, and `hammer` fills in its content from the helper when it runs: start it with \
+        `hammer system start --android`, since app commands don't unless `HAMMER_SYSTEM_HELPER=auto`. \
+        Those elements have refs starting with `s`, which stop working once the element moves, such as \
+        after scrolling: call `describe` again. When the helper stops during an action, the error says the \
+        action may have run: call `describe` before retrying it.
         """
 
     private static let androidBack = """

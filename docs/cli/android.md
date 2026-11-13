@@ -39,7 +39,9 @@ A `no_device` error lists the attached devices and their states, such as `unauth
 
 ## Web pages
 
-The agent can't read what a view only describes to accessibility services, such as a `WebView`'s page or a chart's bars, so `describe` marks the view `"needsSystemRead": true`. `hammer` fills in its children from the system helper, with refs such as `s1a2b3c4d`, which name an element where it was read: `tap --ref` reads the screen again and taps it through the agent, or fails with `not_found` once it moved, such as after the page scrolled. Queries such as `--label Send` find these elements too. A page's elements follow the web view's accessibility, so a button's label is its text and a field's identifier its `id`. With `HAMMER_SYSTEM_HELPER=0`, or when the helper can't run, the view keeps its mark and `hammer` says why on standard error.
+The agent can't read what a view only describes to accessibility services, such as a `WebView`'s page or a chart's bars, so `describe` marks the view `"needsSystemRead": true`, with its `accessibilityClass`, such as `android.webkit.WebView`. When the system helper runs, `hammer` fills in the view's children from it, with refs such as `s1a2b3c4d`, which name an element by what it is and where it was read, not by its value: `tap --ref` reads the screen again and taps it through the agent, or fails with `not_found` once it moved, such as after the page scrolled. Queries such as `--label Send` find these elements too. A page's elements follow the web view's accessibility, so a button's label is its text and a field's identifier its `id`.
+
+App commands don't start the helper, since a running helper keeps UI tests and uiautomator from starting for ten idle minutes: start it with `hammer system start --android`, or set `HAMMER_SYSTEM_HELPER=auto` to let them. When it doesn't run, with `HAMMER_SYSTEM_HELPER=0` or when it can't, the view keeps its mark and `hammer` says why on standard error.
 
 ## Built-in commands
 
