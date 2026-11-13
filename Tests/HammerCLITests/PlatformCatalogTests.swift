@@ -3,10 +3,13 @@ import Testing
 
 struct PlatformCatalogTests {
     @Test
-    func iOSReservedNamesAreUnchanged() {
+    func iOSAgentReservedNamesAreUnchanged() {
         #expect(CommandDescriptor.reservedParameterNames == ["output", "port", "system", "udid"])
-        #expect(CommandDescriptor.reservedParameterNames(for: .iOS)
-            == CommandDescriptor.reservedParameterNames)
+    }
+
+    @Test
+    func androidIsReservedOnBothPlatformsSinceItChoosesThePlatform() {
+        #expect(CommandDescriptor.reservedParameterNames(for: .iOS) == ["output", "port", "system", "udid", "android"])
         #expect(CommandDescriptor.reservedParameterNames(for: .android) == [
             "output", "port", "system", "udid", "android", "serial", "app_id",
         ])

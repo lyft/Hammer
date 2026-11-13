@@ -27,7 +27,7 @@ The Linux build of `hammer` drives Android only: iOS needs a Mac, and `--system`
 - `--serial <serial>` picks the device or emulator, as `adb devices` lists it. It defaults to `ANDROID_SERIAL`, or the only device that is ready.
 - `--app-id <application id>` picks the app. It defaults to the only app running an agent, or the focused one when several are.
 
-Both only apply with `--android`, so iOS commands can still take parameters named `serial` and `app_id`. `--port` and `--udid` don't apply with `--android`, and `hammer` rejects them.
+Both only apply with `--android`, so iOS commands can still take parameters named `serial` and `app_id`. `--android` itself chooses the platform before `hammer` knows it, so no command can take a parameter named `android`. `--port` and `--udid` don't apply with `--android`, and `hammer` rejects them.
 
 A `no_device` error lists the attached devices and their states, such as `unauthorized` when the device still shows the USB debugging prompt. An `unreachable` error lists the apps that run an agent.
 
