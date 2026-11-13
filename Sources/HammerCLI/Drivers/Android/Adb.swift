@@ -89,10 +89,12 @@ struct Adb: Sendable {
     static let installHint = "Install the Android SDK platform tools, and set ANDROID_HOME or put adb on the PATH"
 }
 
-/// One adb process, read and waited for off the cooperative thread pool.
+/// One adb process, read and waited for on a thread of its own, off the cooperative thread pool.
 ///
-/// The call ends once adb exits, even when a process it started keeps its output open, such as the adb server
-/// that `adb devices` starts, which would otherwise hold the call until the server stops.
+/// It runs adb with `posix_spawn` and waits for it with `waitpid` rather than with `Process`, whose Linux
+/// version only sees the exit once every process holding adb's descriptors exits. The call ends once adb
+/// exits and its output stops, even when a process it started keeps the pipes open, such as the adb server
+/// that `adb devices` starts.
 private final class AdbProcess: @unchecked Sendable {
     struct Result {
         let status: Int32
@@ -105,128 +107,187 @@ private final class AdbProcess: @unchecked Sendable {
     private static let drainIdle: TimeInterval = 0.2
     /// How long adb gets to exit after SIGTERM before SIGKILL.
     private static let killGrace: TimeInterval = 1
+    private static let pollMilliseconds: Int32 = 50
+    private static let busyRetries = 10
+    private static let busyRetryMicroseconds: useconds_t = 20_000
 
-    private let process = Process()
+    private let executable: URL
+    private let arguments: [String]
     private let lock = NSLock()
-    private var stdout = Data()
-    private var stderr = Data()
-    private var openPipes = 2
-    private var lastOutput = Date()
-    private var exited = false
-    private var timedOut = false
-    private var continuation: CheckedContinuation<Result, any Error>?
+    private var pid: pid_t?
+    private var waitStatus: Int32?
+    private var cancelled = false
 
     init(executable: URL, arguments: [String]) {
-        self.process.executableURL = executable
-        self.process.arguments = arguments
+        self.executable = executable
+        self.arguments = arguments
     }
 
     func run(timeout: Duration) async throws -> Result {
+        let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
         return try await withCheckedThrowingContinuation { continuation in
-            let outputPipe = Pipe()
-            let errorPipe = Pipe()
-            self.process.standardOutput = outputPipe
-            self.process.standardError = errorPipe
-            self.continuation = continuation
-            // Read both pipes as data arrives, so a full one can't block adb while the other is read
-            for (pipe, isOutput) in [(outputPipe, true), (errorPipe, false)] {
-                pipe.fileHandleForReading.readabilityHandler = { handle in
-                    let data = handle.availableData
-                    self.lock.withLock {
-                        if data.isEmpty {
-                            handle.readabilityHandler = nil
-                            self.openPipes -= 1
-                        } else if isOutput {
-                            self.stdout.append(data)
-                        } else {
-                            self.stderr.append(data)
-                        }
-                        self.lastOutput = Date()
-                    }
-                    self.finishIfDone()
-                }
-            }
-
-            self.process.terminationHandler = { _ in
-                self.lock.withLock { self.exited = true }
-                self.finishIfDone()
-                self.drainAfterExit()
-            }
-
-            do {
-                try self.process.run()
-            } catch {
-                self.lock.withLock { self.continuation = nil }
-                for pipe in [outputPipe, errorPipe] {
-                    pipe.fileHandleForReading.readabilityHandler = nil
-                }
-                continuation.resume(throwing: ClientError.noDevice(
-                    "Unable to run adb: \(error.localizedDescription)", hint: Adb.installHint))
-                return
-            }
-
-            let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
-            DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
-                guard self.process.isRunning else {
-                    return
-                }
-
-                self.lock.withLock { self.timedOut = true }
-                self.terminate()
-            }
+            Thread { continuation.resume(with: Swift.Result { try self.runBlocking(timeout: seconds) }) }.start()
         }
     }
 
-    /// Stops adb, and kills it if it doesn't stop. Only adb: a server it started is shared with other clients.
+    /// Stops adb, as when the caller is cancelled. Only adb: a server it started is shared with other clients.
     func terminate() {
-        guard self.process.isRunning else {
-            return
+        let pid = self.lock.withLock {
+            self.cancelled = true
+            return self.waitStatus == nil ? self.pid : nil
+        }
+        if let pid {
+            kill(pid, SIGTERM)
+        }
+    }
+
+    private func runBlocking(timeout: TimeInterval) throws -> Result {
+        var outputPipe: [Int32] = [-1, -1]
+        var errorPipe: [Int32] = [-1, -1]
+        guard pipe(&outputPipe) == 0, pipe(&errorPipe) == 0 else {
+            throw ClientError.noDevice("Unable to run adb: \(String(cString: strerror(errno)))", hint: Adb.installHint)
         }
 
-        self.process.terminate()
-        let pid = self.process.processIdentifier
-        DispatchQueue.global().asyncAfter(deadline: .now() + Self.killGrace) {
-            if self.process.isRunning {
+        // The child gets copies on 1 and 2; these ends stay out of it and of what it starts
+        for descriptor in outputPipe + errorPipe {
+            _ = fcntl(descriptor, F_SETFD, FD_CLOEXEC)
+        }
+
+        let pid: pid_t
+        do {
+            pid = try self.spawn(output: outputPipe[1], error: errorPipe[1])
+        } catch {
+            (outputPipe + errorPipe).forEach { close($0) }
+            throw error
+        }
+
+        close(outputPipe[1])
+        close(errorPipe[1])
+        let alreadyCancelled = self.lock.withLock {
+            self.pid = pid
+            return self.cancelled
+        }
+        if alreadyCancelled {
+            kill(pid, SIGTERM)
+        }
+
+        Thread {
+            var status: Int32 = 0
+            while waitpid(pid, &status, 0) == -1 && errno == EINTR {}
+            self.lock.withLock { self.waitStatus = status }
+        }.start()
+
+        let read = self.read(output: outputPipe[0], error: errorPipe[0], pid: pid, timeout: timeout)
+        close(outputPipe[0])
+        close(errorPipe[0])
+        return read
+    }
+
+    private func spawn(output: Int32, error: Int32) throws -> pid_t {
+        #if canImport(Darwin)
+        var actions: posix_spawn_file_actions_t?
+        #else
+        var actions = posix_spawn_file_actions_t()
+        #endif
+        posix_spawn_file_actions_init(&actions)
+        defer { posix_spawn_file_actions_destroy(&actions) }
+        posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)
+        posix_spawn_file_actions_adddup2(&actions, output, 1)
+        posix_spawn_file_actions_adddup2(&actions, error, 2)
+
+        // Only standard input, output and error reach adb, as with Process, so it and the server it may
+        // start don't keep the tool's other files open
+        #if canImport(Darwin)
+        var attributes: posix_spawnattr_t?
+        posix_spawnattr_init(&attributes)
+        defer { posix_spawnattr_destroy(&attributes) }
+        posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT))
+        #else
+        var attributes = posix_spawnattr_t()
+        posix_spawnattr_init(&attributes)
+        defer { posix_spawnattr_destroy(&attributes) }
+        let open = (try? FileManager.default.contentsOfDirectory(atPath: "/proc/self/fd")) ?? []
+        for descriptor in open.compactMap({ Int32($0) }) where descriptor > 2 && descriptor != output && descriptor != error {
+            posix_spawn_file_actions_addclose(&actions, descriptor)
+        }
+        #endif
+
+        let argv = ([self.executable.path] + self.arguments).map { strdup($0) } + [nil]
+        let environment = ProcessInfo.processInfo.environment.map { strdup("\($0.key)=\($0.value)") } + [nil]
+        defer { (argv + environment).forEach { free($0) } }
+
+        var pid: pid_t = 0
+        var result = posix_spawn(&pid, self.executable.path, &actions, &attributes, argv, environment)
+        // A file being written while another thread spawns is briefly busy on Linux
+        for _ in 0..<Self.busyRetries where result == ETXTBSY {
+            usleep(Self.busyRetryMicroseconds)
+            result = posix_spawn(&pid, self.executable.path, &actions, &attributes, argv, environment)
+        }
+        guard result == 0 else {
+            throw ClientError.noDevice("Unable to run adb: \(String(cString: strerror(result)))", hint: Adb.installHint)
+        }
+
+        return pid
+    }
+
+    /// Reads both pipes at once, so a full one can't block adb while the other is read, until adb exited and
+    /// they closed or went quiet, stopping adb when it takes longer than [timeout].
+    private func read(output: Int32, error: Int32, pid: pid_t, timeout: TimeInterval) -> Result {
+        var data = [Data(), Data()]
+        var descriptors = [pollfd(fd: output, events: Int16(POLLIN), revents: 0),
+                           pollfd(fd: error, events: Int16(POLLIN), revents: 0)]
+        let deadline = Date(timeIntervalSinceNow: timeout)
+        var timedOut = false
+        var killAt: Date?
+        var lastActivity = Date()
+        var exitSeen = false
+        var buffer = [UInt8](repeating: 0, count: 1 << 16)
+        while true {
+            let status = self.lock.withLock { self.waitStatus }
+            if status != nil, !exitSeen {
+                exitSeen = true
+                lastActivity = Date()
+            }
+
+            let open = descriptors.contains { $0.fd >= 0 }
+            if let status, !open || Date().timeIntervalSince(lastActivity) >= Self.drainIdle {
+                return Result(status: Self.exitCode(status), stdout: data[0], stderr: data[1], timedOut: timedOut)
+            }
+
+            if status == nil, !timedOut, Date() >= deadline {
+                timedOut = true
+                kill(pid, SIGTERM)
+                killAt = Date(timeIntervalSinceNow: Self.killGrace)
+            } else if status == nil, let due = killAt, Date() >= due {
                 kill(pid, SIGKILL)
+                killAt = nil
+            }
+
+            guard open else {
+                usleep(useconds_t(Self.pollMilliseconds) * 1000)
+                continue
+            }
+
+            guard poll(&descriptors, nfds_t(descriptors.count), Self.pollMilliseconds) > 0 else {
+                continue
+            }
+
+            for index in descriptors.indices where descriptors[index].fd >= 0 && descriptors[index].revents != 0 {
+                let count = buffer.withUnsafeMutableBytes { Foundation.read(descriptors[index].fd, $0.baseAddress, $0.count) }
+                if count > 0 {
+                    data[index].append(contentsOf: buffer[0..<count])
+                    lastActivity = Date()
+                } else if count == 0 || (errno != EINTR && errno != EAGAIN) {
+                    descriptors[index].fd = -1
+                }
             }
         }
     }
 
-    /// After adb exits, waits until the pipes close or no output arrives for a moment, since a process adb
-    /// started may hold them open.
-    private func drainAfterExit() {
-        DispatchQueue.global().asyncAfter(deadline: .now() + Self.drainIdle / 4) {
-            let idle = self.lock.withLock { Date().timeIntervalSince(self.lastOutput) >= Self.drainIdle }
-            if idle {
-                self.finish()
-            } else if self.lock.withLock({ self.continuation != nil }) {
-                self.drainAfterExit()
-            }
-        }
-    }
-
-    private func finishIfDone() {
-        let done = self.lock.withLock { self.exited && self.openPipes == 0 }
-        if done {
-            self.finish()
-        }
-    }
-
-    private func finish() {
-        let (continuation, result) = self.lock.withLock {
-            defer { self.continuation = nil }
-            return (self.continuation, Result(status: self.process.terminationStatus, stdout: self.stdout,
-                                              stderr: self.stderr, timedOut: self.timedOut))
-        }
-
-        guard let continuation else {
-            return
-        }
-
-        for pipe in [self.process.standardOutput, self.process.standardError].compactMap({ $0 as? Pipe }) {
-            pipe.fileHandleForReading.readabilityHandler = nil
-        }
-        continuation.resume(returning: result)
+    /// The exit code in a `waitpid` status, or 128 plus the signal that ended adb, as shells report it.
+    private static func exitCode(_ status: Int32) -> Int32 {
+        let signal = status & 0x7F
+        return signal == 0 ? (status >> 8) & 0xFF : 128 + signal
     }
 }
 
