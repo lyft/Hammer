@@ -7,6 +7,16 @@ enum SHA256 {
         return self.digest(data).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// HMAC-SHA256 of the message with the key, in hex, as RFC 2104 defines it.
+    static func hmacHex(key: Data, message: Data) -> String {
+        let blockSize = 64
+        var key = [UInt8](key.count > blockSize ? Data(self.digest(key)) : key)
+        key += [UInt8](repeating: 0, count: blockSize - key.count)
+        let inner = self.digest(Data(key.map { $0 ^ 0x36 }) + message)
+        let outer = self.digest(Data(key.map { $0 ^ 0x5c }) + Data(inner))
+        return outer.map { String(format: "%02x", $0) }.joined()
+    }
+
     static func digest(_ data: Data) -> [UInt8] {
         var hash: [UInt32] = [
             0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,

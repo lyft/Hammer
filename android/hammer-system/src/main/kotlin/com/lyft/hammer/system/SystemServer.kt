@@ -27,10 +27,12 @@ public class SystemServer : Instrumentation() {
 
     private val stopped = CountDownLatch(1)
     private var idleMillis = DEFAULT_IDLE_MINUTES * MILLIS_PER_MINUTE
+    private var secret: String? = null
 
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
         arguments?.getString(IDLE_ARGUMENT)?.toLongOrNull()?.let { idleMillis = it * MILLIS_PER_MINUTE }
+        secret = arguments?.getString(SECRET_ARGUMENT)?.takeIf { it.isNotEmpty() }
         start()
     }
 
@@ -53,10 +55,12 @@ public class SystemServer : Instrumentation() {
     }
 
     private fun serve() {
+        val key = secret?.toByteArray(Charsets.UTF_8)
+            ?: throw HelperStartError("Started without a secret; start it with `hammer system start --android`")
         val automation = connect()
         val session = SystemSession(automation, context, stop = { stopped.countDown() })
         val listener = try {
-            SocketListener(SOCKET_NAME, handler(session.commands), AgentLog.Logcat)
+            SocketListener(SOCKET_NAME, handler(session.commands, key), AgentLog.Logcat)
         } catch (error: IOException) {
             throw HelperStartError("Another process listens on @$SOCKET_NAME, such as a helper that is still running")
         }
@@ -103,8 +107,15 @@ public class SystemServer : Instrumentation() {
         /** The `am instrument -e` argument for the idle minutes after which the helper stops. */
         public const val IDLE_ARGUMENT: String = "idle_minutes"
 
+        /**
+         * The `am instrument -e` argument with the secret the tool made for this start. Every response proves the
+         * helper knows it, so the tool never sends a command to another process that took [SOCKET_NAME] first.
+         */
+        public const val SECRET_ARGUMENT: String = "secret"
+
         /** Answers the tool's requests. Only adb's shell user and root may connect, as with the app's agent. */
-        internal fun handler(commands: List<WireCommand>): ConnectionHandler = ConnectionHandler(CommandRouter(commands))
+        internal fun handler(commands: List<WireCommand>, secret: ByteArray): ConnectionHandler =
+            ConnectionHandler(CommandRouter(commands), proofKey = secret)
 
         private const val RESULT_ERROR = "error"
         private const val DEFAULT_IDLE_MINUTES = 10L

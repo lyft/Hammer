@@ -133,7 +133,7 @@ struct HammerCLI {
         do {
             switch action {
             case "start":
-                _ = try await helper.client()
+                _ = try await helper.client(retryingRecentFailure: true)
             case "stop":
                 try await helper.stop()
             case "uninstall":

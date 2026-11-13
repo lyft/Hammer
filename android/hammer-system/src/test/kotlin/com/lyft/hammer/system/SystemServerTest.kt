@@ -38,9 +38,26 @@ class SystemServerTest {
         assertThat(taps).isEqualTo(1)
     }
 
+    @Test
+    fun handler_challenge_isAnsweredWithTheSecretsHmac() = runTest {
+        val request = TAP_REQUEST.replace("Host:", "X-Hammer-Challenge: $CHALLENGE\r\nHost:")
+
+        val output = respond(request, peerUid = SHELL_UID)
+
+        // HMAC-SHA256 of "challenge" with the key "secret", from `openssl dgst -sha256 -hmac secret`
+        assertThat(output).contains("X-Hammer-Proof: $PROOF\r\n")
+    }
+
+    @Test
+    fun handler_noChallenge_hasNoProof() = runTest {
+        val output = respond(TAP_REQUEST, peerUid = SHELL_UID)
+
+        assertThat(output).doesNotContain("X-Hammer-Proof")
+    }
+
     private suspend fun respond(request: String, peerUid: Int): String {
         val output = ByteArrayOutputStream()
-        SystemServer.handler(listOf(tap)).respond(request.byteInputStream(), output, peerUid, HELPER_UID) { false }
+        SystemServer.handler(listOf(tap), SECRET.toByteArray()).respond(request.byteInputStream(), output, peerUid, HELPER_UID) { false }
         return output.toString(Charsets.UTF_8.name())
     }
 
@@ -48,6 +65,9 @@ class SystemServerTest {
         const val SHELL_UID = 2000
         const val HELPER_UID = 10228
         const val OTHER_APP_UID = 10150
+        const val SECRET = "secret"
+        const val CHALLENGE = "challenge"
+        const val PROOF = "a1e505e96c6aa1ece082bb9efb06c80f12913d217a7ac2b08b347630787d1da0"
         const val TAP_REQUEST = "POST /commands/tap HTTP/1.1\r\nHost: 127.0.0.1:51234\r\n" +
             "Content-Type: application/json\r\nContent-Length: 2\r\n\r\n{}"
     }
