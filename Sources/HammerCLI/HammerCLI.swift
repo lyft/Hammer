@@ -14,6 +14,10 @@ struct HammerCLI {
           hammer help <command>   Describe a command, its arguments and examples
           hammer guide            Print the full guide for agents, in markdown
           hammer mcp              Run an MCP server over standard input and output
+          hammer system start|stop|status|uninstall --android
+                                  Manage the Android system helper, which runs --system commands. It \
+        starts on the first one and stops after ten idle minutes, and while it runs, uiautomator and UI \
+        tests can't start
 
         Options:
           --output <path>  Write the command's output to a file instead of printing it
@@ -83,6 +87,8 @@ struct HammerCLI {
             }
         case "mcp":
             try await MCPServer(drivers: drivers).run()
+        case "system":
+            try await self.manageSystemHelper(remaining, options: options)
         case let name?:
             let descriptor = try self.descriptor(named: name, in: try await driver.callableCommands())
             try self.checkAndroidOptions(in: remaining, for: descriptor, options: options)
@@ -104,6 +110,44 @@ struct HammerCLI {
                                                token: token),
                        system: AndroidSystemDriver(adb: adb, serial: options.serial),
                        platform: .android)
+    }
+
+    /// Runs `hammer system <action>` on the Android device and prints the helper's status after it.
+    private static func manageSystemHelper(_ arguments: ArraySlice<String>, options: CLIOptions)
+        async throws
+    {
+        let actions = ["start", "stop", "status", "uninstall"]
+        guard options.android else {
+            throw UsageError(description: "hammer system manages the Android system helper",
+                             hint: "Add --android")
+        }
+
+        guard arguments.count == 1, let action = arguments.first, actions.contains(action) else {
+            throw UsageError(description: "Usage: hammer system \(actions.joined(separator: "|")) --android",
+                             hint: "Pass one of \(actions.joined(separator: ", "))")
+        }
+
+        let adb = Adb()
+        let serial = try await AndroidDevice.resolveSerial(adb: adb, serial: options.serial)
+        let helper = AndroidSystemHelper(adb: adb, serial: serial)
+        do {
+            switch action {
+            case "start":
+                _ = try await helper.client()
+            case "stop":
+                try await helper.stop()
+            case "uninstall":
+                try await helper.uninstall()
+            default:
+                break
+            }
+        } catch let error as AndroidSystemHelper.Unavailable {
+            throw ClientError.failed(.init(error: "The system helper can't run: \(error)", code: .failed))
+        }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        print(String(bytes: try encoder.encode(try await helper.status()), encoding: .utf8) ?? "")
     }
 
     /// Explains that `--serial` and `--app-id` need `--android`, rather than calling them unknown arguments.

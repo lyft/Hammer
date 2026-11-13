@@ -5,6 +5,7 @@ import android.app.Instrumentation
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.UiAutomation
 import android.os.Bundle
+import android.os.Process
 import android.util.Log
 import com.lyft.hammer.agent.AgentLog
 import com.lyft.hammer.agent.CommandRouter
@@ -19,8 +20,8 @@ import java.util.concurrent.TimeUnit
  * Holds UiAutomation and answers the hammer tool's whole-screen commands on the abstract socket
  * [SOCKET_NAME], until the tool stops it or it goes [idle][IDLE_ARGUMENT] for ten minutes.
  *
- * The tool starts it with `am instrument` without `-w`, so it keeps running after adb returns. It writes why it
- * couldn't start to logcat with the tag [TAG], where the tool reads it.
+ * The tool starts it with `am instrument -w` detached on the device, since without `-w` Android gives it no
+ * UiAutomation. It writes why it couldn't start to logcat with the tag [TAG], where the tool reads it.
  */
 public class SystemServer : Instrumentation() {
 
@@ -41,7 +42,14 @@ public class SystemServer : Instrumentation() {
             Log.e(TAG, error.message.orEmpty())
             results.putString(RESULT_ERROR, error.message)
         }
-        finish(Activity.RESULT_OK, results)
+        try {
+            finish(Activity.RESULT_OK, results)
+        } catch (error: IllegalStateException) {
+            // A UiAutomation that another tool holds stays connecting, and finishing disconnects it, which
+            // Android refuses. Ending the process ends `am instrument`, which the tool watches
+            Log.w(TAG, "Exiting without disconnecting UiAutomation: ${error.message}")
+            Process.killProcess(Process.myPid())
+        }
     }
 
     private fun serve() {

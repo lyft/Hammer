@@ -42,6 +42,17 @@ struct AndroidDeviceTests {
         #expect(AndroidDevice.listeningAppIDs(in: listing) == ["com.example.app", "com.example.connected"])
     }
 
+    @Test
+    func listeningAppIDsLeavesOutTheSystemHelper() {
+        let listing = """
+            Num       RefCount Protocol Flags    Type St Inode Path
+            0000000000000000: 00000002 00000000 00010000 0001 01 1250159 @hammer_com.example.app
+            0000000000000000: 00000002 00000000 00010000 0001 01 1250162 @hammer_system
+            """
+
+        #expect(AndroidDevice.listeningAppIDs(in: listing) == ["com.example.app"])
+    }
+
     @Test(arguments: [
         // API 37
         ("""

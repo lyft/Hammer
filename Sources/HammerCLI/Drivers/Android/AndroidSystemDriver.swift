@@ -36,8 +36,52 @@ struct AndroidSystemDriver: Driver {
         }
 
         let serial = try await AndroidDevice.resolveSerial(adb: self.adb, serial: self.serial)
-        let screen = AndroidScreen(adb: self.adb, serial: serial)
         let arguments = JSONValue.object(arguments)
+        let uiautomator = AndroidScreen(adb: self.adb, serial: serial)
+        guard let helper = await self.helperScreen(serial: serial) else {
+            return try await self.run(descriptor, arguments: arguments, on: uiautomator)
+        }
+
+        do {
+            return try await self.run(descriptor, arguments: arguments, on: helper)
+        } catch let error as ClientError where [.unreachable, .disconnected].contains(error.code) {
+            // The helper stopped, such as when Android killed it, so UiAutomation is free for uiautomator
+            Self.note("the system helper stopped answering (\(error.description))")
+            return try await self.run(descriptor, arguments: arguments, on: uiautomator)
+        }
+    }
+
+    /// The screen through the system helper, starting it if needed, or nil to use uiautomator, with a note
+    /// saying why.
+    private func helperScreen(serial: String) async -> HelperScreen? {
+        guard AndroidSystemHelper.isEnabled(environment: self.adb.environment) else {
+            return nil
+        }
+
+        let helper = AndroidSystemHelper(adb: self.adb, serial: serial)
+        do {
+            return HelperScreen(client: try await helper.client(), adb: self.adb, serial: serial)
+        } catch let error as AndroidSystemHelper.Unavailable {
+            Self.note(error.description)
+        } catch {
+            Self.note("the system helper didn't start: \((error as? ClientError)?.description ?? "\(error)")")
+        }
+
+        return nil
+    }
+
+    /// Says on standard error why a command runs through uiautomator, which takes seconds per read.
+    private static func note(_ reason: String) {
+        FileHandle.standardError.write(Data("""
+            note: \(reason), so this runs through uiautomator, which is slower. \
+            Set \(AndroidSystemHelper.enabledEnvironmentKey)=0 to skip the helper
+
+            """.utf8))
+    }
+
+    private func run(_ descriptor: CommandDescriptor, arguments: JSONValue, on screen: SystemScreen)
+        async throws -> Data
+    {
         switch descriptor.name {
         case AndroidSystemCommands.describe.name:
             let metrics = try await screen.metrics()
@@ -73,7 +117,7 @@ struct AndroidSystemDriver: Driver {
         return Data("{}".utf8)
     }
 
-    private func type(_ typing: TypingArguments, on screen: AndroidScreen) async throws {
+    private func type(_ typing: TypingArguments, on screen: SystemScreen) async throws {
         let hasTarget = try typing.target.query(traitNames: AndroidSystemCommands.traitNames) != nil
             || typing.target.point() != nil
         if hasTarget {
@@ -88,7 +132,7 @@ struct AndroidSystemDriver: Driver {
 
     /// Waits until the text field at the tapped point has focus, so the text isn't typed before its keyboard
     /// shows, or into another field that had focus before the tap.
-    private func waitForFocusedTextField(at point: CGPoint, on screen: AndroidScreen, scale: CGFloat)
+    private func waitForFocusedTextField(at point: CGPoint, on screen: SystemScreen, scale: CGFloat)
         async throws
     {
         let deadline = ContinuousClock.now + Self.focusTimeout
@@ -116,20 +160,19 @@ struct AndroidSystemDriver: Driver {
         }
     }
 
-    private func screenshot(_ capture: ScreenshotArguments, of screen: AndroidScreen) async throws -> Data {
+    private func screenshot(_ capture: ScreenshotArguments, of screen: SystemScreen) async throws -> Data {
         let metrics = try await screen.metrics()
         var area: CGRect?
         if let query = try capture.target.query(traitNames: AndroidSystemCommands.traitNames) {
             area = try query.element(in: Self.root(try await screen.windows(scale: metrics.scale))).frame
         }
 
-        let image = try Self.png(try await screen.screenshot(), area: area, scale: capture.scale ?? 1,
-                                 metrics: metrics)
+        let image = try await screen.png(area: area, scale: capture.scale ?? 1, metrics: metrics)
         return try JSONEncoder().encode(AgentImage(mimeType: "image/png", data: image))
     }
 
     /// The target's point, or the center of the screen without one.
-    private func point(of target: ScreenTarget, on screen: AndroidScreen, metrics: AndroidScreen.Metrics)
+    private func point(of target: ScreenTarget, on screen: SystemScreen, metrics: AndroidScreen.Metrics)
         async throws -> CGPoint
     {
         if let query = try target.query(traitNames: AndroidSystemCommands.traitNames) {
@@ -141,7 +184,7 @@ struct AndroidSystemDriver: Driver {
         return try target.point() ?? CGPoint(x: metrics.bounds.midX, y: metrics.bounds.midY)
     }
 
-    private func press(_ key: String, on screen: AndroidScreen) async throws {
+    private func press(_ key: String, on screen: SystemScreen) async throws {
         if let code = AndroidSystemCommands.keyCodes[key] {
             try await screen.press(keyCode: code)
         } else if key.count == 1 {

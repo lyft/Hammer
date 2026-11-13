@@ -11,8 +11,32 @@ on:
 permissions:
   contents: write
 jobs:
+  build_system_helper:
+    name: Build-System-Helper
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build the system helper
+        working-directory: android
+        run: ./gradlew :hammer-system:assembleRelease
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hammer-system
+          path: android/hammer-system/build/outputs/apk/release/hammer-system-release.apk
+          if-no-files-found: error
   upload_cli:
     name: Upload-CLI
+    needs: build_system_helper
     runs-on: xcode-27
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
@@ -21,6 +45,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: hammer-system
+      - name: Embed the system helper
+        run: bash scripts/embed-system-helper.sh hammer-system-release.apk
       - name: Force Xcode 27.0
         run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Build hammer
@@ -35,6 +64,7 @@ jobs:
         run: gh release upload "$TAG" hammer-macos.zip --clobber
   upload_linux:
     name: Upload-Linux
+    needs: build_system_helper
     runs-on: ubuntu-latest
     container: swift:6.4.2
     env:
@@ -44,6 +74,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: hammer-system
+      - name: Embed the system helper
+        run: bash scripts/embed-system-helper.sh hammer-system-release.apk
       - name: Install the Static Linux SDK
         # It must match the container's Swift version; the checksum is the one swift.org publishes with it
         run: |
