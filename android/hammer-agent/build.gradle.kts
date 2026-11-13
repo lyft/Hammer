@@ -20,6 +20,10 @@ android {
     publishing {
         singleVariant("release")
     }
+
+    // The HTTP server, router and JSON code the system helper also runs. They compile into this library
+    // rather than a library of their own, so apps keep depending on one artifact
+    sourceSets.getByName("main").java.srcDir("../hammer-core/src/main/kotlin")
 }
 
 kotlin {

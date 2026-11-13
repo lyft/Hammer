@@ -34,9 +34,5 @@ internal interface AgentEnvironment {
     fun listen(socketName: String, handler: ConnectionHandler): AgentListener
 }
 
-internal fun interface AgentListener {
-    fun close()
-}
-
 /** Why a class named in the manifest can't be a registrar, such as `isn't a HammerCommandRegistrar`. */
 internal class RegistrarError(val problem: String) : Exception(problem)
