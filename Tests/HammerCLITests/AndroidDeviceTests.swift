@@ -253,9 +253,29 @@ struct FakeAdb {
             \(script ?? "")
             \(failure.map { "echo '\($0)' >&2; exit 1" } ?? "exit 0")
             """
-        let adb = tools.appending(path: "adb")
-        try script.write(to: adb, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: adb.path)
+        // The script is read by sh rather than run, and adb is a link to one runner written once, since on
+        // Linux running a file fails with "Text file busy" while a process another test forked holds it open
+        try script.write(to: tools.appending(path: "adb.sh"), atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: tools.appending(path: "adb"),
+                                                   withDestinationURL: try Self.runner.get())
+    }
+
+    /// Runs the `adb.sh` next to the link it was run through.
+    private static let runner = Result<URL, Error> {
+        let runner = FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
+        let script = "#!/bin/sh\nexec /bin/sh \"$(dirname \"$0\")/adb.sh\" \"$@\"\n"
+        let descriptor = open(runner.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o755)
+        guard descriptor >= 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        defer { close(descriptor) }
+        let bytes = Array(script.utf8)
+        guard write(descriptor, bytes, bytes.count) == bytes.count else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        return runner
     }
 
     func adb(environment: [String: String] = [:]) -> Adb {
