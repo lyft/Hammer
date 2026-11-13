@@ -45,10 +45,35 @@ struct AndroidSystemDriver: Driver {
         do {
             return try await self.run(descriptor, arguments: arguments, on: helper)
         } catch let error as ClientError where [.unreachable, .disconnected].contains(error.code) {
+            // adb forward accepts the connection whether or not the helper listens, so a dropped connection
+            // can't tell a command that never reached the helper from one it ran. Only reads run again
+            guard Self.isRead(descriptor.name) else {
+                let helper = AndroidSystemHelper(adb: self.adb, serial: serial)
+                let running = (try? await helper.isRunning()) ?? false
+                throw Self.interrupted(descriptor.name, error: error, helperRunning: running)
+            }
+
             // The helper stopped, such as when Android killed it, so UiAutomation is free for uiautomator
             Self.note("the system helper stopped answering (\(error.description))")
             return try await self.run(descriptor, arguments: arguments, on: uiautomator)
         }
+    }
+
+    /// Whether the command only reads the screen, so running it again through uiautomator can't act twice.
+    static func isRead(_ name: String) -> Bool {
+        return [AndroidSystemCommands.describe.name, AndroidSystemCommands.screenshot.name].contains(name)
+    }
+
+    /// The error for an action the helper stopped answering, which may have run.
+    static func interrupted(_ name: String, error: ClientError, helperRunning: Bool) -> ClientError {
+        let state = helperRunning ? "stopped answering" : "stopped"
+        return .failed(AgentErrorBody(
+            error: "The system helper \(state) during \(name) (\(error.description))",
+            code: error.code,
+            hint: """
+                The command may have run, so hammer didn't run it again. Call describe or take a screenshot \
+                to check before you retry
+                """))
     }
 
     /// The screen through the system helper, starting it if needed, or nil to use uiautomator, with a note

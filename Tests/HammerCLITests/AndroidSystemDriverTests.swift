@@ -276,6 +276,31 @@ struct AndroidSystemCommandsTests {
     }
 }
 
+struct AndroidSystemDriverFallbackTests {
+    @Test
+    func onlyReadsRunAgainThroughUIAutomator() {
+        let reads = AndroidSystemCommands.all.map(\.name).filter(AndroidSystemDriver.isRead)
+
+        #expect(reads == ["describe", "screenshot"])
+    }
+
+    @Test
+    func interruptedActionSaysItMayHaveRun() {
+        let dropped = ClientError.disconnected
+
+        let error = AndroidSystemDriver.interrupted("type_text", error: dropped, helperRunning: false)
+
+        guard case .failed(let body, _) = error else {
+            Issue.record("Expected a failure, got \(error)")
+            return
+        }
+
+        #expect(body.error == "The system helper stopped during type_text (\(dropped.description))")
+        #expect(body.code == .disconnected)
+        #expect(body.hint?.hasPrefix("The command may have run, so hammer didn't run it again.") == true)
+    }
+}
+
 struct SwipeArgumentsTests {
     private func swipe(_ json: String) throws -> SwipeArguments {
         return try JSONDecoder().decode(SwipeArguments.self, from: Data(json.utf8))
