@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Web page</title>
+    <style>
+        body { font-family: sans-serif; margin: 16px; }
+        input, button { font-size: 18px; padding: 8px; margin: 4px 0; }
+        #filler { height: 1600px; }
+        iframe { width: 100%; height: 120px; border: 1px solid gray; }
+    </style>
+</head>
+<body>
+    <h1>Web page</h1>
+    <form onsubmit="document.getElementById('result').textContent = 'Sent ' + document.getElementById('email').value; return false;">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="you@example.com">
+        <button type="submit">Send</button>
+    </form>
+    <p id="result" aria-live="polite"></p>
+    <p><a href="#bottom">Jump to the bottom</a> or <a href="#terms">read the terms</a></p>
+    <iframe title="Embedded" src="data:text/html,<p>Embedded content</p><button onclick=&quot;this.textContent='Pressed'&quot;>Press</button>"></iframe>
+    <div id="filler"></div>
+    <section id="bottom">
+        <h2>Bottom section</h2>
+        <p id="terms">The terms are at the bottom.</p>
+        <button onclick="this.textContent = 'Agreed'">Agree</button>
+    </section>
+</body>
+</html>

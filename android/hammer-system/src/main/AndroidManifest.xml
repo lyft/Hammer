@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="false"
+        android:label="Hammer system helper" />
+
+    <!-- Targets its own package, so starting it never restarts the app under test -->
+    <instrumentation
+        android:name="com.lyft.hammer.system.SystemServer"
+        android:label="Hammer system helper"
+        android:targetPackage="com.lyft.hammer.system" />
+</manifest>
