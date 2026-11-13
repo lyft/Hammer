@@ -19,11 +19,25 @@ internal class ScreenReader(private val activities: ForegroundActivities) {
         val roots = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             WindowInspector.getGlobalWindowViews()
         } else {
-            listOfNotNull(activities.resumedActivity?.window?.decorView)
+            legacyWindowViews() ?: listOfNotNull(activities.resumedActivity?.window?.decorView)
         }
         return roots.filter {
             it.isAttachedToWindow && it.windowVisibility == View.VISIBLE && it.isShown && it.width > 0 && !isLeaving(it)
         }
+    }
+
+    /**
+     * Before Android 10 there is no public list of the app's windows, so this reads WindowManagerGlobal's,
+     * as Espresso does, to see dialogs and popups too. Null if this Android version hides it.
+     */
+    @Suppress("PrivateApi", "DiscouragedPrivateApi")
+    private fun legacyWindowViews(): List<View>? = try {
+        val type = Class.forName("android.view.WindowManagerGlobal")
+        val global = type.getMethod("getInstance").invoke(null)
+        val views = type.getDeclaredField("mViews").apply { isAccessible = true }.get(global)
+        (views as? List<*>)?.filterIsInstance<View>()
+    } catch (exception: ReflectiveOperationException) {
+        null
     }
 
     // A finished activity's windows, and its dialogs, stay attached and visible until its exit animation ends
