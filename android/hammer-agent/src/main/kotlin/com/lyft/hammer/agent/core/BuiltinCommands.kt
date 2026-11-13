@@ -159,7 +159,8 @@ internal object BuiltinCommands {
 
     val typeText = CommandDescriptor(
         name = "type_text",
-        summary = "Types text with the hardware keyboard into the focused field. Pass an element to tap it first.",
+        summary = "Types text into the focused text field, any characters, and presses enter for each line break. P" +
+            "ass an element to tap it first.",
         parameters = listOf(Parameter("text", ParameterType.StringValue, "The text to type.", isRequired = true)) + targetParameters(),
         examples = listOf(
             Example(
@@ -213,7 +214,9 @@ internal object BuiltinCommands {
 
     val waitForIdle = CommandDescriptor(
         name = "wait_for_idle",
-        summary = "Waits until the app draws no frames and its main thread has nothing queued.",
+        summary = "Waits until the app draws no frames, its main thread has nothing queued, Compose has no pending " +
+            "work and Espresso's idling resources, if the app registers any, are idle. Work that finishes " +
+            "later, such as a network response, needs wait_for.",
         parameters = listOf(Parameter("timeout", ParameterType.NumberValue, "The seconds to wait. Defaults to 10.")),
         examples = listOf(Example("Wait for a transition to finish before describing the screen")),
     )

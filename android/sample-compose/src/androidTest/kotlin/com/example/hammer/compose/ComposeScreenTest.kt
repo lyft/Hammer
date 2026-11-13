@@ -62,6 +62,13 @@ class ComposeScreenTest {
     }
 
     @Test
+    fun typeText_anyCharacters_setsTheFieldsValue() {
+        agent.runOk("type_text", arguments("identifier" to "message_field", "text" to "Zoë 😀 你好"))
+
+        agent.runOk("wait_for", arguments("identifier" to "message_field", "value" to "Zoë 😀 你好", "timeout" to 5))
+    }
+
+    @Test
     fun swipeUp_scrollsTheFirstRowAway() {
         agent.runOk("wait_for", arguments("label" to "Row 1", "condition" to "visible", "timeout" to 5))
 
