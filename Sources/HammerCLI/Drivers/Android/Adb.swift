@@ -12,25 +12,26 @@ struct Adb: Sendable {
     /// The environment to read `ANDROID_SERIAL` and the SDK's location from.
     let environment: [String: String]
 
-    private let executable: URL
-    private let leadingArguments: [String]
+    /// The adb found, or nil if there is none, which running it reports.
+    private let executable: URL?
 
-    /// Finds adb in `ANDROID_HOME` or `ANDROID_SDK_ROOT`, Android Studio's default SDK, or the `PATH`.
-    init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+    /// Finds adb in `ANDROID_HOME` or `ANDROID_SDK_ROOT`, Android Studio's default SDK on macOS or Linux, or
+    /// the `PATH`.
+    ///
+    /// - parameter environment: The environment to read the SDK's location and the `PATH` from.
+    /// - parameter home:        The user's home directory, where Android Studio puts the SDK.
+    init(environment: [String: String] = ProcessInfo.processInfo.environment,
+         home: String = FileManager.default.homeDirectoryForCurrentUser.path)
+    {
         self.environment = environment
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
         let sdks = [
             environment["ANDROID_HOME"], environment["ANDROID_SDK_ROOT"], "\(home)/Library/Android/sdk",
+            "\(home)/Android/Sdk",
         ]
         let installed = sdks.compactMap { $0 }.map { "\($0)/platform-tools/adb" }
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
-        if let installed {
-            self.executable = URL(filePath: installed)
-            self.leadingArguments = []
-        } else {
-            self.executable = URL(filePath: "/usr/bin/env")
-            self.leadingArguments = ["adb"]
-        }
+        let onPath = (environment["PATH"] ?? "").split(separator: ":").map { "\($0)/adb" }
+        self.executable = (installed + onPath).first { FileManager.default.isExecutableFile(atPath: $0) }
+            .map { URL(filePath: $0) }
     }
 
     /// Runs adb and returns its standard output.
@@ -56,7 +57,11 @@ struct Adb: Sendable {
     ///
     /// - returns: The standard output.
     func runData(_ arguments: [String], timeout: Duration = Self.defaultTimeout) async throws -> Data {
-        let process = AdbProcess(executable: self.executable, arguments: self.leadingArguments + arguments)
+        guard let executable = self.executable else {
+            throw ClientError.noDevice("adb was not found", hint: Self.installHint)
+        }
+
+        let process = AdbProcess(executable: executable, arguments: arguments)
         let result = try await withTaskCancellationHandler {
             try await process.run(timeout: timeout)
         } onCancel: {
@@ -80,9 +85,14 @@ struct Adb: Sendable {
 
         return result.stdout
     }
+
+    static let installHint = "Install the Android SDK platform tools, and set ANDROID_HOME or put adb on the PATH"
 }
 
 /// One adb process, read and waited for off the cooperative thread pool.
+///
+/// The call ends once adb exits, even when a process it started keeps its output open, such as the adb server
+/// that `adb devices` starts, which would otherwise hold the call until the server stops.
 private final class AdbProcess: @unchecked Sendable {
     struct Result {
         let status: Int32
@@ -91,11 +101,20 @@ private final class AdbProcess: @unchecked Sendable {
         let timedOut: Bool
     }
 
+    /// How long to keep reading output after adb exits, once none arrives.
+    private static let drainIdle: TimeInterval = 0.2
+    /// How long adb gets to exit after SIGTERM before SIGKILL.
+    private static let killGrace: TimeInterval = 1
+
     private let process = Process()
     private let lock = NSLock()
     private var stdout = Data()
     private var stderr = Data()
+    private var openPipes = 2
+    private var lastOutput = Date()
+    private var exited = false
     private var timedOut = false
+    private var continuation: CheckedContinuation<Result, any Error>?
 
     init(executable: URL, arguments: [String]) {
         self.process.executableURL = executable
@@ -104,34 +123,46 @@ private final class AdbProcess: @unchecked Sendable {
 
     func run(timeout: Duration) async throws -> Result {
         return try await withCheckedThrowingContinuation { continuation in
-            let output = Pipe()
-            let error = Pipe()
-            self.process.standardOutput = output
-            self.process.standardError = error
-            let finished = DispatchGroup()
-            finished.enter()
-            self.process.terminationHandler = { _ in finished.leave() }
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+            self.process.standardOutput = outputPipe
+            self.process.standardError = errorPipe
+            self.continuation = continuation
+            // Read both pipes as data arrives, so a full one can't block adb while the other is read
+            for (pipe, isOutput) in [(outputPipe, true), (errorPipe, false)] {
+                pipe.fileHandleForReading.readabilityHandler = { handle in
+                    let data = handle.availableData
+                    self.lock.withLock {
+                        if data.isEmpty {
+                            handle.readabilityHandler = nil
+                            self.openPipes -= 1
+                        } else if isOutput {
+                            self.stdout.append(data)
+                        } else {
+                            self.stderr.append(data)
+                        }
+                        self.lastOutput = Date()
+                    }
+                    self.finishIfDone()
+                }
+            }
+
+            self.process.terminationHandler = { _ in
+                self.lock.withLock { self.exited = true }
+                self.finishIfDone()
+                self.drainAfterExit()
+            }
+
             do {
                 try self.process.run()
             } catch {
-                continuation.resume(throwing: ClientError.noDevice(
-                    "Unable to run adb: \(error.localizedDescription)",
-                    hint: """
-                        Install the Android SDK platform tools, and set ANDROID_HOME or put adb on the PATH
-                        """))
-                return
-            }
-
-            // Read both pipes at once, so a full one can't block adb while the other is read
-            for (pipe, isOutput) in [(output, true), (error, false)] {
-                finished.enter()
-                DispatchQueue.global().async {
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    self.lock.withLock {
-                        if isOutput { self.stdout = data } else { self.stderr = data }
-                    }
-                    finished.leave()
+                self.lock.withLock { self.continuation = nil }
+                for pipe in [outputPipe, errorPipe] {
+                    pipe.fileHandleForReading.readabilityHandler = nil
                 }
+                continuation.resume(throwing: ClientError.noDevice(
+                    "Unable to run adb: \(error.localizedDescription)", hint: Adb.installHint))
+                return
             }
 
             let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
@@ -141,23 +172,61 @@ private final class AdbProcess: @unchecked Sendable {
                 }
 
                 self.lock.withLock { self.timedOut = true }
-                self.process.terminate()
-            }
-
-            finished.notify(queue: .global()) {
-                let result = self.lock.withLock {
-                    Result(status: self.process.terminationStatus, stdout: self.stdout, stderr: self.stderr,
-                           timedOut: self.timedOut)
-                }
-                continuation.resume(returning: result)
+                self.terminate()
             }
         }
     }
 
+    /// Stops adb, and kills it if it doesn't stop. Only adb: a server it started is shared with other clients.
     func terminate() {
-        if self.process.isRunning {
-            self.process.terminate()
+        guard self.process.isRunning else {
+            return
         }
+
+        self.process.terminate()
+        let pid = self.process.processIdentifier
+        DispatchQueue.global().asyncAfter(deadline: .now() + Self.killGrace) {
+            if self.process.isRunning {
+                kill(pid, SIGKILL)
+            }
+        }
+    }
+
+    /// After adb exits, waits until the pipes close or no output arrives for a moment, since a process adb
+    /// started may hold them open.
+    private func drainAfterExit() {
+        DispatchQueue.global().asyncAfter(deadline: .now() + Self.drainIdle / 4) {
+            let idle = self.lock.withLock { Date().timeIntervalSince(self.lastOutput) >= Self.drainIdle }
+            if idle {
+                self.finish()
+            } else if self.lock.withLock({ self.continuation != nil }) {
+                self.drainAfterExit()
+            }
+        }
+    }
+
+    private func finishIfDone() {
+        let done = self.lock.withLock { self.exited && self.openPipes == 0 }
+        if done {
+            self.finish()
+        }
+    }
+
+    private func finish() {
+        let (continuation, result) = self.lock.withLock {
+            defer { self.continuation = nil }
+            return (self.continuation, Result(status: self.process.terminationStatus, stdout: self.stdout,
+                                              stderr: self.stderr, timedOut: self.timedOut))
+        }
+
+        guard let continuation else {
+            return
+        }
+
+        for pipe in [self.process.standardOutput, self.process.standardError].compactMap({ $0 as? Pipe }) {
+            pipe.fileHandleForReading.readabilityHandler = nil
+        }
+        continuation.resume(returning: result)
     }
 }
 
