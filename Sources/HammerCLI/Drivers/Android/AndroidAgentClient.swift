@@ -1,3 +1,6 @@
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 import Foundation
 import HammerAgentCore
 
@@ -42,7 +45,24 @@ struct AndroidAgentClient: Driver {
     }
 
     func run(_ name: String, arguments: [String: JSONValue]) async throws -> Data {
-        return try await self.withAgent { try await $0.run(name, arguments: arguments) }
+        let arguments = try await self.resolvingSystemRefs(in: arguments, for: name)
+        do {
+            let output = try await self.withAgent { try await $0.run(name, arguments: arguments) }
+            let isDescribe = name == BuiltinCommands.Android.describe.name
+            return isDescribe ? await self.fillingSystemReads(output) : output
+        } catch let error as ClientError where error.code == .notFound {
+            guard let point = try await self.systemContentPoint(for: arguments, of: name) else {
+                throw error
+            }
+
+            var arguments = arguments
+            for key in ["identifier", "label", "value", "traits"] {
+                arguments[key] = nil
+            }
+            arguments["x"] = .number(point.x)
+            arguments["y"] = .number(point.y)
+            return try await self.withAgent { [arguments] in try await $0.run(name, arguments: arguments) }
+        }
     }
 
     private func withAgent<T: Sendable>(_ body: @escaping @Sendable (AgentClient) async throws -> T)
@@ -97,6 +117,141 @@ struct AndroidAgentClient: Driver {
 }
 
 extension AndroidAgentClient {
+    /// How many times describe reads a marked view whose content is empty, and how long it waits between.
+    static let systemReadAttempts = 3
+    static let systemReadRetryDelay: Duration = .milliseconds(300)
+
+    /// Describe's output with the content of the views marked `needsSystemRead` read through the system
+    /// helper, or the output as it is, with a note, when the helper can't read them.
+    private func fillingSystemReads(_ output: Data) async -> Data {
+        guard let nodes = try? JSONDecoder().decode([JSONValue].self, from: output) else {
+            return output
+        }
+
+        let regions = SystemReads.regions(in: nodes)
+        guard !regions.isEmpty else {
+            return output
+        }
+
+        do {
+            var contents: [[JSONValue]?] = []
+            for attempt in 1...Self.systemReadAttempts {
+                let windows = try await self.appWindows()
+                contents = regions.map { SystemReads.content(of: $0, in: windows) }
+                // A web view builds its accessibility tree on the first read, so that one can come back empty
+                let isEmpty = contents.contains { $0?.isEmpty ?? true }
+                guard attempt < Self.systemReadAttempts, isEmpty else {
+                    break
+                }
+
+                try await Task.sleep(for: Self.systemReadRetryDelay)
+            }
+
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            return try encoder.encode(SystemReads.merge(nodes, contents: contents))
+        } catch {
+            Self.note("the content of the views marked needsSystemRead wasn't read: \(Self.reason(error))")
+            return output
+        }
+    }
+
+    /// The arguments with each ref from the system helper, such as `s1a2b3c4d`, replaced by the point of
+    /// the element it names, after reading the screen again to check the element is still there.
+    private func resolvingSystemRefs(in arguments: [String: JSONValue], for name: String) async throws
+        -> [String: JSONValue]
+    {
+        var arguments = arguments
+        for prefix in ["", "to_"] {
+            guard case .string(let ref)? = arguments[prefix + "ref"], ref.hasPrefix(SystemReads.refPrefix),
+                  Self.takesPoint(name, prefix: prefix)
+            else {
+                continue
+            }
+
+            let windows: [AndroidElement]
+            do {
+                windows = try await self.appWindows()
+            } catch {
+                throw ClientError.failed(.init(
+                    error: "Ref \(ref) is from the system helper, which can't read the screen: "
+                        + Self.reason(error),
+                    code: .notReady, hint: "Pass the element's x and y from describe instead"))
+            }
+
+            guard let point = SystemReads.point(of: ref, in: windows) else {
+                throw ClientError.failed(.init(
+                    error: "Unknown ref \(ref)", code: .notFound,
+                    hint: "Refs of web content change when it moves or changes, call describe for the "
+                        + "current ones"))
+            }
+
+            arguments[prefix + "ref"] = nil
+            arguments[prefix + "x"] = .number(point.x)
+            arguments[prefix + "y"] = .number(point.y)
+        }
+
+        return arguments
+    }
+
+    /// The point of the one element a query the agent didn't find matches in the content it can't read,
+    /// or nil when there is no such content or the query matches nothing in it.
+    private func systemContentPoint(for arguments: [String: JSONValue], of name: String) async throws
+        -> CGPoint?
+    {
+        guard Self.takesPoint(name, prefix: ""),
+              let query = try? JSONDecoder().decode(ScreenTarget.self, from: JSONEncoder().encode(arguments))
+                .query(traitNames: AndroidSystemCommands.traitNames)
+        else {
+            return nil
+        }
+
+        let output = try await self.withAgent { try await $0.run(BuiltinCommands.Android.describe.name,
+                                                                arguments: [:]) }
+        let regions = SystemReads.regions(in: try JSONDecoder().decode([JSONValue].self, from: output))
+        guard !regions.isEmpty, let windows = try? await self.appWindows() else {
+            return nil
+        }
+
+        let content = regions.compactMap { SystemReads.content(of: $0, in: windows) }.flatMap { $0 }
+        let matches = SystemReads.matches(query, in: content)
+        guard matches.count < 2 else {
+            throw ClientError.failed(.init(
+                error: "Found \(matches.count) elements for \(query) in content the system helper read",
+                code: .ambiguousTarget, hint: "Pass one's ref from describe"))
+        }
+
+        return matches.first.flatMap { SystemReads.frame(of: $0) }.map { CGPoint(x: $0.midX, y: $0.midY) }
+    }
+
+    /// The app's windows through the system helper, in dp.
+    private func appWindows() async throws -> [AndroidElement] {
+        let (device, _) = try await self.connection.endpoint(self.find)
+        guard AndroidSystemHelper.isEnabled(environment: self.adb.environment) else {
+            throw AndroidSystemHelper.Unavailable(
+                description: "\(AndroidSystemHelper.enabledEnvironmentKey) is 0")
+        }
+
+        let helper = AndroidSystemHelper(adb: self.adb, serial: device.serial)
+        let screen = HelperScreen(client: try await helper.client(), adb: self.adb, serial: device.serial)
+        let metrics = try await screen.metrics()
+        return try await screen.windows(of: device.appID, scale: metrics.scale)
+    }
+
+    /// Whether the command takes a point for the target with the prefix, so a ref can become one.
+    private static func takesPoint(_ name: String, prefix: String) -> Bool {
+        let descriptor = BuiltinCommands.Android.all.first { $0.name == name }
+        return descriptor?.parameters.contains { $0.name == prefix + "x" } == true
+    }
+
+    private static func reason(_ error: Error) -> String {
+        return (error as? ClientError)?.description ?? String(describing: error)
+    }
+
+    private static func note(_ text: String) {
+        FileHandle.standardError.write(Data("note: \(text)\n".utf8))
+    }
+
     /// How often a call checks whether Android froze the app while it waits for the agent.
     static let frozenCheckDelay: Duration = .seconds(5)
 

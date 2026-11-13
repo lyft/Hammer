@@ -6,7 +6,7 @@ import com.lyft.hammer.agent.core.jsonObject
 
 /**
  * The output of `describe`: visible elements only, and without `all` only those with accessibility
- * information. An element left out is replaced by its children.
+ * information or content the agent can't read. An element left out is replaced by its children.
  */
 internal object DescribeOutput {
 
@@ -18,7 +18,7 @@ internal object DescribeOutput {
         val children = nodes(element.children, all)
         when {
             !element.visible -> emptyList()
-            all || element.hasAccessibilityInfo -> listOf(node(element, children))
+            all || element.hasAccessibilityInfo || element.needsSystemRead -> listOf(node(element, children))
             else -> children
         }
     }
@@ -34,6 +34,7 @@ internal object DescribeOutput {
         },
         "frame" to element.frame.toJson(FRAME_DECIMALS),
         "hittable" to element.hittable.json,
+        "needsSystemRead" to element.needsSystemRead.takeIf { it }?.json,
         "children" to children.takeIf { it.isNotEmpty() }?.let { JsonValue.Array(it) },
     )
 }

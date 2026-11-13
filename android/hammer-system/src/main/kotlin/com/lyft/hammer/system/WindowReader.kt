@@ -44,7 +44,14 @@ private val Rect.bounds: Bounds
 /** Reads every window on screen from UiAutomation, back to front. */
 internal class WindowReader(private val automation: UiAutomation) {
 
-    fun windows(): List<WindowData> = automation.windows
+    fun windows(): List<WindowData> {
+        // UiAutomation caches nodes and updates them from events, which web views don't send for every
+        // change, such as a button's text set by a script. A read starts fresh, as uiautomator's does
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) automation.clearCache()
+        return read()
+    }
+
+    private fun read(): List<WindowData> = automation.windows
         .sortedBy { it.layer }
         .mapNotNull { window ->
             val root = window.root ?: return@mapNotNull null

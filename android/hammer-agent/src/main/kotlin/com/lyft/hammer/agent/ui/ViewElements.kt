@@ -3,6 +3,7 @@ package com.lyft.hammer.agent.ui
 import android.graphics.Rect
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebView
 import android.widget.Checkable
 import android.widget.EditText
 import android.widget.ImageView
@@ -27,7 +28,8 @@ internal class ViewElements(private val density: Double) {
             else -> Rect()
         }
         val views = (view as? ViewGroup)?.let { group -> (0 until group.childCount).map { element(group.getChildAt(it), childClip, alpha) } }.orEmpty()
-        val children = if (compose != null && compose.isRoot(view)) {
+        val isComposeRoot = compose != null && compose.isRoot(view)
+        val children = if (compose != null && isComposeRoot) {
             // A Compose root's only View child is the handler of its interop Views
             InteropPlacement.place(compose.children(view, childClip, visible), views.flatMap { it.children })
         } else {
@@ -45,8 +47,13 @@ internal class ViewElements(private val density: Double) {
             visible = visible,
             consumesTouches = isWindowRoot || consumesTouches(view),
             children = children,
+            needsSystemRead = !isComposeRoot && hasVirtualContent(view),
         )
     }
+
+    // A web view, or a view such as a chart or a calendar that draws its items and describes them to
+    // accessibility services only through a node provider
+    private fun hasVirtualContent(view: View): Boolean = view is WebView || view.accessibilityNodeProvider != null
 
     private fun identifier(view: View): String? {
         // Generated ids have no package byte and no resource name

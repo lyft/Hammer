@@ -37,7 +37,17 @@ These APIs can change with each Xcode release. When the driver breaks, check the
 
 ## The Android system driver
 
-It runs adb's `shell` user, which can read and inject input into every window, unlike an app:
+It runs through the system helper when it can, in [android/hammer-system](../../android/hammer-system), and otherwise through adb's `shell` user, which can read and inject input into every window, unlike an app. Both read into the same elements, behind the `SystemScreen` protocol in [SystemScreen.swift](../../Sources/HammerCLI/Drivers/Android/SystemScreen.swift).
+
+### The system helper
+
+- **What it is:** an instrumentation APK whose `SystemServer` holds UiAutomation with `FLAG_RETRIEVE_INTERACTIVE_WINDOWS`, and answers the same HTTP API as the app's agent on the abstract socket `@hammer_system`, with the agent's server, router and JSON code, which both share from [hammer-core](../../android/hammer-core). Its commands take pixels; the tool turns dp into pixels. Only adb's shell user and root may connect.
+- **Embedding:** Release.yml builds the release APK, shrunk to about 180 KB, and [embed-system-helper.sh](../../scripts/embed-system-helper.sh) writes it base64 encoded into `SystemHelperAPK.swift` before the macOS and Linux tools are built. A tool built from a checkout has none, and runs through uiautomator unless `HAMMER_SYSTEM_HELPER_APK` names one, built with `./gradlew :hammer-system:assembleRelease` in `android`.
+- **Lifecycle:** in [AndroidSystemHelper.swift](../../Sources/HammerCLI/Drivers/Android/AndroidSystemHelper.swift). A command first asks a running helper for its `version`, the SHA-256 of its APK, and replaces a helper that differs. It installs with `adb install -r -t`, after uninstalling a helper signed with another key. `am instrument -w` hosts the UiAutomation connection, since without `-w` Android gives the instrumentation none, so it runs detached on the device with `setsid nohup`. The start watches the helper's socket and the `am` process, and a helper that exits, such as when another tool holds UiAutomation, fails the start at once with the reason it wrote to logcat under `HammerSystem`.
+- **Reads:** UiAutomation caches nodes and updates them from accessibility events, which web views don't send for every change, so each read clears the cache on Android 14 and later.
+- **Web content in the app:** the agent can't read what a view only describes to accessibility services, such as a web view's page, so its describe marks such a view `needsSystemRead`. The app client fills the view's children from one helper read of the app's windows, matched by frame, in [SystemReads.swift](../../Sources/HammerCLI/Drivers/Android/SystemReads.swift). Those elements get refs such as `s1a2b3c4d`, a hash of what the element is and where, so nothing is kept between calls: a command with one reads the screen again and taps the element's point through the agent, failing with `not_found` when it moved. A query the agent doesn't find is looked for in the same content.
+
+### Through adb
 
 - **Elements:** `uiautomator dump --windows` lists the accessibility nodes of every window on screen, falling back to a plain dump on versions without `--windows`, in [AndroidScreen.swift](../../Sources/HammerCLI/Drivers/Android/AndroidScreen.swift). It dumps to a file in `/data/local/tmp` and prints it in the same shell, since uiautomator can print an error and still exit 0. A dump that failed because the screen was changing is retried. Bounds are pixels, turned into dp with `wm density`.
 - **Metrics:** the display's current size from `dumpsys window displays` (`cur=`), since `wm size` is the size in the natural orientation. Commands that don't need it, such as `press_key`, skip it.

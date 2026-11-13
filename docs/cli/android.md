@@ -35,7 +35,11 @@ A `no_device` error lists the attached devices and their states, such as `unauth
 
 ## System UI
 
-`--system` runs `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot` on the whole screen through adb, to reach permission dialogs, the notification shade, the home screen and other apps. See [System UI](system-ui.md#android).
+`--system` runs `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot` on the whole screen through `hammer`'s system helper, to reach permission dialogs, the notification shade, the home screen and other apps. See [System UI](system-ui.md#android).
+
+## Web pages
+
+The agent can't read what a view only describes to accessibility services, such as a `WebView`'s page or a chart's bars, so `describe` marks the view `"needsSystemRead": true`. `hammer` fills in its children from the system helper, with refs such as `s1a2b3c4d`, which name an element where it was read: `tap --ref` reads the screen again and taps it through the agent, or fails with `not_found` once it moved, such as after the page scrolled. Queries such as `--label Send` find these elements too. A page's elements follow the web view's accessibility, so a button's label is its text and a field's identifier its `id`. With `HAMMER_SYSTEM_HELPER=0`, or when the helper can't run, the view keeps its mark and `hammer` says why on standard error.
 
 ## Built-in commands
 

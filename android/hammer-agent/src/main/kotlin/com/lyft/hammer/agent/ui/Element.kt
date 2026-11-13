@@ -7,6 +7,8 @@ package com.lyft.hammer.agent.ui
  * @property nodeId the semantics node id within [owner], or null for a View.
  * @property consumesTouches whether a touch at its location stops at it, such as a clickable view
  *   or a window's root, which decides what else is hittable.
+ * @property needsSystemRead whether its content exists only for accessibility services, such as a web
+ *   page's, which the hammer tool reads through its system helper.
  */
 internal class Element(
     val owner: Any,
@@ -20,6 +22,7 @@ internal class Element(
     val visible: Boolean,
     val consumesTouches: Boolean,
     val children: List<Element>,
+    val needsSystemRead: Boolean = false,
 ) {
     var ref: String = ""
     var hittable: Boolean = false
@@ -34,7 +37,7 @@ internal class Element(
         get() = consumesTouches || traits.any { it in ACTIONABLE_TRAITS }
 
     fun withChildren(children: List<Element>) =
-        Element(owner, nodeId, type, identifier, label, value, traits, frame, visible, consumesTouches, children)
+        Element(owner, nodeId, type, identifier, label, value, traits, frame, visible, consumesTouches, children, needsSystemRead)
             .also { it.ref = ref }
 
     private companion object {

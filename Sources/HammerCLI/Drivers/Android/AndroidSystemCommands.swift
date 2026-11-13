@@ -76,8 +76,8 @@ enum AndroidSystemCommands {
     static let typeText = CommandDescriptor(
         name: "type_text",
         summary: """
-            Types printable ASCII text into the focused field, such as a system dialog's. Pass an element \
-            to tap it first.
+            Types text into the focused field, such as a system dialog's, only printable ASCII without the \
+            system helper. Pass an element to tap it first.
             """,
         parameters: [.init("text", .string, "The text to type.", isRequired: true)] + targetParameters,
         examples: [
