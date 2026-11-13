@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import android.graphics.Rect
 import android.os.Build
 import android.view.View
+import android.view.WindowManager
 import android.view.inspector.WindowInspector
 import com.lyft.hammer.agent.AgentError
 import com.lyft.hammer.agent.AgentErrorCode
@@ -50,10 +51,20 @@ internal class ScreenReader(private val activities: ForegroundActivities) {
         val density = roots.first().resources.displayMetrics.density.toDouble()
         val reader = ViewElements(density)
         val windows = roots.map { reader.window(it, screenBounds(it)) }
-        return Snapshot(windows, windows.last().frame, density)
+        return Snapshot(windows, windows.last().frame, density, touches(roots, density))
     }
 
     companion object {
+        /** How each of the windows of [roots] takes touches, with frames in dp. */
+        fun touches(roots: List<View>, density: Double): List<WindowTouch> = roots.map { root ->
+            val flags = (root.layoutParams as? WindowManager.LayoutParams)?.flags ?: 0
+            WindowTouch(
+                frame = screenBounds(root).toFrame(density),
+                touchable = flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE == 0,
+                modal = flags and WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL == 0,
+            )
+        }
+
         fun screenBounds(view: View): Rect {
             val location = IntArray(2).also(view::getLocationOnScreen)
             return Rect(location[0], location[1], location[0] + view.width, location[1] + view.height)

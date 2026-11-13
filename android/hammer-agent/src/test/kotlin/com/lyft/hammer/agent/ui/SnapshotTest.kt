@@ -56,6 +56,38 @@ class SnapshotTest {
     }
 
     @Test
+    fun init_buttonOutsideASmallDialog_isNotHittable() {
+        val button = element("e2", Frame(10.0, 10.0, 100.0, 40.0), consumesTouches = true)
+        val dialog = element("e4", Frame(50.0, 300.0, 300.0, 200.0), consumesTouches = true)
+
+        val snapshot = Snapshot(listOf(window(button), dialog), dialog.frame)
+
+        assertThat(button.hittable).isFalse()
+        assertThat(snapshot.receiver(button.touchPoint)).isSameAs(dialog)
+    }
+
+    @Test
+    fun init_buttonOutsideANotTouchModalWindow_isHittable() {
+        val button = element("e2", Frame(10.0, 10.0, 100.0, 40.0), consumesTouches = true)
+        val popup = element("e4", Frame(50.0, 300.0, 300.0, 200.0), consumesTouches = true)
+        val activity = window(button)
+
+        Snapshot(listOf(activity, popup), popup.frame, touches = listOf(WindowTouch(SCREEN), WindowTouch(popup.frame, modal = false)))
+
+        assertThat(button.hittable).isTrue()
+    }
+
+    @Test
+    fun init_buttonUnderANotTouchableWindow_isHittable() {
+        val button = element("e2", Frame(10.0, 10.0, 100.0, 40.0), consumesTouches = true)
+        val toast = element("e4", SCREEN, consumesTouches = true)
+
+        Snapshot(listOf(window(button), toast), SCREEN, touches = listOf(WindowTouch(SCREEN), WindowTouch(SCREEN, touchable = false)))
+
+        assertThat(button.hittable).isTrue()
+    }
+
+    @Test
     fun init_buttonUnderNonClickableOverlay_isHittable() {
         val button = element("e2", Frame(10.0, 10.0, 100.0, 40.0), consumesTouches = true)
         val overlay = element("e3", Frame(0.0, 0.0, 400.0, 400.0))

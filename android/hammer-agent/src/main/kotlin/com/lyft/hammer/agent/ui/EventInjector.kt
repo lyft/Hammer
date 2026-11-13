@@ -28,15 +28,19 @@ internal class EventInjector(
         repeat(count) { index ->
             if (index > 0) delay(BETWEEN_TAPS_MILLIS)
             val gesture = begin(point, density)
-            delay(TAP_HOLD_MILLIS)
-            gesture.end(point)
+            gesture.whileDown {
+                delay(TAP_HOLD_MILLIS)
+                gesture.end(point)
+            }
         }
     }
 
     suspend fun longPress(point: Point, density: Double, durationSeconds: Double) {
         val gesture = begin(point, density)
-        delay(durationSeconds.millis)
-        gesture.end(point)
+        gesture.whileDown {
+            delay(durationSeconds.millis)
+            gesture.end(point)
+        }
     }
 
     /** Puts a finger down at [from], moves it to [to] over [durationSeconds] and lifts it, for swipes and drags. */
@@ -44,12 +48,14 @@ internal class EventInjector(
         val durationMillis = durationSeconds.millis
         val steps = max(MIN_MOVES, (durationMillis / MOVE_INTERVAL_MILLIS).toInt())
         val gesture = begin(from, density)
-        for (step in 1..steps) {
-            delay(durationMillis / steps)
-            val fraction = step.toDouble() / steps
-            gesture.move(Point(from.x + (to.x - from.x) * fraction, from.y + (to.y - from.y) * fraction))
+        gesture.whileDown {
+            for (step in 1..steps) {
+                delay(durationMillis / steps)
+                val fraction = step.toDouble() / steps
+                gesture.move(Point(from.x + (to.x - from.x) * fraction, from.y + (to.y - from.y) * fraction))
+            }
+            gesture.end(to)
         }
-        gesture.end(to)
     }
 
     /** Puts two fingers down at [from], moves them to [to] over [durationSeconds] and lifts them, for pinches. */
@@ -57,21 +63,21 @@ internal class EventInjector(
         val durationMillis = durationSeconds.millis
         val steps = max(MIN_MOVES, (durationMillis / MOVE_INTERVAL_MILLIS).toInt())
         val gesture = gestureAt(from[0], density)
-        withContext(main) {
-            gesture.dispatchFingers(MotionEvent.ACTION_DOWN, from.take(1))
-            gesture.dispatchFingers(secondFinger(MotionEvent.ACTION_POINTER_DOWN), from)
-        }
-        for (step in 1..steps) {
-            delay(durationMillis / steps)
-            val fraction = step.toDouble() / steps
-            val fingers = from.zip(to) { start, end ->
-                Point(start.x + (end.x - start.x) * fraction, start.y + (end.y - start.y) * fraction)
+        withContext(main) { gesture.dispatchFingers(MotionEvent.ACTION_DOWN, from.take(1)) }
+        gesture.whileDown {
+            withContext(main) { gesture.dispatchFingers(secondFinger(MotionEvent.ACTION_POINTER_DOWN), from) }
+            for (step in 1..steps) {
+                delay(durationMillis / steps)
+                val fraction = step.toDouble() / steps
+                val fingers = from.zip(to) { start, end ->
+                    Point(start.x + (end.x - start.x) * fraction, start.y + (end.y - start.y) * fraction)
+                }
+                withContext(main) { gesture.dispatchFingers(MotionEvent.ACTION_MOVE, fingers) }
             }
-            withContext(main) { gesture.dispatchFingers(MotionEvent.ACTION_MOVE, fingers) }
-        }
-        withContext(main) {
-            gesture.dispatchFingers(secondFinger(MotionEvent.ACTION_POINTER_UP), to)
-            gesture.dispatchFingers(MotionEvent.ACTION_UP, to.take(1))
+            withContext(main) {
+                gesture.dispatchFingers(secondFinger(MotionEvent.ACTION_POINTER_UP), to)
+                gesture.dispatchFingers(MotionEvent.ACTION_UP, to.take(1))
+            }
         }
     }
 
@@ -129,12 +135,15 @@ internal class EventInjector(
     private suspend fun begin(start: Point, density: Double): Gesture =
         gestureAt(start, density).also { withContext(main) { it.dispatch(MotionEvent.ACTION_DOWN, start) } }
 
-    /** A touch in the frontmost window at [start], before any finger is down. */
+    /**
+     * A touch at [start], before any finger is down, in the window the input system would send it to:
+     * the frontmost touchable window under it, or a modal window in front, such as a dialog, which
+     * takes the touches outside it.
+     */
     private suspend fun gestureAt(start: Point, density: Double): Gesture = withContext(main) {
-        val x = (start.x * density).toInt()
-        val y = (start.y * density).toInt()
         val roots = reader.windowRoots()
-        val window = roots.lastOrNull { ScreenReader.screenBounds(it).contains(x, y) } ?: roots.lastOrNull() ?: throw notReady()
+        if (roots.isEmpty()) throw notReady()
+        val window = touchedWindow(ScreenReader.touches(roots, density), start)?.let(roots::get) ?: roots.last()
         Gesture(window, density)
     }
 
@@ -144,11 +153,19 @@ internal class EventInjector(
         private val origin = IntArray(2).also(window::getLocationOnScreen)
         private val downTime = SystemClock.uptimeMillis()
 
+        /** Where the fingers were last, for a cancel. */
+        private var fingers: List<Point> = emptyList()
+
         suspend fun move(point: Point) = withContext(main) { dispatch(MotionEvent.ACTION_MOVE, point) }
 
         suspend fun end(point: Point) = withContext(main) { dispatch(MotionEvent.ACTION_UP, point) }
 
+        /** Runs [body], which lifts the fingers, and cancels the touch if it fails or is cancelled first. */
+        suspend fun <T> whileDown(body: suspend () -> T): T =
+            whileFingerDown(cancel = { withContext(main) { dispatchFingers(MotionEvent.ACTION_CANCEL, fingers) } }, body = body)
+
         fun dispatch(action: Int, point: Point) {
+            fingers = listOf(point)
             val event = MotionEvent.obtain(
                 downTime,
                 SystemClock.uptimeMillis(),
@@ -163,6 +180,7 @@ internal class EventInjector(
 
         /** Sends an event with a finger at each of [points], the first one's pointer id 0, the next one's 1. */
         fun dispatchFingers(action: Int, points: List<Point>) {
+            fingers = points
             val properties = Array(points.size) { index ->
                 MotionEvent.PointerProperties().apply {
                     id = index
