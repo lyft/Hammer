@@ -159,8 +159,8 @@ internal object BuiltinCommands {
 
     val typeText = CommandDescriptor(
         name = "type_text",
-        summary = "Types text into the focused text field, any characters, and presses enter for each line break. P" +
-            "ass an element to tap it first.",
+        summary = "Types text into the focused text field, any characters, and presses enter for each line break. " +
+            "Pass an element to tap it first.",
         parameters = listOf(Parameter("text", ParameterType.StringValue, "The text to type.", isRequired = true)) + targetParameters(),
         examples = listOf(
             Example(
