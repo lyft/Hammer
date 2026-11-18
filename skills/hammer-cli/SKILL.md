@@ -7,7 +7,7 @@ description: Drive and inspect a running iOS or Android app that has Hammer's ag
 
 `hammer` talks to `HammerAgent` running inside the app and sends real touches and key presses from inside it.
 
-If `hammer` isn't installed, download the prebuilt one from the latest release: `curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.zip -o /tmp/hammer-macos.zip && unzip -o /tmp/hammer-macos.zip -d ~/.local/bin`.
+If `hammer` isn't installed, download the prebuilt one from the latest release: `curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.zip -o /tmp/hammer-macos.zip && unzip -o /tmp/hammer-macos.zip -d ~/.local/bin`. On Linux, which drives Android only, extract `hammer-linux-x86_64.tar.gz` or `hammer-linux-aarch64.tar.gz` from the same release into `~/.local/bin`.
 
 1. Run `hammer guide` first. It prints the full instructions and every command the app runs, including the ones the app adds, so it is always up to date.
 2. Start each task with `hammer describe` to see the elements on screen and their refs.
@@ -17,7 +17,7 @@ To try a change live, such as "how does it look with a blue background" or "whic
 
 When a command fails it prints a JSON object with the `error`, a `code` such as `not_found`, `not_hittable` or `timed_out`, and a `hint`. Follow the hint, such as calling `describe` again or fixing an argument, instead of retrying the same call. A `disconnected` or `timed_out` command may still have run, so check the app's state before running it again. Exit code 2 means the call itself was invalid; run `hammer help <command>` to see its arguments and examples.
 
-System UI such as permission alerts, the home screen and other apps is outside the app. Run `hammer describe --system` to see it and `hammer tap --system --label Allow` to tap it, in the simulator or with `--android`. Pass `--udid` when several simulators are booted. On Android, `--system` also swipes, types, presses keys such as `deviceHome` and takes screenshots.
+System UI such as permission alerts, the home screen and other apps is outside the app. Run `hammer describe --system` to see it and `hammer tap --system --label Allow` to tap it, in the simulator or with `--android`. Pass `--udid` when several simulators are booted. On Android, `--system` also swipes, types, presses keys such as `deviceHome` and takes screenshots. On Android it runs through a helper app `hammer` installs, and while that runs uiautomator and UI tests can't start: run `hammer system stop --android` before them. A view marked `"needsSystemRead": true`, such as a web page, gets its content from that helper, with refs starting with `s` that you pass like any other.
 
 If no agent is listening, the app is not running or has not called `HammerAgent().start()`. Launch it and try again. Pass `--port` when the app uses a port other than 9876, and set `HAMMER_AGENT_TOKEN` to the app's token if it reports a missing token.
 

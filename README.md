@@ -94,6 +94,13 @@ curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.
 unzip -o /tmp/hammer-macos.zip -d ~/.local/bin
 ```
 
+On Linux, which drives Android only, take the build for your CPU, `x86_64` or `aarch64`:
+
+```bash
+mkdir -p ~/.local/bin
+curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-linux-x86_64.tar.gz | tar -xz -C ~/.local/bin
+```
+
 Then see what's on screen and act on it:
 
 ```bash

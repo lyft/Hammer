@@ -1,9 +1,7 @@
 package com.lyft.hammer.agent
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
-import com.lyft.hammer.agent.core.JsonArrays
-import com.lyft.hammer.agent.core.toGson
+import com.lyft.hammer.agent.core.json
+import com.lyft.hammer.agent.core.jsonObject
 
 /**
  * Describes a command the agent runs, for clients to list, validate and document it. Mirrors
@@ -74,12 +72,12 @@ public data class CommandDescriptor(
         public data object Json : ParameterType("json", "any JSON value")
     }
 
-    internal fun toJson(): JsonObject = JsonObject().apply {
-        addProperty("name", name)
-        addProperty("summary", summary)
-        add("parameters", JsonArrays.of(parameters.map { it.toJson() }))
-        add("examples", JsonArrays.of(examples.map { it.toJson() }))
-    }
+    internal fun toJson(): JsonValue.Object = jsonObject(
+        "name" to name.json,
+        "summary" to summary.json,
+        "parameters" to JsonValue.Array(parameters.map { it.toJson() }),
+        "examples" to JsonValue.Array(examples.map { it.toJson() }),
+    )
 
     public companion object {
         /**
@@ -91,21 +89,17 @@ public data class CommandDescriptor(
     }
 }
 
-private fun CommandDescriptor.Parameter.toJson(): JsonObject = JsonObject().apply {
-    addProperty("name", name)
-    add("type", type.toJson())
-    addProperty("summary", summary)
-    addProperty("isRequired", isRequired)
-}
+private fun CommandDescriptor.Parameter.toJson(): JsonValue.Object = jsonObject(
+    "name" to name.json,
+    "type" to type.toJson(),
+    "summary" to summary.json,
+    "isRequired" to isRequired.json,
+)
 
-private fun CommandDescriptor.ParameterType.toJson(): JsonObject = JsonObject().apply {
-    addProperty("type", wireName)
-    if (this@toJson is CommandDescriptor.ParameterType.Choice) {
-        add("values", JsonArrays.of(values.map { JsonPrimitive(it) }))
-    }
-}
+private fun CommandDescriptor.ParameterType.toJson(): JsonValue.Object = jsonObject(
+    "type" to wireName.json,
+    "values" to (this as? CommandDescriptor.ParameterType.Choice)?.let { choice -> JsonValue.Array(choice.values.map { it.json }) },
+)
 
-private fun CommandDescriptor.Example.toJson(): JsonObject = JsonObject().apply {
-    addProperty("summary", summary)
-    add("arguments", JsonObject().also { json -> arguments.forEach { (name, value) -> json.add(name, value.toGson()) } })
-}
+private fun CommandDescriptor.Example.toJson(): JsonValue.Object =
+    jsonObject("summary" to summary.json, "arguments" to JsonValue.Object(arguments))

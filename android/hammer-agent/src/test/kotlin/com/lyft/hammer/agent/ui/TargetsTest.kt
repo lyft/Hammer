@@ -1,8 +1,9 @@
 package com.lyft.hammer.agent.ui
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.lyft.hammer.agent.AgentError
+import com.lyft.hammer.agent.JsonValue
+import com.lyft.hammer.agent.core.Json
+import com.lyft.hammer.agent.core.emptyJsonObject
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowableOfType
 import org.junit.Test
@@ -11,7 +12,7 @@ class TargetsTest {
 
     @Test
     fun parse_noTarget_isNone() {
-        assertThat(Target.parse(JsonObject())).isEqualTo(Target.None)
+        assertThat(Target.parse(emptyJsonObject)).isEqualTo(Target.None)
     }
 
     @Test
@@ -140,5 +141,5 @@ class TargetsTest {
     private fun resolveError(target: Target, snapshot: Snapshot): AgentError =
         catchThrowableOfType({ TargetResolver.element(target, snapshot) }, AgentError::class.java)
 
-    private fun json(value: String): JsonObject = JsonParser.parseString(value).asJsonObject
+    private fun json(value: String): JsonValue.Object = Json.parse(value) as JsonValue.Object
 }

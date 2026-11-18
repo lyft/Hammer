@@ -42,6 +42,13 @@ class ComposeScreenTest {
     }
 
     @Test
+    fun describe_blankContentDescription_labelsTheElementWithItsText() {
+        val row = agent.element { it.optString("identifier") == "blank_description_row" }
+
+        assertThat(row?.optString("label")).isEqualTo("Add to count")
+    }
+
+    @Test
     fun tapByIdentifierLabelAndRef_countsEachTap() {
         agent.runOk("tap", arguments("identifier" to "count_button"))
         agent.runOk("wait_for", arguments("label" to "Count: 1", "timeout" to 5))
@@ -62,6 +69,13 @@ class ComposeScreenTest {
     }
 
     @Test
+    fun typeText_anyCharacters_setsTheFieldsValue() {
+        agent.runOk("type_text", arguments("identifier" to "message_field", "text" to "Zoë 😀 你好"))
+
+        agent.runOk("wait_for", arguments("identifier" to "message_field", "value" to "Zoë 😀 你好", "timeout" to 5))
+    }
+
+    @Test
     fun swipeUp_scrollsTheFirstRowAway() {
         agent.runOk("wait_for", arguments("label" to "Row 1", "condition" to "visible", "timeout" to 5))
 
@@ -71,6 +85,30 @@ class ComposeScreenTest {
 
         agent.runOk("wait_for", arguments("label" to "Row 1", "condition" to "gone", "timeout" to 5))
     }
+
+    @Test
+    fun pinch_zoomInThenOut_scalesTheArea() {
+        agent.runOk("pinch", arguments("identifier" to "zoom_area", "scale" to 2))
+        val zoomedIn = zoom()
+        agent.runOk("pinch", arguments("identifier" to "zoom_area", "scale" to 0.5))
+        val zoomedOut = zoom() / zoomedIn
+
+        // Compose starts the transform once the fingers pass the touch slop, so it measures a little less
+        assertThat(zoomedIn).isBetween(1.5, 2.0)
+        assertThat(zoomedOut).isBetween(0.5, 0.67)
+    }
+
+    @Test
+    fun pinch_scaleOfOne_isInvalid() {
+        val response = agent.run("pinch", arguments("identifier" to "zoom_area", "scale" to 1))
+
+        assertThat(response.status).isEqualTo(400)
+        assertThat(JSONObject(response.body).getString("code")).isEqualTo("invalid_arguments")
+        assertThat(zoom()).isEqualTo(1.0)
+    }
+
+    private fun zoom(): Double =
+        agent.element { it.optString("identifier") == "zoom" }!!.getString("label").removePrefix("Zoom: ").toDouble()
 
     @Test
     fun screenshot_oneElement_isAPng() {

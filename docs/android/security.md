@@ -4,7 +4,7 @@ Anything that can reach the agent can control the app, so it is locked down by d
 
 - It only starts in debuggable builds.
 - It only accepts connections from adb's `shell` user, root and the app itself. Any app on the device can connect to an abstract socket, so the agent checks each connection's peer credentials and closes the others before reading them.
-- It rejects requests from web browsers, which could reach it through the port `adb forward` opens on the Mac, so websites can't control the app.
+- It rejects requests from web browsers, which could reach it through the port `adb forward` opens on the computer, so websites can't control the app.
 
 ## Tokens
 

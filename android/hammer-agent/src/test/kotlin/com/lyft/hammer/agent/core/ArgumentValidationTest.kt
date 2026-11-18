@@ -1,8 +1,7 @@
 package com.lyft.hammer.agent.core
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.lyft.hammer.agent.CommandDescriptor
+import com.lyft.hammer.agent.JsonValue
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.catchThrowableOfType
@@ -86,5 +85,5 @@ class ArgumentValidationTest {
     private fun validationError(arguments: String): ArgumentsError =
         catchThrowableOfType({ descriptor.validate(json(arguments)) }, ArgumentsError::class.java)
 
-    private fun json(value: String): JsonObject = JsonParser.parseString(value).asJsonObject
+    private fun json(value: String): JsonValue.Object = Json.parse(value) as JsonValue.Object
 }

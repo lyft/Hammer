@@ -1,6 +1,8 @@
 package com.lyft.hammer.agent.ui
 
-import com.google.gson.JsonObject
+import com.lyft.hammer.agent.JsonValue
+import com.lyft.hammer.agent.core.json
+import com.lyft.hammer.agent.core.jsonObject
 import kotlin.math.abs
 import kotlin.math.roundToLong
 
@@ -20,12 +22,12 @@ internal data class Frame(val x: Double, val y: Double, val width: Double, val h
 
     operator fun contains(point: Point) = point.x >= x && point.x < x + width && point.y >= y && point.y < y + height
 
-    fun toJson(decimals: Int): JsonObject = JsonObject().apply {
-        addProperty("x", round(x, decimals))
-        addProperty("y", round(y, decimals))
-        addProperty("width", round(width, decimals))
-        addProperty("height", round(height, decimals))
-    }
+    fun toJson(decimals: Int): JsonValue.Object = jsonObject(
+        "x" to round(x, decimals).json,
+        "y" to round(y, decimals).json,
+        "width" to round(width, decimals).json,
+        "height" to round(height, decimals).json,
+    )
 
     companion object {
         /** Whole numbers are written without a fraction, as Hammer's JSON encoder does. */

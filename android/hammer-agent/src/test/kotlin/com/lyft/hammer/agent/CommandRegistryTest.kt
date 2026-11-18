@@ -1,16 +1,15 @@
 package com.lyft.hammer.agent
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.lyft.hammer.agent.core.Json
 import com.lyft.hammer.agent.core.WireCommand
+import com.lyft.hammer.agent.core.emptyJsonObject
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.Test
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.Test
 
 class CommandRegistryTest {
 
@@ -78,7 +77,7 @@ class CommandRegistryTest {
         registry.register(
             command("slow", "") {
                 release.await()
-                JsonObject()
+                emptyJsonObject
             },
             CommandSource.BUILTIN,
             CommandRegistry.BUILTIN_ORIGIN,
@@ -91,7 +90,7 @@ class CommandRegistryTest {
         val commands = router.respond(HttpRequest("GET", "/commands", emptyMap(), ByteArray(0)))
 
         assertThat(running.isActive).isTrue()
-        assertThat(JsonParser.parseString(commands.body).asJsonArray.map { it.asJsonObject["name"].asString })
+        assertThat(Json.parse(commands.body).arrayValue.orEmpty().map { it.objectValue?.get("name")?.stringValue })
             .containsExactly("slow", "ping")
         release.complete(Unit)
         assertThat(running.await().status).isEqualTo(200)
@@ -101,10 +100,10 @@ class CommandRegistryTest {
         name: String,
         summary: String,
         vararg parameters: CommandDescriptor.Parameter,
-        run: suspend () -> JsonElement = { JsonObject() },
+        run: suspend () -> JsonValue = { emptyJsonObject },
     ): WireCommand = object : WireCommand {
         override val descriptor = CommandDescriptor(name, summary, parameters.toList())
 
-        override suspend fun run(arguments: JsonObject): JsonElement = run()
+        override suspend fun run(arguments: JsonValue.Object): JsonValue = run()
     }
 }
