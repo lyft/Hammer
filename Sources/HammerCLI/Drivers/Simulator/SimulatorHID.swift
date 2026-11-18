@@ -1,3 +1,4 @@
+#if os(macOS)
 import CoreGraphics
 import Foundation
 
@@ -98,3 +99,4 @@ struct SimulatorHID {
         }
     }
 }
+#endif

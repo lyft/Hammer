@@ -1,0 +1,12 @@
+[
+  "invalid_arguments",
+  "unknown_command",
+  "invalid_request",
+  "failed",
+  "not_found",
+  "ambiguous_target",
+  "not_visible",
+  "not_hittable",
+  "not_ready",
+  "timed_out"
+]

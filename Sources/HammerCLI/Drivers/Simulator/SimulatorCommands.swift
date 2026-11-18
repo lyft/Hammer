@@ -2,6 +2,8 @@ import HammerAgentCore
 
 /// The commands the simulator driver runs, in the same language as the agent's commands.
 enum SimulatorCommands {
+    static let udidEnvironmentKey = "HAMMER_SIMULATOR_UDID"
+
     static let traitNames = ["button", "link", "header", "image", "staticText", "searchField"]
 
     static let targetParameters: [CommandDescriptor.Parameter] = [

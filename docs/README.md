@@ -21,6 +21,12 @@ Add the agent to your app:
 2. [Security](agent/security.md): tokens, physical devices and remote connections.
 3. [Custom commands](agent/custom-commands.md): add commands for your app.
 
+Or add it to an Android app:
+
+1. [Getting started](android/getting-started.md): one line of Gradle for debug builds.
+2. [Security](android/security.md): who can connect, release builds and physical devices.
+3. [Custom commands](android/custom-commands.md): add commands for your app.
+
 Then use the `hammer` command line tool:
 
 1. [Getting started](cli/getting-started.md): install `hammer` and run your first commands.
@@ -37,4 +43,5 @@ Then use the `hammer` command line tool:
 - [Agent HTTP API](internal/http-api.md): the contract between the agent and its clients.
 - [Built-in commands](internal/commands.md): what every command does, to implement it in another agent.
 - [Drivers](internal/drivers.md): how the CLI runs commands in the app or on the simulator, and how to add a driver.
+- [The Android agent's contract files](internal/android-contract.md): how the Kotlin agent stays in step with the Swift side.
 - [Contributing](../CONTRIBUTING.md)
