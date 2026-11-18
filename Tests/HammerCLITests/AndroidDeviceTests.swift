@@ -42,29 +42,54 @@ struct AndroidDeviceTests {
         #expect(AndroidDevice.listeningAppIDs(in: listing) == ["com.example.app", "com.example.connected"])
     }
 
+    @Test
+    func listeningAppIDsLeavesOutTheSystemHelper() {
+        let listing = """
+            Num       RefCount Protocol Flags    Type St Inode Path
+            0000000000000000: 00000002 00000000 00010000 0001 01 1250159 @hammer_com.example.app
+            0000000000000000: 00000002 00000000 00010000 0001 01 1250162 @hammer_system
+            """
+
+        #expect(AndroidDevice.listeningAppIDs(in: listing) == ["com.example.app"])
+    }
+
     @Test(arguments: [
         // API 37
         ("""
           mCurrentFocus=Window{585dc4b u0 com.example.app/com.example.app.MainActivity}
           mFocusedApp=ActivityRecord{138529899 u0 com.example.app/com.example.app.MainActivity t121}
-        """, "com.example.app"),
+        """, ["com.example.app"]),
         // API 28 nests the activity record in the window token
         ("""
             mFocusedApp=Token{7c1a5b5 ActivityRecord{4c82dec u0 com.android.launcher3/.Launcher t2}}
           mCurrentFocus=Window{fad6ee7 u0 com.android.launcher3/com.android.launcher3.Launcher}
           mFocusedApp=AppWindowToken{ceee44a token=Token{7c1a5b5 ActivityRecord{4c82dec u0 com.android.launcher3/.Launcher t2}}}
-        """, "com.android.launcher3"),
+        """, ["com.android.launcher3"]),
         ("  mFocusedApp=AppWindowToken{ceee44a token=Token{7c1a5b5 ActivityRecord{4c82dec u0 com.android.launcher3/.Launcher t2}}}\n",
-         "com.android.launcher3"),
+         ["com.android.launcher3"]),
         // The notification shade has focus, so the focused activity decides
         ("""
           mCurrentFocus=Window{c0ffee u0 NotificationShade}
           mFocusedApp=ActivityRecord{1234 u0 com.example.app/com.example.app.MainActivity t121}
-        """, "com.example.app"),
-        ("  mCurrentFocus=null\n  mFocusedApp=null\n", nil),
+        """, ["com.example.app"]),
+        // API 37: a permission dialog is another app's activity, in the task of the app that asked
+        ("""
+          mCurrentFocus=Window{b98b146 u0 com.google.android.permissioncontroller/com.android.permissioncontroller.permission.ui.GrantPermissionsActivity}
+          mFocusedApp=ActivityRecord{25666788 u0 com.google.android.permissioncontroller/com.android.permissioncontroller.permission.ui.GrantPermissionsActivity t142}
+          * Task{c26d958 #142 type=standard A=10268:com.example.app U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=2}
+          * Task{3b54fbf #1 type=home U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
+          * Task{f3d03c7 #126 type=standard A=1000:com.android.settings U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
+        """, ["com.google.android.permissioncontroller", "com.example.app"]),
+        // API 28 lists tasks as TaskRecord, with no uid in the affinity
+        ("""
+          mCurrentFocus=Window{aa11 u0 com.example.dialog/com.example.dialog.Prompt}
+          mFocusedApp=AppWindowToken{bb22 token=Token{cc33 ActivityRecord{dd44 u0 com.example.dialog/.Prompt t17}}}
+            * TaskRecord{807bf19 #17 A=com.example.app U=0 StackId=10 sz=2}
+        """, ["com.example.dialog", "com.example.app"]),
+        ("  mCurrentFocus=null\n  mFocusedApp=null\n", []),
     ])
-    func focusedAppID(output: String, appID: String?) {
-        #expect(AndroidDevice.focusedAppID(in: output) == appID)
+    func focusedAppIDs(output: String, appIDs: [String]) {
+        #expect(AndroidDevice.focusedAppIDs(in: output) == appIDs)
     }
 
     // swiftlint:enable line_length
@@ -142,6 +167,64 @@ struct AndroidDeviceTests {
     }
 
     @Test
+    func adbThatTimesOutWithAChildHoldingItsOutputStillEndsTheCall() async throws {
+        let adb = try FakeAdb(devices: "", script: "sleep 30 & wait").adb()
+        let started = ContinuousClock.now
+
+        let error = await #expect(throws: ClientError.self) {
+            try await adb.run(["shell", "true"], timeout: .milliseconds(300))
+        }
+
+        #expect(error?.code == .timedOut)
+        #expect(ContinuousClock.now - started < .seconds(5))
+    }
+
+    @Test
+    func adbThatExitsWithAChildHoldingItsOutputReturnsWhatItWrote() async throws {
+        // Such as adb starting the adb server, which keeps the pipes it inherited
+        let adb = try FakeAdb(devices: "", script: "sleep 30 & echo started; exit 0").adb()
+        let started = ContinuousClock.now
+
+        let output = try await adb.run(["shell", "true"], timeout: .seconds(10))
+
+        #expect(output == "started\n")
+        #expect(ContinuousClock.now - started < .seconds(5))
+    }
+
+    @Test
+    func adbIsFoundOnThePathWithoutAnSDK() async throws {
+        let fake = try FakeAdb(devices: "", script: "echo from-path; exit 0")
+        let tools = fake.home.appending(path: "platform-tools").path
+        let adb = Adb(environment: ["PATH": "/nonexistent:\(tools)"], home: "/nonexistent")
+
+        #expect(try await adb.run(["version"]) == "from-path\n")
+    }
+
+    @Test
+    func adbIsFoundInTheLinuxSDK() async throws {
+        let home = FileManager.default.temporaryDirectory.appending(path: "hammer-home-\(UUID().uuidString)")
+        let fake = try FakeAdb(devices: "", script: "echo linux-sdk; exit 0",
+                               home: home.appending(path: "Android/Sdk"))
+        let adb = Adb(environment: ["PATH": "/nonexistent"], home: home.path)
+
+        #expect(fake.home.path.hasSuffix("Android/Sdk"))
+        #expect(try await adb.run(["version"]) == "linux-sdk\n")
+    }
+
+    @Test
+    func missingAdbSaysHowToInstallIt() async throws {
+        let adb = Adb(environment: ["PATH": "/nonexistent"], home: "/nonexistent")
+
+        let error = await #expect(throws: ClientError.self) { try await adb.run(["devices"]) }
+
+        #expect(error?.code == .noDevice)
+        #expect(error?.description == "adb was not found")
+        #expect(error?.hint == """
+            Install the Android SDK platform tools, and set ANDROID_HOME or put adb on the PATH
+            """)
+    }
+
+    @Test
     func adbReadsLargeErrorOutputWithoutBlocking() async throws {
         let adb = try FakeAdb(devices: "", noisy: true).adb()
 
@@ -155,8 +238,11 @@ struct AndroidDeviceTests {
 struct FakeAdb {
     let home: URL
 
-    init(devices: String, failure: String? = nil, hang: Bool = false, noisy: Bool = false) throws {
-        self.home = FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
+    init(devices: String, failure: String? = nil, hang: Bool = false, noisy: Bool = false,
+         script: String? = nil, home: URL? = nil) throws
+    {
+        self.home = home
+            ?? FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
         let tools = self.home.appending(path: "platform-tools")
         try FileManager.default.createDirectory(at: tools, withIntermediateDirectories: true)
         let script = """
@@ -164,11 +250,32 @@ struct FakeAdb {
             if [ "$1" = "devices" ]; then printf '%s' '\(devices)'; exit 0; fi
             \(hang ? "sleep 30" : "")
             \(noisy ? "head -c 200000 /dev/zero | tr '\\\\0' x >&2; echo done; exit 0" : "")
+            \(script ?? "")
             \(failure.map { "echo '\($0)' >&2; exit 1" } ?? "exit 0")
             """
-        let adb = tools.appending(path: "adb")
-        try script.write(to: adb, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: adb.path)
+        // The script is read by sh rather than run, and adb is a link to one runner written once, since on
+        // Linux running a file fails with "Text file busy" while a process another test forked holds it open
+        try script.write(to: tools.appending(path: "adb.sh"), atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: tools.appending(path: "adb"),
+                                                   withDestinationURL: try Self.runner.get())
+    }
+
+    /// Runs the `adb.sh` next to the link it was run through.
+    private static let runner = Result<URL, Error> {
+        let runner = FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
+        let script = "#!/bin/sh\nexec /bin/sh \"$(dirname \"$0\")/adb.sh\" \"$@\"\n"
+        let descriptor = open(runner.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o755)
+        guard descriptor >= 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        defer { close(descriptor) }
+        let bytes = Array(script.utf8)
+        guard write(descriptor, bytes, bytes.count) == bytes.count else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        return runner
     }
 
     func adb(environment: [String: String] = [:]) -> Adb {

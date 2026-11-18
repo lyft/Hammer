@@ -4,6 +4,8 @@ The behavior of every built-in command, detailed enough to implement it in anoth
 
 The descriptors in [BuiltinCommands.swift](../../Sources/HammerAgentCore/BuiltinCommands.swift) and [BuiltinCommands+Editing.swift](../../Sources/HammerAgentCore/BuiltinCommands+Editing.swift) are the source of truth for names, parameters, summaries and examples. The implementations are in [Sources/HammerAgent/Commands](../../Sources/HammerAgent/Commands). Keep this page in sync when changing either.
 
+Android agents run most of these commands too, with the rules in [On Android](#on-android).
+
 | Command | Kind | Platform |
 | --- | --- | --- |
 | [`describe`](#describe) | Screen | Core |
@@ -15,6 +17,7 @@ The descriptors in [BuiltinCommands.swift](../../Sources/HammerAgentCore/Builtin
 | [`swipe`](#swipe) | Gesture | Core |
 | [`edge_swipe`](#edge_swipe) | Gesture | Core |
 | [`drag`](#drag) | Gesture | Core |
+| [`pinch`](#pinch) | Gesture | Core |
 | [`type_text`](#type_text) | Keyboard | Core |
 | [`press_key`](#press_key) | Keyboard | Core, with platform key names |
 | [`wait_for`](#wait_for) | Waiting | Core |
@@ -241,6 +244,21 @@ Touches the start, moves to the end and lifts.
 
 Missing either target fails with `invalid_arguments`.
 
+### pinch
+
+Touches two fingers side by side around the target, moves them apart or together and lifts them.
+
+| Parameter | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| target | | center | The point between the fingers. |
+| `scale` | number | required | The distance between the fingers at the end divided by the one at the start. Above 1 zooms in, below 1 zooms out. |
+| `distance` | number | `200` | The distance between the fingers where they're farthest apart: at the end of a zoom in and the start of a zoom out. |
+| `duration` | number | `0.5` | Seconds the pinch takes. |
+
+- **Distances:** `PinchDistances` in `HammerAgentCore` sets them, so every agent pinches the same way. A scale of 4 moves the fingers from 50 to 200 apart, and 0.25 from 200 to 50.
+- **Errors:** a scale that isn't above 0, or is 1, and a distance that isn't above 0 fail with `invalid_arguments`.
+- **Measured scale:** gesture recognizers start once the fingers have moved a little, so they report a little less than the scale, such as 1.85 for 2.
+
 ## Keyboard
 
 Keys are hardware keyboard events sent to the first responder.
@@ -355,6 +373,21 @@ Returns the new constraint, in the same shape as in `inspect`, with the identifi
 ```
 
 Undoes changes newest first and returns a summary of each. A constraint change belongs to the constraint's first view, so reverting a view undoes its property changes and the constraints changed or added for it. Changes to objects that were released are skipped.
+
+## On Android
+
+An Android agent runs the commands in `BuiltinCommands.all(for: .android)`: every command above except `hierarchy`, `inspect` and live editing, with the same arguments, output and errors. Its own rules, which every Android agent must follow so clients can rely on them:
+
+- **Coordinates:** frames, points and distances are in screen dp, and `screenshot`'s `scale` is pixels per dp.
+- **Elements:** `describe` lists the app's Views, and for Jetpack Compose the merged semantics tree, the tree accessibility services see.
+  - A View's `identifier` is the entry name of its resource id, such as `submit` for `com.example:id/submit`. A Compose node's is its `testTag`.
+  - `label` is the content description, else the text. `value` is a text field's text, or `1` or `0` for a checkable element such as a switch.
+  - `traits` use Hammer's trait names, from the platform's accessibility roles: `toggleButton` for a switch or checkbox, `button` for a clickable element with no more specific role, `header` for a heading, `selected` when selected or checked, `notEnabled` when disabled.
+- **Windows:** commands see every window of the app on screen, such as an activity and its dialogs, listed back to front. A finishing activity's windows are left out. While the app has no window on screen, commands fail with `not_ready`, and `wait_for` keeps waiting, counting every element as gone.
+- **Keys:** `press_key` also takes `deviceBack`, which goes back in the frontmost window as the device's back button does, running the app's own back handling. At the app's root, that can leave the app. `home` is the keyboard's Home key, as on iOS, since the device's home button is outside the app.
+- **Edge swipes:** `edge_swipe` only reaches the app's own views. The system's back and home gestures are outside the app.
+- **wait_for_idle** waits until the app draws no frames, its main thread has nothing queued, Compose has no pending work and the Espresso idling resources the app registers are idle, watching windows that open during the wait too. Work that ends later, such as a network response, needs `wait_for`.
+- **Typing:** `type_text` commits the text through the focused field's input connection, so it types any characters, and presses enter for each line break. It fails with `not_found` when no text field has focus.
 
 ## Properties
 

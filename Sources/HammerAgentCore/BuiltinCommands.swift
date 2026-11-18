@@ -114,6 +114,31 @@ public enum BuiltinCommands {
         ]
     )
 
+    static let pinchScale = CommandDescriptor.Parameter("scale", .number, """
+        The distance between the fingers at the end divided by the one at the start, such as 2 to zoom in or \
+        0.5 to zoom out.
+        """, isRequired: true)
+
+    public static let pinch = CommandDescriptor(
+        name: "pinch",
+        summary: """
+            Touches two fingers on either side of an element or a point and moves them apart or together, \
+            such as to zoom a map. A scale above 1 spreads them to zoom in, and below 1 brings them together \
+            to zoom out.
+            """,
+        parameters: targetParameters() + [
+            pinchScale,
+            .init("distance", .number, """
+                The points between the fingers when they're farthest apart. Defaults to 200.
+                """),
+            .init("duration", .number, "The seconds the pinch takes. Defaults to 0.5."),
+        ],
+        examples: [
+            .init("Zoom a map in", ["identifier": "map", "scale": 2]),
+            .init("Zoom out around a point", ["x": 200, "y": 400, "scale": 0.5]),
+        ]
+    )
+
     public static let typeText = CommandDescriptor(
         name: "type_text",
         summary: """
@@ -184,7 +209,7 @@ public enum BuiltinCommands {
 
     /// Every builtin command.
     public static let all = [
-        describe, hierarchy, inspect, tap, longPress, swipe, edgeSwipe, drag, typeText, pressKey, waitFor,
-        waitForIdle, screenshot, setProperty, setConstraint, addConstraint, revert,
+        describe, hierarchy, inspect, tap, longPress, swipe, edgeSwipe, drag, pinch, typeText, pressKey,
+        waitFor, waitForIdle, screenshot, setProperty, setConstraint, addConstraint, revert,
     ]
 }
