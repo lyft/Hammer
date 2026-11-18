@@ -42,6 +42,25 @@ struct CLIOptionsTests {
     }
 
     @Test
+    func optionLikeValueOfABuiltinCommandIsTheCommands() throws {
+        var arguments = ["type-text", "--text", "--android", "--system", "--x", "--port"]
+        let options = try CLIOptions.extract(from: &arguments)
+
+        #expect(options == CLIOptions(system: true))
+        #expect(options.platform == .iOS)
+        #expect(arguments == ["type-text", "--text", "--android", "--x", "--port"])
+    }
+
+    @Test
+    func androidAfterABooleanOptionIsTheTools() throws {
+        var arguments = ["describe", "--all", "--android"]
+        let options = try CLIOptions.extract(from: &arguments)
+
+        #expect(options.platform == .android)
+        #expect(arguments == ["describe", "--all"])
+    }
+
+    @Test
     func iOSOptions() throws {
         var arguments = ["describe", "--port", "9000", "--system", "--udid", "ABC", "--output", "out.json"]
         let options = try CLIOptions.extract(from: &arguments)

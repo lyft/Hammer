@@ -115,9 +115,25 @@ extension BuiltinCommands {
             examples: BuiltinCommands.drag.examples
         )
 
+        public static let pinch = CommandDescriptor(
+            name: "pinch",
+            summary: BuiltinCommands.pinch.summary,
+            parameters: targetParameters() + [
+                BuiltinCommands.pinchScale,
+                .init("distance", .number, """
+                    The dp between the fingers when they're farthest apart. Defaults to 200.
+                    """),
+                .init("duration", .number, "The seconds the pinch takes. Defaults to 0.5."),
+            ],
+            examples: BuiltinCommands.pinch.examples
+        )
+
         public static let typeText = CommandDescriptor(
             name: "type_text",
-            summary: BuiltinCommands.typeText.summary,
+            summary: """
+                Types text into the focused text field, any characters, and presses enter for each line \
+                break. Pass an element to tap it first.
+                """,
             parameters: [.init("text", .string, "The text to type.", isRequired: true)] + targetParameters(),
             examples: BuiltinCommands.typeText.examples
         )
@@ -150,7 +166,11 @@ extension BuiltinCommands {
 
         public static let waitForIdle = CommandDescriptor(
             name: "wait_for_idle",
-            summary: "Waits until the app draws no frames and its main thread has nothing queued.",
+            summary: """
+                Waits until the app draws no frames, its main thread has nothing queued, Compose has no \
+                pending work and Espresso's idling resources, if the app registers any, are idle. Work that \
+                finishes later, such as a network response, needs wait_for.
+                """,
             parameters: BuiltinCommands.waitForIdle.parameters,
             examples: BuiltinCommands.waitForIdle.examples
         )
@@ -170,7 +190,7 @@ extension BuiltinCommands {
 
         /// Every built-in command of an Android agent.
         public static let all = [
-            describe, tap, longPress, swipe, edgeSwipe, drag, typeText, pressKey, waitFor, waitForIdle,
+            describe, tap, longPress, swipe, edgeSwipe, drag, pinch, typeText, pressKey, waitFor, waitForIdle,
             screenshot,
         ]
 

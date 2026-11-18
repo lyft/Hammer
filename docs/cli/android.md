@@ -10,40 +10,46 @@ hammer mcp --android
 
 ## Getting an agent
 
-Hammer doesn't ship an Android agent yet. An app runs one by implementing the [Android transport](../internal/http-api.md#android-transport): the socket, the peer check, the routes and the [built-in commands](../internal/commands.md) described by `BuiltinCommands.all(for: .android)`. Until the app runs, `hammer commands --android` lists those built-in commands, and calls fail with `unreachable`.
+Add Hammer's Android agent to your app's debug builds with one line of Gradle, and it starts when the app launches:
+
+```kotlin
+debugImplementation("com.lyft.hammer:hammer-agent-android:<version>")
+```
+
+See [Adding the agent to an Android app](../android/getting-started.md). Until the app runs, `hammer commands --android` lists the built-in commands, and calls fail with `unreachable`. Other agents implement the [Android transport](../internal/http-api.md#android-transport) and the [built-in commands](../internal/commands.md).
+
+## On Linux
+
+The Linux build of `hammer` drives Android only: iOS needs a Mac, and `--system` without `--android` fails. It is statically linked, so it needs nothing else installed but adb.
 
 ## Picking the device and app
 
 - `--serial <serial>` picks the device or emulator, as `adb devices` lists it. It defaults to `ANDROID_SERIAL`, or the only device that is ready.
 - `--app-id <application id>` picks the app. It defaults to the only app running an agent, or the focused one when several are.
 
-Both only apply with `--android`, so iOS commands can still take parameters named `serial` and `app_id`. `--port` and `--udid` don't apply with `--android`, and `hammer` rejects them.
+Both only apply with `--android`, so iOS commands can still take parameters named `serial` and `app_id`. `--android` itself chooses the platform before `hammer` knows it, so no command can take a parameter named `android`. `--port` and `--udid` don't apply with `--android`, and `hammer` rejects them.
 
 A `no_device` error lists the attached devices and their states, such as `unauthorized` when the device still shows the USB debugging prompt. An `unreachable` error lists the apps that run an agent.
 
-`hammer` finds `adb` in `ANDROID_HOME` or `ANDROID_SDK_ROOT`, in Android Studio's default SDK, or on the `PATH`, and stops any adb call after 30 seconds. It forwards a local port to the app's socket once and reuses that forward, so `adb forward --list` shows one per app; `adb forward --remove-all` removes them. The MCP server also keeps the device and app it found until a call can't reach the agent.
+`hammer` finds `adb` in `ANDROID_HOME` or `ANDROID_SDK_ROOT`, in Android Studio's default SDK (`~/Library/Android/sdk` on macOS, `~/Android/Sdk` on Linux), or on the `PATH`, and fails with `no_device` and how to install it when there is none. It stops any adb call after 30 seconds with SIGTERM, then SIGKILL, and returns once adb exits, even if a server adb started keeps its output open. It forwards a local port to the app's socket once and reuses that forward, so `adb forward --list` shows one per app; `adb forward --remove-all` removes them. The MCP server also keeps the device and app it found until a call can't reach the agent.
 
 ## System UI
 
-`--system` runs `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot` on the whole screen through adb, to reach permission dialogs, the notification shade, the home screen and other apps. See [System UI](system-ui.md#android).
+`--system` runs `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and `screenshot` on the whole screen through `hammer`'s system helper, to reach permission dialogs, the notification shade, the home screen and other apps. See [System UI](system-ui.md#android).
+
+## Web pages
+
+The agent can't read what a view only describes to accessibility services, such as a `WebView`'s page or a chart's bars, so `describe` marks the view `"needsSystemRead": true`, with its `accessibilityClass`, such as `android.webkit.WebView`. When the system helper runs, `hammer` fills in the view's children from it, with refs such as `s1a2b3c4d`, which name an element by what it is and where it was read, not by its value: `tap --ref` reads the screen again and taps it through the agent, or fails with `not_found` once it moved, such as after the page scrolled. Queries such as `--label Send` find these elements too. A page's elements follow the web view's accessibility, so a button's label is its text and a field's identifier its `id`.
+
+App commands don't start the helper, since a running helper keeps UI tests and uiautomator from starting for ten idle minutes: start it with `hammer system start --android`, or set `HAMMER_SYSTEM_HELPER=auto` to let them. When it doesn't run, with `HAMMER_SYSTEM_HELPER=0` or when it can't, the view keeps its mark and `hammer` says why on standard error.
 
 ## Built-in commands
 
-An Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `drag`, `type_text`, `press_key`, `wait_for`, `wait_for_idle` and `screenshot`, with the arguments and output of the [built-in commands](../internal/commands.md). [On Android](../internal/commands.md#on-android) lists the rules every Android agent follows: dp coordinates, how elements get their identifier, label, value and traits, the order of windows, and `deviceBack`, which goes back like the device's back button.
-
-### Notes on one agent
-
-These describe how one agent implementation behaves, not rules every agent follows:
-
-- Apps can't hold the permission to inject events into the input system, so it dispatches events to the window's root view on the main thread, the way Compose UI tests send them.
-- `deviceBack` calls the activity's `onBackPressed`, or a dialog's `OnBackPressedDispatcher`.
-- Views that Compose hosts, such as a map in an `AndroidView`, are placed in the Compose tree where they are drawn.
-- A Compose `clickable` without `onLongClick` handles a long press as a tap.
-- A `SurfaceView`'s own surface, such as a map's, shows as blank in screenshots. `screenshot --system` captures it.
+An Android agent runs `describe`, `tap`, `long_press`, `swipe`, `edge_swipe`, `drag`, `pinch`, `type_text`, `press_key`, `wait_for`, `wait_for_idle` and `screenshot`, with the arguments and output of the [built-in commands](../internal/commands.md). [On Android](../internal/commands.md#on-android) lists the rules every Android agent follows: dp coordinates, how elements get their identifier, label, value and traits, the order of windows, and `deviceBack`, which goes back like the device's back button. [How it works](../android/getting-started.md#how-it-works) covers what's particular to Hammer's agent, such as how it sends events and what screenshots leave out.
 
 ## Security
 
-Any app on the device can connect to an abstract socket, so the [Android transport](../internal/http-api.md#android-transport) requires the agent to accept only adb's `shell` user, root and the app itself. `hammer` can't check this, so it is up to the agent. `HAMMER_AGENT_TOKEN` is sent as on iOS, for agents that also require a token.
+Any app on the device can connect to an abstract socket, so the [Android transport](../internal/http-api.md#android-transport) requires the agent to accept only adb's `shell` user, root and the app itself. `hammer` can't check this, so it is up to the agent; Hammer's agent does, see [Security on Android](../android/security.md). `HAMMER_AGENT_TOKEN` is sent as on iOS, for agents that also require a token. Hammer's agent doesn't.
 
 ## Limits
 

@@ -1,3 +1,4 @@
+#if os(macOS)
 import CoreGraphics
 import Foundation
 import HammerAgentCore
@@ -93,3 +94,27 @@ extension SystemElement: ScreenElement {
         return Self.traitsByRole[self.role].map { [$0] } ?? []
     }
 }
+#else
+import Foundation
+import HammerAgentCore
+
+/// The simulator needs macOS, so elsewhere its commands are described but fail when called.
+struct SimulatorDriver: Driver {
+    let udid: String?
+
+    func catalog() async -> DriverCatalog {
+        return DriverCatalog(commands: SimulatorCommands.all, note: nil)
+    }
+
+    func callableCommands() async throws -> [CommandDescriptor] {
+        return SimulatorCommands.all
+    }
+
+    func run(_ name: String, arguments: [String: JSONValue]) async throws -> Data {
+        throw ClientError.failed(.init(error: "The simulator's screen can only be driven on macOS",
+                                       code: .failed,
+                                       hint: "Add --android to drive an Android device"),
+                                 isInvalidCall: true)
+    }
+}
+#endif
