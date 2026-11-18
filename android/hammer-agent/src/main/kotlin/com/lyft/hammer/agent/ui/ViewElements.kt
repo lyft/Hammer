@@ -41,7 +41,9 @@ internal class ViewElements(private val density: Double) {
             nodeId = null,
             type = view.javaClass.name,
             identifier = identifier(view),
-            label = view.contentDescription?.toString() ?: (view as? TextView)?.takeUnless { it is EditText }?.text?.toString(),
+            // A blank description would hide the text that accessibility services read instead
+            label = view.contentDescription?.toString()?.takeIf { it.isNotBlank() }
+                ?: (view as? TextView)?.takeUnless { it is EditText }?.text?.toString(),
             value = value(view),
             traits = traits(view),
             frame = (if (visible) visibleBounds else bounds).toFrame(density),
