@@ -3,10 +3,15 @@ import Testing
 
 struct PlatformCatalogTests {
     @Test
-    func iOSReservedNamesAreUnchanged() {
+    func iOSAgentReservedNamesAreUnchanged() {
         #expect(CommandDescriptor.reservedParameterNames == ["output", "port", "system", "udid"])
-        #expect(CommandDescriptor.reservedParameterNames(for: .iOS)
-            == CommandDescriptor.reservedParameterNames)
+    }
+
+    @Test
+    func androidIsReservedOnBothPlatformsSinceItChoosesThePlatform() {
+        #expect(CommandDescriptor.reservedParameterNames(for: .iOS) == [
+            "output", "port", "system", "udid", "android",
+        ])
         #expect(CommandDescriptor.reservedParameterNames(for: .android) == [
             "output", "port", "system", "udid", "android", "serial", "app_id",
         ])
@@ -15,7 +20,7 @@ struct PlatformCatalogTests {
     @Test
     func androidCatalogLeavesOutUIKitCommands() {
         #expect(BuiltinCommands.all(for: .android).map(\.name) == [
-            "describe", "tap", "long_press", "swipe", "edge_swipe", "drag", "type_text", "press_key",
+            "describe", "tap", "long_press", "swipe", "edge_swipe", "drag", "pinch", "type_text", "press_key",
             "wait_for", "wait_for_idle", "screenshot",
         ])
         #expect(BuiltinCommands.all(for: .iOS) == BuiltinCommands.all)

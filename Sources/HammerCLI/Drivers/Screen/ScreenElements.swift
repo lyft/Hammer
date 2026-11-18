@@ -18,9 +18,23 @@ protocol ScreenElement {
     /// The frame in screen points, or dp on Android.
     var frame: CGRect { get }
     var children: [Self] { get }
+
+    /// Whether the element is a password field.
+    var isSecure: Bool { get }
+
+    /// The ways the element scrolls, `forward` and `backward`.
+    var scrollDirections: [String] { get }
 }
 
 extension ScreenElement {
+    var isSecure: Bool {
+        return false
+    }
+
+    var scrollDirections: [String] {
+        return []
+    }
+
     var flattened: [Self] {
         return [self] + self.children.flatMap(\.flattened)
     }
@@ -143,6 +157,8 @@ struct DescribedElement: Encodable {
     let label: String?
     let value: String?
     let traits: [String]?
+    let secure: Bool?
+    let scroll: [String]?
     let frame: Frame
     let children: [DescribedElement]?
 
@@ -151,7 +167,7 @@ struct DescribedElement: Encodable {
         let children = element.children.flatMap { Self.nodes(for: $0) }
         let traits = element.traits
         guard element.identifier.nonEmpty != nil || element.label.nonEmpty != nil
-            || element.value.nonEmpty != nil || !traits.isEmpty
+            || element.value.nonEmpty != nil || !traits.isEmpty || !element.scrollDirections.isEmpty
         else {
             return children
         }
@@ -160,6 +176,8 @@ struct DescribedElement: Encodable {
         let node = DescribedElement(
             type: element.type, identifier: element.identifier.nonEmpty, label: element.label.nonEmpty,
             value: element.value.nonEmpty, traits: traits.isEmpty ? nil : traits,
+            secure: element.isSecure ? true : nil,
+            scroll: element.scrollDirections.isEmpty ? nil : element.scrollDirections,
             frame: Frame(x: frame.minX.rounded, y: frame.minY.rounded, width: frame.width.rounded,
                          height: frame.height.rounded),
             children: children.isEmpty ? nil : children)

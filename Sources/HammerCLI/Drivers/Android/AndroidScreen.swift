@@ -19,6 +19,12 @@ struct AndroidElement: ScreenElement {
 
     /// Whether the node is a text field with input focus, which `type_text` types into.
     var isFocusedTextField = false
+
+    /// Whether the node is a password field, whose text Android hides.
+    var isSecure = false
+
+    /// The ways the node scrolls, `forward` and `backward`, which only the system helper reads.
+    var scrollDirections: [String] = []
 }
 
 /// Reads and drives an Android device's whole screen through adb's shell user, which can inject input
@@ -226,7 +232,8 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
         switch name {
         case "window":
             let element = AndroidElement(type: "Window", identifier: nil, label: attributes["title"].nonEmpty,
-                                         value: nil, traits: [], frame: self.frame(attributes["bounds"]),
+                                         value: nil, traits: [],
+                                         frame: Self.frame(attributes["bounds"], scale: self.scale),
                                          children: [])
             self.stack.append(Node(element: element, layer: Int(attributes["layer"] ?? "") ?? 0,
                                    isWindow: true))
@@ -237,7 +244,7 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
                 self.stack[window].package = attributes["package"].nonEmpty
             }
 
-            self.stack.append(Node(element: self.element(attributes)))
+            self.stack.append(Node(element: Self.element(attributes, scale: self.scale)))
         default:
             // displays, display and hierarchy only group windows and nodes
             break
@@ -257,7 +264,9 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
                                      label: label, value: node.element.value,
                                      traits: node.element.traits, frame: node.element.frame,
                                      children: node.children,
-                                     isFocusedTextField: node.element.isFocusedTextField)
+                                     isFocusedTextField: node.element.isFocusedTextField,
+                                     isSecure: node.element.isSecure,
+                                     scrollDirections: node.element.scrollDirections)
         if self.stack.isEmpty {
             self.roots.append((element, node.layer))
         } else {
@@ -265,15 +274,17 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
         }
     }
 
-    private func element(_ attributes: [String: String]) -> AndroidElement {
+    /// The element for a node's attributes, as uiautomator names them, with its frame in dp.
+    static func element(_ attributes: [String: String], scale: CGFloat) -> AndroidElement {
         let className = attributes["class"] ?? ""
+        func flag(_ name: String) -> Bool { attributes[name] == "true" }
         // Views report their accessibility class name, which is EditText for its subclasses, such as
-        // AutoCompleteTextView and SearchView's field, unless one reports its own
-        let isEditable = Self.textFieldClassSuffixes.contains { className.hasSuffix($0) }
+        // AutoCompleteTextView and SearchView's field, unless one reports its own. The system helper also
+        // reads accessibility's editable flag, which web fields have
+        let isEditable = flag("editable") || Self.textFieldClassSuffixes.contains { className.hasSuffix($0) }
         let text = attributes["text"].nonEmpty
         let description = attributes["content-desc"].nonEmpty
         let resourceID = attributes["resource-id"].nonEmpty
-        func flag(_ name: String) -> Bool { attributes[name] == "true" }
 
         var traits: [String] = []
         if flag("checkable") {
@@ -300,19 +311,19 @@ final class UIAutomatorDump: NSObject, XMLParserDelegate {
             type: className.split(separator: ".").last.map(String.init) ?? className,
             identifier: resourceID.map { $0.components(separatedBy: ":id/").last ?? $0 },
             label: description ?? (isEditable ? hint : text),
-            value: value, traits: traits, frame: self.frame(attributes["bounds"]), children: [],
-            isFocusedTextField: isEditable && flag("focused"))
+            value: value, traits: traits, frame: self.frame(attributes["bounds"], scale: scale), children: [],
+            isFocusedTextField: isEditable && flag("focused"), isSecure: flag("password"),
+            scrollDirections: ["forward", "backward"].filter { flag("scroll-\($0)") })
     }
 
     /// The frame in dp of bounds such as `[0,0][1344,2992]`, in pixels.
-    private func frame(_ bounds: String?) -> CGRect {
+    static func frame(_ bounds: String?, scale: CGFloat) -> CGRect {
         let numbers = (bounds ?? "").matches(of: #/-?\d+/#).compactMap { Double($0.output) }
         guard numbers.count == 4 else {
             return .zero
         }
 
-        return CGRect(x: numbers[0] / self.scale, y: numbers[1] / self.scale,
-                      width: (numbers[2] - numbers[0]) / self.scale,
-                      height: (numbers[3] - numbers[1]) / self.scale)
+        return CGRect(x: numbers[0] / scale, y: numbers[1] / scale, width: (numbers[2] - numbers[0]) / scale,
+                      height: (numbers[3] - numbers[1]) / scale)
     }
 }

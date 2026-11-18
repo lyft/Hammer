@@ -25,7 +25,9 @@ internal object HttpRequestReader {
             if (separator < 0) null else line.substring(0, separator).lowercase() to line.substring(separator + 1).trim()
         }.toMap()
 
-        val contentLength = headers["content-length"]?.toIntOrNull() ?: 0
+        val contentLength = headers["content-length"]?.let { value ->
+            value.toIntOrNull()?.takeIf { it >= 0 } ?: throw InvalidHttpRequestException("Invalid Content-Length")
+        } ?: 0
         if (contentLength > limit) throw InvalidHttpRequestException("Request body is too large")
 
         return HttpRequest(

@@ -2,7 +2,7 @@ package com.lyft.hammer.agent.ui
 
 import com.lyft.hammer.agent.core.BuiltinCommands
 
-/** Where swipes start and end, with the geometry of Hammer's `EventGenerator`. */
+/** Where swipes and pinches start and end, with the geometry of Hammer's `EventGenerator`. */
 internal object Gestures {
 
     /** The line a finger moves along: [distance] long in [direction], centered on [center]. */
@@ -23,6 +23,28 @@ internal object Gestures {
         val (dx, dy) = vector(direction)
         val start = Point(inner.center.x - dx * inner.width / 2, inner.center.y - dy * inner.height / 2)
         return start to Point(start.x + dx * distance, start.y + dy * distance)
+    }
+
+    /**
+     * Where a pinch's two fingers start and end, side by side around [center], as `PinchDistances` in
+     * Hammer's `HammerAgentCore` sets them: [distance] apart where they're farthest.
+     */
+    fun pinch(center: Point, scale: Double, distance: Double): Pair<List<Point>, List<Point>> {
+        if (!(scale > 0) || scale == 1.0) {
+            throw Target.invalid(
+                "Invalid scale $scale, expected above 0 and other than 1",
+                hint = "Use a scale above 1, such as 2, to zoom in and below 1, such as 0.5, to zoom out",
+            )
+        }
+        if (!(distance > 0)) {
+            throw Target.invalid(
+                "Invalid distance $distance, expected above 0",
+                hint = "Leave distance out for 200, or pass how far apart the fingers get",
+            )
+        }
+        val (start, end) = if (scale > 1) distance / scale to distance else distance to distance * scale
+        fun fingers(apart: Double) = listOf(Point(center.x - apart / 2, center.y), Point(center.x + apart / 2, center.y))
+        return fingers(start) to fingers(end)
     }
 
     private fun vector(direction: String): Pair<Double, Double> = when (direction) {

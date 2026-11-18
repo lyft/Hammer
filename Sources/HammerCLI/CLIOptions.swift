@@ -37,7 +37,6 @@ struct CLIOptions: Equatable {
             !values.contains(index) && ["--android", "--android=true"].contains(arguments[index])
         }
         let names = CommandDescriptor.reservedParameterNames(for: android ? .android : .iOS)
-            .union(["android"])
         var remaining = [String]()
         var index = 0
         while index < arguments.count {

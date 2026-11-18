@@ -3,11 +3,7 @@ package com.lyft.hammer.agent
 import android.app.Application
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.lyft.hammer.agent.core.WireCommand
-import com.lyft.hammer.agent.core.toGson
-import com.lyft.hammer.agent.core.toJsonValue
 import com.lyft.hammer.agent.ui.AgentScreen
 import com.lyft.hammer.agent.ui.BuiltinAgentCommands
 import kotlinx.coroutines.Dispatchers
@@ -41,8 +37,8 @@ internal class AndroidEnvironment(private val application: Application) : AgentE
     override fun wire(command: AgentCommand): WireCommand = object : WireCommand {
         override val descriptor = command.descriptor
 
-        override suspend fun run(arguments: JsonObject): JsonElement = withContext(Dispatchers.Main) {
-            command.run(arguments.toJsonValue(), AgentContext(screen)).toGson()
+        override suspend fun run(arguments: JsonValue.Object): JsonValue = withContext(Dispatchers.Main) {
+            command.run(arguments, AgentContext(screen))
         }
     }
 

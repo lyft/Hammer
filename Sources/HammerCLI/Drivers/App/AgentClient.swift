@@ -9,6 +9,14 @@ struct AgentClient: Driver {
     let port: UInt16
     let token: String?
 
+    /// The key the server must prove it holds in every response, or nil to trust whatever answers. adb
+    /// forwards to an abstract socket name, which any app on the device can take first.
+    var proofKey: Data?
+
+    /// The request header with a fresh challenge, and the response header with its HMAC under `proofKey`.
+    static let challengeHeader = "X-Hammer-Challenge"
+    static let proofHeader = "X-Hammer-Proof"
+
     private var baseURL: URL {
         return URL(string: "http://127.0.0.1:\(self.port)")!
     }
@@ -68,6 +76,10 @@ struct AgentClient: Driver {
         if let token = self.token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        let challenge = self.proofKey.map { _ in UUID().uuidString + UUID().uuidString }
+        if let challenge {
+            request.setValue(challenge, forHTTPHeaderField: Self.challengeHeader)
+        }
 
         let data: Data
         let response: URLResponse
@@ -77,6 +89,13 @@ struct AgentClient: Driver {
             throw ClientError(error, port: self.port, timeout: request.timeoutInterval)
         }
 
+        if let key = self.proofKey, let challenge {
+            let proof = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: Self.proofHeader)
+            guard proof == SHA256.hmacHex(key: key, message: Data(challenge.utf8)) else {
+                throw UnprovenServer(port: self.port)
+            }
+        }
+
         guard let status = (response as? HTTPURLResponse)?.statusCode, status != 200 else {
             return data
         }
@@ -84,6 +103,15 @@ struct AgentClient: Driver {
         let body = (try? JSONDecoder().decode(AgentErrorBody.self, from: data))
             ?? AgentErrorBody(error: "The agent responded with status \(status)")
         throw ClientError.failed(body, isInvalidCall: status == 400 || status == 404)
+    }
+}
+
+/// What answered didn't prove it holds the client's key, so it isn't the server the client started.
+struct UnprovenServer: Error, CustomStringConvertible {
+    let port: UInt16
+
+    var description: String {
+        return "What answered on port \(self.port) didn't prove it is the server hammer started"
     }
 }
 
