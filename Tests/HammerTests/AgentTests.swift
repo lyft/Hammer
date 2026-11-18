@@ -312,3 +312,40 @@ final class AgentTests: XCTestCase {
         self.hostEventGenerator = try await EventGenerator(view: view)
     }
 }
+
+extension AgentTests {
+    func testPinchSpreadsTheFingersToZoomIn() async throws {
+        try await self.assertPinch(scale: 2)
+    }
+
+    func testPinchBringsTheFingersTogetherToZoomOut() async throws {
+        try await self.assertPinch(scale: 0.5)
+    }
+
+    private func assertPinch(scale: Double) async throws {
+        let view = UIView()
+        view.accessibilityIdentifier = "map"
+        view.setSize(width: 300, height: 300)
+        let recognizer = UIPinchGestureRecognizer()
+        view.addGestureRecognizer(recognizer)
+        var endedScales: [CGFloat] = []
+        recognizer.addHandler(forState: .ended) { endedScales.append(recognizer.scale) }
+        try await self.present(view)
+
+        let (_, status) = try await self.agent.run("pinch", [
+            "identifier": "map", "scale": .number(scale),
+        ])
+        XCTAssertEqual(status, 200)
+        XCTAssertEqual(endedScales.count, 1)
+        // The recognizer starts once the fingers have moved a little, so it measures from there
+        XCTAssertEqual(try XCTUnwrap(endedScales.first), scale, accuracy: scale * 0.25)
+    }
+
+    func testPinchRejectsAScaleThatDoesntZoom() async throws {
+        try await self.present(self.button(title: "Sign In", identifier: "sign_in"))
+
+        let (data, status) = try await self.agent.run("pinch", ["scale": 1])
+        XCTAssertEqual(status, 400)
+        XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).code, .invalidArguments)
+    }
+}

@@ -4,35 +4,40 @@ import HammerAgentCore
 @main
 struct HammerCLI {
     private static let usage = """
-        hammer drives an iOS app that runs Hammer's agent, sending real touches and key presses from \
-        inside the app.
+        hammer drives an iOS or Android app that runs Hammer's agent, sending real touches and key presses \
+        from inside the app.
 
         Usage:
           hammer <command> [--<argument> <value>]... [-] [--output <path>] [--port <port>] [--system]
+                           [--android [--serial <serial>] [--app-id <application id>]]
           hammer commands         List the commands the app runs
           hammer help <command>   Describe a command, its arguments and examples
           hammer guide            Print the full guide for agents, in markdown
           hammer mcp              Run an MCP server over standard input and output
+          hammer system start|stop|status|uninstall --android
+                                  Manage the Android system helper, which runs --system commands. It \
+        starts on the first one and stops after ten idle minutes, and while it runs, uiautomator and UI \
+        tests can't start
 
         Options:
           --output <path>  Write the command's output to a file instead of printing it
           --port <port>    The app's port. Defaults to \(AgentEndpoint.portEnvironmentKey) or \
         \(AgentEndpoint.defaultPort)
-          --system         Run on the simulator's whole screen from the Mac, to reach system UI such as \
-        permission alerts
-          --udid <udid>    The simulator for --system. Defaults to \(CoreSimulator.udidEnvironmentKey) or \
-        the only booted one
+          --system         Run on the simulator's or Android device's whole screen, to reach \
+        system UI such as permission alerts
+          --udid <udid>    The simulator for --system. Defaults to \
+        \(SimulatorCommands.udidEnvironmentKey) or the only booted one
+          --android        Drive an Android app through adb instead of an iOS app
+          --serial <serial>
+                           The Android device, with --android. Defaults to \(Adb.serialEnvironmentKey) or \
+        the only one attached
+          --app-id <application id>
+                           The Android app, with --android. Defaults to the only app running an agent, or \
+        the focused one
 
         Start with `hammer describe` to see the elements on screen, and `hammer guide` for how to target \
         them and handle errors.
         """
-
-    private struct Options {
-        var port = AgentEndpoint.port()
-        var outputPath: String?
-        var system = false
-        var udid: String?
-    }
 
     static func main() async {
         do {
@@ -55,10 +60,9 @@ struct HammerCLI {
 
     private static func run(_ arguments: [String]) async throws {
         var arguments = arguments
-        let options = try self.extractOptions(from: &arguments)
+        let options = try CLIOptions.extract(from: &arguments)
         var remaining = arguments[...]
-        let drivers = Drivers(app: AgentClient(port: options.port, token: AgentEndpoint.token()),
-                              system: SimulatorDriver(udid: options.udid))
+        let drivers = try self.drivers(for: options)
         let driver = drivers.driver(system: options.system)
         switch remaining.popFirst() {
         case nil, "--help", "-h":
@@ -75,62 +79,94 @@ struct HammerCLI {
             print(self.commandList(await driver.catalog()))
         case "guide":
             let catalog = await driver.catalog()
-            try self.write(Data(AgentGuide.markdown(commands: catalog.commands, style: .commandLine).utf8),
-                           name: "guide", to: options.outputPath)
+            let guide = AgentGuide.markdown(commands: catalog.commands, style: .commandLine,
+                                            platform: options.platform)
+            try self.write(Data(guide.utf8), name: "guide", to: options.outputPath)
             if let note = catalog.note {
                 FileHandle.standardError.write(Data("note: \(note)\n".utf8))
             }
         case "mcp":
             try await MCPServer(drivers: drivers).run()
+        case "system":
+            try await self.manageSystemHelper(remaining, options: options)
         case let name?:
             let descriptor = try self.descriptor(named: name, in: try await driver.callableCommands())
+            try self.checkAndroidOptions(in: remaining, for: descriptor, options: options)
             let commandArguments = try descriptor.arguments(from: Array(remaining))
             let output = try await driver.run(descriptor.name, arguments: commandArguments)
             try self.write(output, name: descriptor.commandLineName, to: options.outputPath)
         }
     }
 
-    /// Removes the tool's own options, which can go anywhere since commands can't use their names.
-    private static func extractOptions(from arguments: inout [String]) throws -> Options {
-        var options = Options()
-        var remaining = [String]()
-        var tokens = arguments[...]
-        while let token = tokens.popFirst() {
-            let parts = token.split(separator: "=", maxSplits: 1).map(String.init)
-            let name = parts[0].hasPrefix("--") ? String(parts[0].dropFirst(2)) : ""
-            guard CommandDescriptor.reservedParameterNames.contains(name) else {
-                remaining.append(token)
-                continue
-            }
-
-            if name == "system" {
-                guard let system = parts.count == 2 ? Bool(parts[1]) : true else {
-                    throw UsageError(description: """
-                        Invalid value "\(parts[1])" for --system, expected true or false
-                        """)
-                }
-
-                options.system = system
-                continue
-            }
-
-            guard let value = parts.count == 2 ? parts[1] : tokens.popFirst() else {
-                throw UsageError(description: "Missing value for \(parts[0])", hint: "Run `hammer --help`")
-            }
-
-            if name == "output" {
-                options.outputPath = value
-            } else if name == "udid" {
-                options.udid = value
-            } else if let port = UInt16(value) {
-                options.port = port
-            } else {
-                throw UsageError(description: "Invalid port \"\(value)\", expected a number up to 65535")
-            }
+    private static func drivers(for options: CLIOptions) throws -> Drivers {
+        let token = AgentEndpoint.token()
+        guard options.android else {
+            return Drivers(app: AgentClient(port: options.port ?? AgentEndpoint.port(), token: token),
+                           system: SimulatorDriver(udid: options.udid), platform: .iOS)
         }
 
-        arguments = remaining
-        return options
+        let adb = Adb()
+        return Drivers(app: AndroidAgentClient(adb: adb, serial: options.serial, appID: options.appID,
+                                               token: token),
+                       system: AndroidSystemDriver(adb: adb, serial: options.serial),
+                       platform: .android)
+    }
+
+    /// Runs `hammer system <action>` on the Android device and prints the helper's status after it.
+    private static func manageSystemHelper(_ arguments: ArraySlice<String>, options: CLIOptions)
+        async throws
+    {
+        let actions = ["start", "stop", "status", "uninstall"]
+        guard options.android else {
+            throw UsageError(description: "hammer system manages the Android system helper",
+                             hint: "Add --android")
+        }
+
+        guard arguments.count == 1, let action = arguments.first, actions.contains(action) else {
+            throw UsageError(description: "Usage: hammer system \(actions.joined(separator: "|")) --android",
+                             hint: "Pass one of \(actions.joined(separator: ", "))")
+        }
+
+        let adb = Adb()
+        let serial = try await AndroidDevice.resolveSerial(adb: adb, serial: options.serial)
+        let helper = AndroidSystemHelper(adb: adb, serial: serial)
+        do {
+            switch action {
+            case "start":
+                _ = try await helper.client(retryingRecentFailure: true)
+            case "stop":
+                try await helper.stop()
+            case "uninstall":
+                try await helper.uninstall()
+            default:
+                break
+            }
+        } catch let error as AndroidSystemHelper.Unavailable {
+            throw ClientError.failed(.init(error: "The system helper can't run: \(error)", code: .failed))
+        }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        print(String(bytes: try encoder.encode(try await helper.status()), encoding: .utf8) ?? "")
+    }
+
+    /// Explains that `--serial` and `--app-id` need `--android`, rather than calling them unknown arguments.
+    private static func checkAndroidOptions(in arguments: ArraySlice<String>,
+                                            for descriptor: CommandDescriptor, options: CLIOptions) throws
+    {
+        guard !options.android else {
+            return
+        }
+
+        let names = Set(descriptor.parameters.map(\.name))
+        for option in ["--serial", "--app-id"] {
+            let name = String(option.dropFirst(2)).replacingOccurrences(of: "-", with: "_")
+            let given = arguments.contains { $0 == option || $0.hasPrefix(option + "=") }
+            if given && !names.contains(name) {
+                throw UsageError(description: "\(option) only applies with --android",
+                                 hint: "Add --android to drive an Android app")
+            }
+        }
     }
 
     /// Prints the output or writes it to the path. Images are always written to a file, as image data.

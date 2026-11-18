@@ -32,6 +32,9 @@ struct Drivers: Sendable {
     /// Runs commands on the device's whole screen, including system UI such as permission alerts.
     let system: any Driver
 
+    /// The platform of the app, which decides the built-in commands and the guide.
+    let platform: AgentPlatform
+
     func driver(system: Bool) -> any Driver {
         return system ? self.system : self.app
     }
