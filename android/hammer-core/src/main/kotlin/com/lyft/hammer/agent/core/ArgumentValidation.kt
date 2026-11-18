@@ -1,8 +1,7 @@
 package com.lyft.hammer.agent.core
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.lyft.hammer.agent.CommandDescriptor
+import com.lyft.hammer.agent.JsonValue
 
 /** A problem with a command's arguments, explained so the caller can correct them. */
 internal class ArgumentsError(val description: String, val hint: String) : Exception(description)
@@ -14,8 +13,8 @@ internal class ArgumentsError(val description: String, val hint: String) : Excep
  *
  * @throws ArgumentsError naming the argument and what it expects.
  */
-internal fun CommandDescriptor.validate(arguments: JsonObject) {
-    for ((name, value) in arguments.entrySet().sortedBy { it.key }) {
+internal fun CommandDescriptor.validate(arguments: JsonValue.Object) {
+    for ((name, value) in arguments.values.entries.sortedBy { it.key }) {
         val parameter = parameters.firstOrNull { it.name == name }
         if (parameter == null) {
             val suggestion = closestMatch(name, parameters.map { it.name })?.let { ", did you mean \"$it\"?" }.orEmpty()
@@ -23,12 +22,12 @@ internal fun CommandDescriptor.validate(arguments: JsonObject) {
         }
         if (!parameter.type.accepts(value)) {
             throw ArgumentsError(
-                "Invalid value $value for \"$name\", expected ${parameter.type.expectation}",
+                "Invalid value ${Json.encode(value)} for \"$name\", expected ${parameter.type.expectation}",
                 argumentsHint,
             )
         }
     }
-    parameters.firstOrNull { it.isRequired && !arguments.has(it.name) }?.let { missing ->
+    parameters.firstOrNull { it.isRequired && it.name !in arguments.values }?.let { missing ->
         throw ArgumentsError(
             "Missing required argument \"${missing.name}\" for $name, expected ${missing.type.expectation}",
             argumentsHint,
@@ -45,17 +44,14 @@ internal val CommandDescriptor.argumentsHint: String
         }
     }
 
-private fun CommandDescriptor.ParameterType.accepts(value: JsonElement): Boolean = when (this) {
+private fun CommandDescriptor.ParameterType.accepts(value: JsonValue): Boolean = when (this) {
     CommandDescriptor.ParameterType.Json -> true
-    CommandDescriptor.ParameterType.StringValue -> value.isJsonPrimitive && value.asJsonPrimitive.isString
-    CommandDescriptor.ParameterType.NumberValue -> value.isJsonPrimitive && value.asJsonPrimitive.isNumber
-    CommandDescriptor.ParameterType.BooleanValue -> value.isJsonPrimitive && value.asJsonPrimitive.isBoolean
-    CommandDescriptor.ParameterType.IntegerValue ->
-        value.isJsonPrimitive && value.asJsonPrimitive.isNumber && value.asDouble.let { Math.rint(it) == it }
-    CommandDescriptor.ParameterType.StringList ->
-        value.isJsonArray && value.asJsonArray.all { it.isJsonPrimitive && it.asJsonPrimitive.isString }
-    is CommandDescriptor.ParameterType.Choice ->
-        value.isJsonPrimitive && value.asJsonPrimitive.isString && value.asString in values
+    CommandDescriptor.ParameterType.StringValue -> value is JsonValue.String
+    CommandDescriptor.ParameterType.NumberValue -> value is JsonValue.Number
+    CommandDescriptor.ParameterType.BooleanValue -> value is JsonValue.Bool
+    CommandDescriptor.ParameterType.IntegerValue -> value is JsonValue.Number && Math.rint(value.value) == value.value
+    CommandDescriptor.ParameterType.StringList -> value is JsonValue.Array && value.values.all { it is JsonValue.String }
+    is CommandDescriptor.ParameterType.Choice -> value is JsonValue.String && value.value in values
 }
 
 /** The candidate closest to [name], to suggest it for a typo, or null if none is close. */

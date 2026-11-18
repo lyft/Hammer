@@ -42,6 +42,13 @@ class ComposeScreenTest {
     }
 
     @Test
+    fun describe_blankContentDescription_labelsTheElementWithItsText() {
+        val row = agent.element { it.optString("identifier") == "blank_description_row" }
+
+        assertThat(row?.optString("label")).isEqualTo("Add to count")
+    }
+
+    @Test
     fun tapByIdentifierLabelAndRef_countsEachTap() {
         agent.runOk("tap", arguments("identifier" to "count_button"))
         agent.runOk("wait_for", arguments("label" to "Count: 1", "timeout" to 5))
@@ -59,6 +66,13 @@ class ComposeScreenTest {
         agent.runOk("type_text", arguments("identifier" to "message_field", "text" to "Hi there"))
 
         agent.runOk("wait_for", arguments("identifier" to "message_field", "value" to "Hi there", "timeout" to 5))
+    }
+
+    @Test
+    fun typeText_anyCharacters_setsTheFieldsValue() {
+        agent.runOk("type_text", arguments("identifier" to "message_field", "text" to "Zoë 😀 你好"))
+
+        agent.runOk("wait_for", arguments("identifier" to "message_field", "value" to "Zoë 😀 你好", "timeout" to 5))
     }
 
     @Test

@@ -51,6 +51,15 @@ class HttpRequestReaderTest {
     }
 
     @Test
+    fun read_contentLengthNotANonNegativeNumber_isInvalid() {
+        listOf("-1", "abc", "99999999999", "1.5", "").forEach { length ->
+            assertThat(error("POST / HTTP/1.1\r\nContent-Length: $length\r\n\r\n{}").message)
+                .`as`(length)
+                .isEqualTo("Invalid Content-Length")
+        }
+    }
+
+    @Test
     fun read_bodyShorterThanContentLength_isIncompleteBody() {
         assertThat(error("POST / HTTP/1.1\r\nContent-Length: 10\r\n\r\nabc").message).isEqualTo("Incomplete request body")
     }

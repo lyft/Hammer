@@ -42,6 +42,17 @@ struct AndroidDeviceTests {
         #expect(AndroidDevice.listeningAppIDs(in: listing) == ["com.example.app", "com.example.connected"])
     }
 
+    @Test
+    func listeningAppIDsLeavesOutTheSystemHelper() {
+        let listing = """
+            Num       RefCount Protocol Flags    Type St Inode Path
+            0000000000000000: 00000002 00000000 00010000 0001 01 1250159 @hammer_com.example.app
+            0000000000000000: 00000002 00000000 00010000 0001 01 1250162 @hammer_system
+            """
+
+        #expect(AndroidDevice.listeningAppIDs(in: listing) == ["com.example.app"])
+    }
+
     @Test(arguments: [
         // API 37
         ("""
@@ -156,6 +167,64 @@ struct AndroidDeviceTests {
     }
 
     @Test
+    func adbThatTimesOutWithAChildHoldingItsOutputStillEndsTheCall() async throws {
+        let adb = try FakeAdb(devices: "", script: "sleep 30 & wait").adb()
+        let started = ContinuousClock.now
+
+        let error = await #expect(throws: ClientError.self) {
+            try await adb.run(["shell", "true"], timeout: .milliseconds(300))
+        }
+
+        #expect(error?.code == .timedOut)
+        #expect(ContinuousClock.now - started < .seconds(5))
+    }
+
+    @Test
+    func adbThatExitsWithAChildHoldingItsOutputReturnsWhatItWrote() async throws {
+        // Such as adb starting the adb server, which keeps the pipes it inherited
+        let adb = try FakeAdb(devices: "", script: "sleep 30 & echo started; exit 0").adb()
+        let started = ContinuousClock.now
+
+        let output = try await adb.run(["shell", "true"], timeout: .seconds(10))
+
+        #expect(output == "started\n")
+        #expect(ContinuousClock.now - started < .seconds(5))
+    }
+
+    @Test
+    func adbIsFoundOnThePathWithoutAnSDK() async throws {
+        let fake = try FakeAdb(devices: "", script: "echo from-path; exit 0")
+        let tools = fake.home.appending(path: "platform-tools").path
+        let adb = Adb(environment: ["PATH": "/nonexistent:\(tools)"], home: "/nonexistent")
+
+        #expect(try await adb.run(["version"]) == "from-path\n")
+    }
+
+    @Test
+    func adbIsFoundInTheLinuxSDK() async throws {
+        let home = FileManager.default.temporaryDirectory.appending(path: "hammer-home-\(UUID().uuidString)")
+        let fake = try FakeAdb(devices: "", script: "echo linux-sdk; exit 0",
+                               home: home.appending(path: "Android/Sdk"))
+        let adb = Adb(environment: ["PATH": "/nonexistent"], home: home.path)
+
+        #expect(fake.home.path.hasSuffix("Android/Sdk"))
+        #expect(try await adb.run(["version"]) == "linux-sdk\n")
+    }
+
+    @Test
+    func missingAdbSaysHowToInstallIt() async throws {
+        let adb = Adb(environment: ["PATH": "/nonexistent"], home: "/nonexistent")
+
+        let error = await #expect(throws: ClientError.self) { try await adb.run(["devices"]) }
+
+        #expect(error?.code == .noDevice)
+        #expect(error?.description == "adb was not found")
+        #expect(error?.hint == """
+            Install the Android SDK platform tools, and set ANDROID_HOME or put adb on the PATH
+            """)
+    }
+
+    @Test
     func adbReadsLargeErrorOutputWithoutBlocking() async throws {
         let adb = try FakeAdb(devices: "", noisy: true).adb()
 
@@ -169,8 +238,11 @@ struct AndroidDeviceTests {
 struct FakeAdb {
     let home: URL
 
-    init(devices: String, failure: String? = nil, hang: Bool = false, noisy: Bool = false) throws {
-        self.home = FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
+    init(devices: String, failure: String? = nil, hang: Bool = false, noisy: Bool = false,
+         script: String? = nil, home: URL? = nil) throws
+    {
+        self.home = home
+            ?? FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
         let tools = self.home.appending(path: "platform-tools")
         try FileManager.default.createDirectory(at: tools, withIntermediateDirectories: true)
         let script = """
@@ -178,11 +250,32 @@ struct FakeAdb {
             if [ "$1" = "devices" ]; then printf '%s' '\(devices)'; exit 0; fi
             \(hang ? "sleep 30" : "")
             \(noisy ? "head -c 200000 /dev/zero | tr '\\\\0' x >&2; echo done; exit 0" : "")
+            \(script ?? "")
             \(failure.map { "echo '\($0)' >&2; exit 1" } ?? "exit 0")
             """
-        let adb = tools.appending(path: "adb")
-        try script.write(to: adb, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: adb.path)
+        // The script is read by sh rather than run, and adb is a link to one runner written once, since on
+        // Linux running a file fails with "Text file busy" while a process another test forked holds it open
+        try script.write(to: tools.appending(path: "adb.sh"), atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: tools.appending(path: "adb"),
+                                                   withDestinationURL: try Self.runner.get())
+    }
+
+    /// Runs the `adb.sh` next to the link it was run through.
+    private static let runner = Result<URL, Error> {
+        let runner = FileManager.default.temporaryDirectory.appending(path: "hammer-adb-\(UUID().uuidString)")
+        let script = "#!/bin/sh\nexec /bin/sh \"$(dirname \"$0\")/adb.sh\" \"$@\"\n"
+        let descriptor = open(runner.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o755)
+        guard descriptor >= 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        defer { close(descriptor) }
+        let bytes = Array(script.utf8)
+        guard write(descriptor, bytes, bytes.count) == bytes.count else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        return runner
     }
 
     func adb(environment: [String: String] = [:]) -> Adb {

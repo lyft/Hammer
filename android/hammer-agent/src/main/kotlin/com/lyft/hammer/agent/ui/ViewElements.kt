@@ -3,6 +3,7 @@ package com.lyft.hammer.agent.ui
 import android.graphics.Rect
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebView
 import android.widget.Checkable
 import android.widget.EditText
 import android.widget.ImageView
@@ -27,26 +28,36 @@ internal class ViewElements(private val density: Double) {
             else -> Rect()
         }
         val views = (view as? ViewGroup)?.let { group -> (0 until group.childCount).map { element(group.getChildAt(it), childClip, alpha) } }.orEmpty()
-        val children = if (compose != null && compose.isRoot(view)) {
+        val isComposeRoot = compose != null && compose.isRoot(view)
+        val children = if (compose != null && isComposeRoot) {
             // A Compose root's only View child is the handler of its interop Views
             InteropPlacement.place(compose.children(view, childClip, visible), views.flatMap { it.children })
         } else {
             views
         }
+        val needsSystemRead = !isComposeRoot && hasVirtualContent(view)
         return Element(
             owner = view,
             nodeId = null,
             type = view.javaClass.name,
             identifier = identifier(view),
-            label = view.contentDescription?.toString() ?: (view as? TextView)?.takeUnless { it is EditText }?.text?.toString(),
+            // A blank description would hide the text that accessibility services read instead
+            label = view.contentDescription?.toString()?.takeIf { it.isNotBlank() }
+                ?: (view as? TextView)?.takeUnless { it is EditText }?.text?.toString(),
             value = value(view),
             traits = traits(view),
             frame = (if (visible) visibleBounds else bounds).toFrame(density),
             visible = visible,
             consumesTouches = isWindowRoot || consumesTouches(view),
             children = children,
+            needsSystemRead = needsSystemRead,
+            accessibilityClass = if (needsSystemRead) view.accessibilityClassName?.toString() else null,
         )
     }
+
+    // A web view, or a view such as a chart or a calendar that draws its items and describes them to
+    // accessibility services only through a node provider
+    private fun hasVirtualContent(view: View): Boolean = view is WebView || view.accessibilityNodeProvider != null
 
     private fun identifier(view: View): String? {
         // Generated ids have no package byte and no resource name

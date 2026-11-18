@@ -4,11 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -67,6 +70,10 @@ private fun ComposeScreen() {
             Text("Count")
         }
         Text("Count: $count", Modifier.testTag("count"))
+        // A row whose text sets an empty content description, as text with optional accessibility text does
+        Row(Modifier.fillMaxWidth().clickable { count++ }.testTag("blank_description_row")) {
+            Text("Add to count", Modifier.semantics { contentDescription = "" })
+        }
         Box(
             Modifier.fillMaxWidth().height(ZOOM_AREA_HEIGHT.dp).border(1.dp, MaterialTheme.colorScheme.outline)
                 .testTag("zoom_area").transformable(zoomState),

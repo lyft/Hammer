@@ -276,6 +276,31 @@ struct AndroidSystemCommandsTests {
     }
 }
 
+struct AndroidSystemDriverFallbackTests {
+    @Test
+    func onlyReadsRunAgainThroughUIAutomator() {
+        let reads = AndroidSystemCommands.all.map(\.name).filter(AndroidSystemDriver.isRead)
+
+        #expect(reads == ["describe", "screenshot"])
+    }
+
+    @Test
+    func interruptedActionSaysItMayHaveRun() {
+        let dropped = ClientError.disconnected
+
+        let error = AndroidSystemDriver.interrupted("type_text", error: dropped, helperRunning: false)
+
+        guard case .failed(let body, _) = error else {
+            Issue.record("Expected a failure, got \(error)")
+            return
+        }
+
+        #expect(body.error == "The system helper stopped during type_text (\(dropped.description))")
+        #expect(body.code == .disconnected)
+        #expect(body.hint?.hasPrefix("The command may have run, so hammer didn't run it again.") == true)
+    }
+}
+
 struct SwipeArgumentsTests {
     private func swipe(_ json: String) throws -> SwipeArguments {
         return try JSONDecoder().decode(SwipeArguments.self, from: Data(json.utf8))
@@ -307,5 +332,20 @@ struct SwipeArgumentsTests {
     @Test
     func unknownDirectionIsRejected() {
         #expect(throws: DecodingError.self) { try self.swipe(#"{"direction": "diagonal"}"#) }
+    }
+}
+
+struct HelperScreenTests {
+    @Test
+    func keysAreSentByTheirKeyEventNames() async throws {
+        let server = try FakeHelperServer(version: "", proofKey: { nil })
+        let adb = Adb(environment: ["ANDROID_HOME": "/nonexistent"])
+        let screen = HelperScreen(client: AgentClient(port: server.port, token: nil), adb: adb,
+                                  serial: "emulator-5554")
+
+        try await screen.press(keyCode: try #require(AndroidSystemCommands.keyCodes["arrowLeft"]))
+
+        #expect(server.paths == ["/commands/press_key"])
+        #expect(server.bodies == [#"{"key":"KEYCODE_DPAD_LEFT"}"#])
     }
 }

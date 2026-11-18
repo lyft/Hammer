@@ -236,12 +236,14 @@ struct AndroidDevice: Sendable {
     private static let listeningFlag = 0x10000
 
     /// The application ids of listening `@hammer_<applicationId>` sockets in `/proc/net/unix`, whose columns
-    /// are `Num RefCount Protocol Flags Type St Inode Path`.
+    /// are `Num RefCount Protocol Flags Type St Inode Path`. The system helper's `@hammer_system` isn't an
+    /// app's.
     static func listeningAppIDs(in listing: String) -> [String] {
         let prefix = "@\(self.socketPrefix)"
         let ids = listing.split(separator: "\n").dropFirst().compactMap { line -> String? in
             let columns = line.split(whereSeparator: \.isWhitespace)
             guard columns.count >= 8, columns[7].hasPrefix(prefix),
+                  columns[7] != "@\(AndroidSystemHelper.socketName)",
                   let flags = Int(columns[3], radix: 16), flags & self.listeningFlag != 0
             else {
                 return nil
