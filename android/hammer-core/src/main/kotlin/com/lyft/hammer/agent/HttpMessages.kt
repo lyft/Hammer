@@ -11,11 +11,14 @@ internal class HttpRequest(
     val body: ByteArray,
 )
 
-internal class HttpResponse(val status: Int, val body: String) {
+internal class HttpResponse(val status: Int, val body: String, val headers: Map<String, String> = emptyMap()) {
+
+    fun withHeader(name: String, value: String) = HttpResponse(status, body, headers + (name to value))
 
     fun serialized(): ByteArray {
         val bytes = body.toByteArray()
         val head = "HTTP/1.1 $status ${reasonPhrase(status)}\r\n" +
+            headers.entries.joinToString("") { (name, value) -> "$name: $value\r\n" } +
             "Content-Type: application/json\r\n" +
             "Content-Length: ${bytes.size}\r\n" +
             "Connection: close\r\n\r\n"

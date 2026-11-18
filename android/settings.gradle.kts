@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "hammer-android"
 
-include(":hammer-agent", ":test-client", ":sample-compose", ":sample-views")
+include(":hammer-agent", ":hammer-system", ":test-client", ":sample-compose", ":sample-views")

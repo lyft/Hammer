@@ -118,6 +118,7 @@ private final class AdbProcess: @unchecked Sendable {
     private var pid: pid_t?
     private var waitStatus: Int32?
     private var cancelled = false
+    private let exited = DispatchSemaphore(value: 0)
 
     init(executable: URL, arguments: [String]) {
         self.executable = executable
@@ -180,6 +181,7 @@ private final class AdbProcess: @unchecked Sendable {
             var status: Int32 = 0
             while waitpid(pid, &status, 0) == -1 && errno == EINTR {}
             self.lock.withLock { self.waitStatus = status }
+            self.exited.signal()
         }.start()
 
         let read = self.read(output: outputPipe[0], error: errorPipe[0], pid: pid, timeout: timeout)
@@ -269,7 +271,8 @@ private final class AdbProcess: @unchecked Sendable {
             }
 
             guard open else {
-                usleep(useconds_t(Self.pollMilliseconds) * 1000)
+                // adb closed its output and is exiting, so this returns as soon as it is reaped
+                _ = self.exited.wait(timeout: .now() + .milliseconds(Int(Self.pollMilliseconds)))
                 continue
             }
 
