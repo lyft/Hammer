@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Starts the agent when the app launches; see AutoStart -->
+        <provider
+            android:name="com.lyft.hammer.agent.HammerAgentProvider"
+            android:authorities="${applicationId}.hammer-agent"
+            android:exported="false" />
+    </application>
+</manifest>

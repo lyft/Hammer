@@ -14,7 +14,7 @@ Hammer is a touch, stylus and keyboard synthesis library for emulating user inte
 
 ## Installation
 
-Hammer requires Swift 6.0 and iOS 17.0 or later. Add it with [SwiftPM](https://swift.org/package-manager). The `hammer` tool also drives Android apps that run a Hammer agent, see [Android](docs/cli/android.md).
+Hammer requires Swift 6.0 and iOS 17.0 or later. Add it with [SwiftPM](https://swift.org/package-manager). The `hammer` tool also drives Android apps that run Hammer's Android agent, `com.lyft.hammer:hammer-agent-android`, attached to each [release](https://github.com/lyft/Hammer/releases), see [Android](#on-android).
 
 ```swift
 .package(url: "https://github.com/lyft/Hammer.git", from: "2.0.0")
@@ -72,12 +72,33 @@ try await agent.start()
 #endif
 ```
 
+### On Android
+
+Add the agent to your app's debug builds, and it starts when a debug build launches. It requires Android 9 (API 28) or later and works with Views and Jetpack Compose:
+
+```kotlin
+dependencies {
+    debugImplementation("com.lyft.hammer:hammer-agent-android:<version>")
+}
+```
+
+Then add `--android` to the commands below, such as `hammer describe --android`.
+
+### The command line tool
+
 Install the prebuilt `hammer` tool from the latest release:
 
 ```bash
 mkdir -p ~/.local/bin
 curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-macos.zip -o /tmp/hammer-macos.zip
 unzip -o /tmp/hammer-macos.zip -d ~/.local/bin
+```
+
+On Linux, which drives Android only, take the build for your CPU, `x86_64` or `aarch64`:
+
+```bash
+mkdir -p ~/.local/bin
+curl -fsSL https://github.com/lyft/Hammer/releases/latest/download/hammer-linux-x86_64.tar.gz | tar -xz -C ~/.local/bin
 ```
 
 Then see what's on screen and act on it:
@@ -104,7 +125,8 @@ Learn more:
 - [Live editing](docs/cli/live-editing.md) views before changing them in code
 - [Custom commands](docs/agent/custom-commands.md) for your app
 - [MCP server and agent skills](docs/cli/mcp.md)
-- [Android apps](docs/cli/android.md), through adb
+- [Adding the agent to an Android app](docs/android/getting-started.md), its [security](docs/android/security.md) and [custom commands](docs/android/custom-commands.md)
+- [Driving Android apps](docs/cli/android.md), through adb
 
 ## Documentation
 

@@ -107,7 +107,19 @@ public enum AgentGuide {
         ## System UI
 
         The agent can't reach system UI such as permission dialogs, the notification shade or the home \
-        screen, and {system} doesn't run on Android yet.
+        screen. {system} runs `describe`, `tap`, `swipe`, `edge_swipe`, `type_text`, `press_key` and \
+        `screenshot` on the whole screen through a helper app instead, to reach it: call `describe` with \
+        {system} to see its buttons, then tap one by label, such as {systemTap}. Its elements have no refs, \
+        and its frames and points are in screen dp. Its `press_key` also takes `deviceHome` and \
+        `appSwitch`, and its `screenshot` captures maps and videos too. While the helper runs, UI tests and \
+        uiautomator can't start; `hammer system stop --android` stops it.
+
+        A view the agent can't read inside, such as a web page, has `"needsSystemRead": true` in the app's \
+        `describe`, and `hammer` fills in its content from the helper when it runs: start it with \
+        `hammer system start --android`, since app commands don't unless `HAMMER_SYSTEM_HELPER=auto`. \
+        Those elements have refs starting with `s`, which stop working once the element moves, such as \
+        after scrolling: call `describe` again. When the helper stops during an action, the error says the \
+        action may have run: call `describe` before retrying it.
         """
 
     private static let androidBack = """

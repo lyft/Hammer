@@ -111,16 +111,37 @@ struct AndroidAgentClientTests {
     }
 
     @Test
-    func slowCallToARunningAppKeepsWaiting() async throws {
+    func slowCallToARunningAppKeepsCheckingUntilItReturns() async throws {
         let checks = Counter()
         let result = try await AndroidAgentClient.failingWhenFrozen(
-            delay: .milliseconds(20), isFrozen: { await checks.increment(); return false },
+            delay: .milliseconds(50), isFrozen: { await checks.increment(); return false },
             call: {
-                try await Task.sleep(for: .milliseconds(200))
+                while await checks.count < 3 {
+                    try await Task.sleep(for: .milliseconds(1))
+                }
                 return "done"
             })
 
         #expect(result == "done")
-        #expect(await checks.count == 1)
+        #expect(await checks.count == 3)
+    }
+
+    @Test
+    func appFrozenDuringALongCallFailsAtTheNextCheck() async throws {
+        let checks = Counter()
+        await #expect(throws: AndroidAgentClient.AppFrozen.self) {
+            try await AndroidAgentClient.failingWhenFrozen(
+                delay: .milliseconds(20),
+                isFrozen: {
+                    await checks.increment()
+                    return await checks.count == 4
+                },
+                call: {
+                    try await Task.sleep(for: .seconds(30))
+                    return "done"
+                })
+        }
+
+        #expect(await checks.count == 4)
     }
 }

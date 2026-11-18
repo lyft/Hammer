@@ -154,3 +154,40 @@ struct DragCommand: AgentCommand {
         return NoOutput()
     }
 }
+
+struct PinchCommand: AgentCommand {
+    struct Arguments: Decodable {
+        private enum CodingKeys: String, CodingKey {
+            case scale
+            case distance
+            case duration
+        }
+
+        let target: Target
+        let scale: Double
+        let distance: Double
+        let duration: TimeInterval
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.target = try Target(from: decoder)
+            self.scale = try container.decode(Double.self, forKey: .scale)
+            self.distance = try container.decodeIfPresent(Double.self, forKey: .distance) ?? 200
+            self.duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration) ?? 0.5
+        }
+    }
+
+    let descriptor = BuiltinCommands.pinch
+
+    func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
+        if let problem = PinchDistances.problem(scale: arguments.scale, distance: arguments.distance) {
+            throw AgentError.invalidArguments(problem.message, hint: problem.hint)
+        }
+
+        let (start, end) = PinchDistances.of(scale: arguments.scale, distance: arguments.distance)
+        let location = try arguments.target.location(in: context)
+        try await context.eventGenerator().fingerPinch(at: location, fromDistance: CGFloat(start),
+                                                       toDistance: CGFloat(end), duration: arguments.duration)
+        return NoOutput()
+    }
+}

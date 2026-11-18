@@ -1,3 +1,4 @@
+#if os(macOS)
 import CoreGraphics
 import Foundation
 import HammerAgentCore
@@ -52,7 +53,7 @@ extension SimDevice {
 /// Loads the frameworks and finds simulators.
 enum CoreSimulator {
     /// The environment variable that picks the simulator, by UDID.
-    static let udidEnvironmentKey = "HAMMER_SIMULATOR_UDID"
+    static let udidEnvironmentKey = SimulatorCommands.udidEnvironmentKey
 
     /// The developer directory of the selected Xcode, such as `/Applications/Xcode.app/Contents/Developer`.
     static func developerDirectory() throws -> URL {
@@ -162,3 +163,4 @@ extension ClientError {
         return .failed(AgentErrorBody(error: description, code: .noSimulator, hint: hint))
     }
 }
+#endif
