@@ -87,7 +87,7 @@ extension AgentWebTests {
             <div role="checkbox" aria-checked="true">Agree</div>
             <button role="presentation">Plain</button>
             <input type="password" id="secret" value="abc">
-            <img src="data:," width="20" height="20">
+            <img src="\(kPixelImage)" width="20" height="20">
             """)
 
         let summary = try await self.webElements()

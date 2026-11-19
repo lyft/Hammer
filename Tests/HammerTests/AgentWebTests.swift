@@ -31,7 +31,7 @@ final class AgentWebTests: XCTestCase {
             <button id="sign_in">Sign In</button>
             <label for="email">Email</label><input id="email" value="a@b.c">
             <input type="checkbox" id="remember" checked aria-label="Remember me">
-            <img src="data:," alt="Logo" width="20" height="20">
+            <img src="\(kPixelImage)" alt="Logo" width="20" height="20">
             <button disabled>Later</button>
             <div aria-hidden="true">Hidden</div>
             """)
@@ -290,3 +290,6 @@ final class AgentWebTests: XCTestCase {
         }
     }
 }
+
+/// A valid 1 by 1 image, since a page waits for its images to load or fail before it's complete.
+let kPixelImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
