@@ -3,7 +3,7 @@ import HammerAgentCore
 import UIKit
 import WebKit
 
-/// Reads the pages of the key window's web views with `WebContentScript`, since the agent can't reach a
+/// Reads the pages of the key window's web views with `kWebContentScript`, since the agent can't reach a
 /// page's accessibility elements: WebKit serves them from its web content process.
 @MainActor
 enum WebContent {
@@ -31,7 +31,7 @@ enum WebContent {
         /// The frame in the window's coordinates.
         let frame: CGRect
 
-        /// The point touches go to in the window's coordinates, the center of its visible part.
+        /// The point touches go to in the window's coordinates, on its first visible line.
         let hitPoint: CGPoint
 
         /// If any part of it is on screen.
@@ -54,6 +54,11 @@ enum WebContent {
             }
 
             return self.traits.contains(query.traits)
+        }
+
+        /// If it does something when touched or typed into, which queries prefer over text and images.
+        var isActionable: Bool {
+            return self.isEditable || !self.traits.isDisjoint(with: [.button, .link, .adjustable])
         }
 
         /// Describes the element in errors.
@@ -87,8 +92,17 @@ enum WebContent {
         }
     }
 
-    private struct Output: Decodable {
-        struct RawElement: Decodable {
+    /// What reading a web view's page gave.
+    struct Page {
+        /// The web view.
+        let webView: WKWebView
+
+        /// The page's elements, or why the page couldn't be read.
+        let elements: Result<[Element], AgentError>
+    }
+
+    fileprivate struct Output: Decodable, Sendable {
+        struct RawElement: Decodable, Sendable {
             let id: Int
             let type: String
             let identifier: String?
@@ -111,10 +125,21 @@ enum WebContent {
     }
 
     /// The content world the script runs in, apart from the page's scripts.
-    private static let world = WKContentWorld.world(name: "HammerAgent")
+    fileprivate static let world = WKContentWorld.world(name: "HammerAgent")
 
-    /// How long a web view has to answer, so a stuck web content process can't hold up a command.
-    private static let timeout: TimeInterval = 5
+    /// Names this agent's script, so a page that has another agent's script installs this one.
+    fileprivate static let version = UUID().uuidString
+
+    /// How long a web view has to answer by default, so a stuck web content process can't hold up a command.
+    static let defaultTimeout: TimeInterval = 5
+
+    /// How long a read waits for the web view to stop scrolling, so frames don't lag behind the screen and a
+    /// touch isn't taken as one that stops the scrolling.
+    fileprivate static let scrollSettleTimeout: TimeInterval = 3
+
+    /// The web views with a call that hasn't answered, such as one that timed out. The web content process
+    /// still runs it, so the next call waits for it to finish instead of queueing behind it.
+    fileprivate static var busyWebViews = Set<ObjectIdentifier>()
 
     /// The visible web views in the window, back to front.
     ///
@@ -133,17 +158,34 @@ enum WebContent {
         return search(window)
     }
 
-    /// Reads the elements of the web view's page.
+    /// Reads the pages of the web views at the same time, so one that doesn't answer doesn't hold up the
+    /// others.
     ///
-    /// - parameter webView: The web view.
-    /// - parameter window:  The window to give frames in.
+    /// - parameter webViews: The web views.
+    /// - parameter window:   The window to give frames in.
+    /// - parameter timeout:  How long each web view has to answer.
     ///
-    /// - throws: An error if the page doesn't answer.
-    ///
-    /// - returns: The elements, in the page's order.
-    static func elements(in webView: WKWebView, window: UIWindow) async throws -> [Element] {
-        let output: Output = try await self.run(["operation": "read"], in: webView)
-        return output.elements.map { self.element($0, page: output.page, in: webView, window: window) }
+    /// - returns: The pages, in the order of the web views.
+    static func pages(of webViews: [WKWebView], window: UIWindow,
+                      timeout: TimeInterval = WebContent.defaultTimeout) async -> [Page]
+    {
+        let reads = webViews.map { webView in
+            Task { @MainActor in
+                try await self.run(["operation": "read"], in: webView, timeout: timeout) as Output
+            }
+        }
+
+        var pages = [Page]()
+        for (webView, read) in zip(webViews, reads) {
+            let elements = await read.result
+                .map { output in
+                    output.elements.map { self.element($0, page: output.page, in: webView, window: window) }
+                }
+                .mapError { $0 as? AgentError ?? AgentError.failed(String(describing: $0)) }
+            pages.append(Page(webView: webView, elements: elements))
+        }
+
+        return pages
     }
 
     /// Reads the element again, such as to find where it moved.
@@ -164,24 +206,27 @@ enum WebContent {
     }
 
     /// Returns the elements of every web view in the window that match the query, leaving out the pages that
-    /// don't answer.
+    /// can't be read.
     ///
-    /// - parameter query:  The query.
-    /// - parameter window: The window.
+    /// - parameter query:   The query.
+    /// - parameter window:  The window.
+    /// - parameter timeout: How long each web view has to answer.
     ///
     /// - returns: The matching elements.
-    static func elements(matching query: AccessibilityQuery, in window: UIWindow) async -> [Element] {
-        var matches = [Element]()
-        for webView in self.webViews(in: window) {
-            let elements = (try? await self.elements(in: webView, window: window)) ?? []
-            matches += elements.filter { $0.matches(query) }
+    static func elements(matching query: AccessibilityQuery, in window: UIWindow,
+                         timeout: TimeInterval = WebContent.defaultTimeout) async -> [Element]
+    {
+        let webViews = self.webViews(in: window)
+        guard !webViews.isEmpty else {
+            return []
         }
 
-        return matches
+        let pages = await self.pages(of: webViews, window: window, timeout: timeout)
+        return pages.flatMap { (try? $0.elements.get()) ?? [] }.filter { $0.matches(query) }
     }
 
     /// Finds the element to interact with for the query, choosing like the agent does for views: visible
-    /// ones first, then the ones that act, such as buttons.
+    /// ones first, then the ones that act, such as buttons and fields, over text.
     ///
     /// - parameter query:  The query.
     /// - parameter window: The window.
@@ -190,11 +235,20 @@ enum WebContent {
     ///
     /// - returns: The element, or nil if none matches.
     static func element(matching query: AccessibilityQuery, in window: UIWindow) async throws -> Element? {
-        var targets = await self.elements(matching: query, in: window)
+        return try self.choose(from: await self.elements(matching: query, in: window), for: query)
+    }
+
+    /// Chooses the element to interact with from the ones that match the query.
+    ///
+    /// - throws: An error if several elements are left.
+    static func choose(from matches: [Element], for query: AccessibilityQuery) throws -> Element? {
+        var targets = matches
         let visible = targets.filter(\.isVisible)
         targets = visible.isEmpty ? targets : visible
-        let actionable = targets.filter { !$0.traits.isDisjoint(with: [.button, .link, .adjustable]) }
+        let actionable = targets.filter(\.isActionable)
         targets = actionable.isEmpty ? targets : actionable
+        let notText = targets.filter { !$0.traits.contains(.staticText) }
+        targets = notText.isEmpty ? targets : notText
         if targets.count > 1 {
             throw AgentError.failed("\(targets.count) web elements match \(query)", hint: """
                 Add more of identifier, label, value and traits to tell them apart, or pass a ref from \
@@ -217,18 +271,23 @@ enum WebContent {
         }
 
         // The page takes the focus first, then the web view becomes the first responder
-        return self.contentView(of: element.webView)?.isFirstResponder ?? true
+        if let contentView = self.contentView(of: element.webView) {
+            return contentView.isFirstResponder
+        }
+
+        return self.containsFirstResponder(element.webView)
     }
 
-    // MARK: - Helpers
+    // MARK: - Coordinates
 
-    private static func element(_ raw: Output.RawElement, page: String, in webView: WKWebView,
-                                window: UIWindow) -> Element
+    fileprivate static func element(_ raw: Output.RawElement, page: String, in webView: WKWebView,
+                                    window: UIWindow) -> Element
     {
+        let contentView = self.contentView(of: webView)
         let frame = self.convert(CGRect(x: raw.x, y: raw.y, width: raw.width, height: raw.height),
-                                 from: webView, to: window)
+                                 from: webView, to: window, through: contentView)
         let hitPoint = self.convert(CGRect(x: raw.hitX, y: raw.hitY, width: 0, height: 0),
-                                    from: webView, to: window).origin
+                                    from: webView, to: window, through: contentView).origin
         let visibleArea = webView.convert(webView.bounds, to: window).intersection(window.bounds)
         let isVisible = raw.visible && frame.intersects(visibleArea)
         let hitView = window.hitTest(hitPoint, with: nil)
@@ -243,14 +302,25 @@ enum WebContent {
                        frame: frame, hitPoint: hitPoint, isVisible: isVisible, isHittable: isHittable)
     }
 
-    /// Converts a rectangle in the document's CSS pixels to the window, through the view the web view zooms,
-    /// which is scaled and scrolled with the page.
-    private static func convert(_ rect: CGRect, from webView: WKWebView, to window: UIWindow) -> CGRect {
-        let scrollView = webView.scrollView
-        if let contentView = self.contentView(of: webView) {
+    /// Converts a rectangle in the document's CSS pixels to the window.
+    ///
+    /// Through the content view, which is scaled and scrolled with the page, the conversion includes every
+    /// transform UIKit applies. Without it, the document is the scroll view's content scaled by its zoom.
+    ///
+    /// - parameter rect:        The rectangle in CSS pixels from the top left of the document.
+    /// - parameter webView:     The web view.
+    /// - parameter window:      The window.
+    /// - parameter contentView: The view the web view zooms, from `contentView(of:)`, or nil.
+    ///
+    /// - returns: The rectangle in the window.
+    static func convert(_ rect: CGRect, from webView: WKWebView, to window: UIWindow,
+                        through contentView: UIView?) -> CGRect
+    {
+        if let contentView {
             return contentView.convert(rect, to: window)
         }
 
+        let scrollView = webView.scrollView
         let scale = scrollView.zoomScale
         let scaled = CGRect(x: rect.minX * scale, y: rect.minY * scale,
                             width: rect.width * scale, height: rect.height * scale)
@@ -258,15 +328,50 @@ enum WebContent {
     }
 
     /// The view that shows the page, which the web view's scroll view zooms.
-    private static func contentView(of webView: WKWebView) -> UIView? {
+    ///
+    /// This relies on the scroll view's delegate giving it, which WebKit doesn't promise and some iOS
+    /// versions don't do; without it, `convert(_:from:to:through:)` falls back to the scroll view's zoom.
+    ///
+    /// - parameter webView: The web view.
+    ///
+    /// - returns: The content view, or nil if the scroll view's delegate doesn't give one.
+    static func contentView(of webView: WKWebView) -> UIView? {
         let scrollView = webView.scrollView
         return scrollView.delegate?.viewForZooming?(in: scrollView)
     }
 
-    private static func run<T: Decodable>(_ arguments: [String: Any], in webView: WKWebView) async throws
+    fileprivate static func containsFirstResponder(_ view: UIView) -> Bool {
+        return view.isFirstResponder || view.subviews.contains(where: self.containsFirstResponder)
+    }
+
+}
+
+// MARK: - Running the script
+
+extension WebContent {
+    fileprivate static func run<T: Decodable>(_ arguments: [String: Any], in webView: WKWebView,
+                                              timeout: TimeInterval = WebContent.defaultTimeout) async throws
         -> T
     {
-        let json = try await self.evaluate(arguments, in: webView)
+        let deadline = Date().addingTimeInterval(timeout)
+        try await self.waitUntilScrollingStops(webView, until: deadline)
+
+        let id = ObjectIdentifier(webView)
+        guard !self.busyWebViews.contains(id) else {
+            throw AgentError.failed("The web view is still running an earlier read of its page", hint: """
+                The page may be busy or its web content process may have stopped. Wait and try again
+                """, code: .timedOut)
+        }
+
+        var arguments = arguments
+        arguments["version"] = self.version
+        arguments["page"] = arguments["page"] ?? ""
+        arguments["id"] = arguments["id"] ?? 0
+        var json = try await self.evaluate(kWebContentCallScript, arguments, in: webView, until: deadline)
+        if json == kWebContentScriptNotInstalled {
+            json = try await self.evaluate(kWebContentScript, arguments, in: webView, until: deadline)
+        }
+
         do {
             return try JSONDecoder().decode(T.self, from: Data(json.utf8))
         } catch {
@@ -274,13 +379,31 @@ enum WebContent {
         }
     }
 
-    private static func evaluate(_ arguments: [String: Any], in webView: WKWebView) async throws -> String {
+    /// Waits for the web view to stop scrolling, since the page reports where it was scrolled to with a delay
+    /// while the scroll view moves, such as after a swipe.
+    private static func waitUntilScrollingStops(_ webView: WKWebView, until deadline: Date) async throws {
+        let scrollView = webView.scrollView
+        let settleDeadline = min(deadline, Date().addingTimeInterval(self.scrollSettleTimeout))
+        while scrollView.isDragging || scrollView.isDecelerating || scrollView.isZooming {
+            guard Date() < settleDeadline else {
+                return
+            }
+
+            try await Task.sleep(for: .milliseconds(16))
+        }
+    }
+
+    private static func evaluate(_ script: String, _ arguments: [String: Any], in webView: WKWebView,
+                                 until deadline: Date) async throws -> String
+    {
+        let id = ObjectIdentifier(webView)
+        let timeout = max(deadline.timeIntervalSinceNow, 0.05)
         let once = ResumeOnce()
+        self.busyWebViews.insert(id)
         return try await withCheckedThrowingContinuation { continuation in
             once.continuation = continuation
-            webView.callAsyncJavaScript(kWebContentScript, arguments: arguments, in: nil,
-                                        in: self.world)
-            { result in
+            webView.callAsyncJavaScript(script, arguments: arguments, in: nil, in: self.world) { result in
+                self.busyWebViews.remove(id)
                 switch result {
                 case .success(let value as String):
                     once.resume(with: .success(value))
@@ -293,9 +416,14 @@ enum WebContent {
                 }
             }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + self.timeout) {
+            once.timeout = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(timeout))
+                guard !Task.isCancelled else {
+                    return
+                }
+
                 once.resume(with: .failure(AgentError.failed(
-                    "The web view didn't answer within \(Int(self.timeout)) seconds",
+                    "The web view didn't answer within \(String(format: "%.1f", timeout)) seconds",
                     hint: "The page may be busy or its web content process may have stopped",
                     code: .timedOut)))
             }
@@ -307,8 +435,11 @@ enum WebContent {
 @MainActor
 private final class ResumeOnce {
     var continuation: CheckedContinuation<String, Error>?
+    var timeout: Task<Void, Never>?
 
     func resume(with result: Result<String, Error>) {
+        self.timeout?.cancel()
+        self.timeout = nil
         self.continuation?.resume(with: result)
         self.continuation = nil
     }

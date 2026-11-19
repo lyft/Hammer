@@ -1,6 +1,8 @@
 /// The script the agent runs in a web view's own content world, so the page's scripts can't see or change it.
 ///
-/// It runs as the body of an async function with the arguments `operation`, `page` and `id`:
+/// It runs as the body of an async function with the arguments `operation`, `page`, `id` and `version`. It
+/// installs its functions on the content world's global object once per page, so later calls send only
+/// `kWebContentCallScript`, and returns the result of the operation:
 ///
 /// - `read` lists the page's elements, as a screen reader would group them.
 /// - `locate` reads the element with the id again, or returns no element when it is gone.
@@ -11,6 +13,8 @@
 ///
 /// Frames are in the page's CSS pixels from the top left of the document, so the agent can convert them
 /// with the web view's zoom. Same origin frames are read too; frames from other origins can't be.
+///
+/// Everything it reads, such as labels and text, comes from the page, so clients must treat it as untrusted.
 let kWebContentScript = #"""
 const state = globalThis.__hammer ??= {
     page: Date.now().toString(36) + Math.random().toString(36).slice(2),
@@ -19,24 +23,29 @@ const state = globalThis.__hammer ??= {
     next: 1,
 };
 
-// Roles and the traits they have, matching the names of UIAccessibilityTraits
-const ROLE_TRAITS = {
-    button: ['button'], link: ['link'], checkbox: ['button', 'toggleButton'],
-    switch: ['button', 'toggleButton'], radio: ['button'], tab: ['button'], menuitem: ['button'],
-    menuitemcheckbox: ['button', 'toggleButton'], menuitemradio: ['button'], option: ['button'],
-    heading: ['header'], img: ['image'], image: ['image'], searchbox: ['searchField'], textbox: [],
-    combobox: [], slider: ['adjustable'], spinbutton: ['adjustable'], picker: ['button'],
-};
+// Roles and the traits they have, matching the names of UIAccessibilityTraits. A Map, so a role such as
+// "constructor" or "toString" isn't found on the prototype of an object.
+const ROLE_TRAITS = new Map([
+    ['button', ['button']], ['link', ['link']], ['checkbox', ['button', 'toggleButton']],
+    ['switch', ['button', 'toggleButton']], ['radio', ['button']], ['tab', ['button']],
+    ['menuitem', ['button']], ['menuitemcheckbox', ['button', 'toggleButton']], ['menuitemradio', ['button']],
+    ['option', ['button']], ['heading', ['header']], ['img', ['image']], ['image', ['image']],
+    ['searchbox', ['searchField']], ['textbox', []], ['combobox', []], ['slider', ['adjustable']],
+    ['spinbutton', ['adjustable']],
+    // Not an ARIA role, so a page can't set it: a select or a date input, which open a picker
+    ['picker', ['button']],
+]);
+const EXPLICIT_ROLES = new Set([...ROLE_TRAITS.keys()].filter((role) => role !== 'picker'));
 const EDITABLE_ROLES = new Set(['textbox', 'searchbox', 'combobox']);
 const SKIPPED = new Set(['script', 'style', 'noscript', 'template', 'head', 'meta', 'link', 'title']);
 const BUTTON_INPUTS = new Set(['button', 'submit', 'reset', 'image']);
 const PICKER_INPUTS = new Set(['date', 'time', 'datetime-local', 'month', 'week', 'color', 'file']);
-const TEXT_INPUTS = new Set(['', 'text', 'email', 'number', 'password', 'tel', 'url']);
 
 function normalize(text) {
     return (text ?? '').replace(/\s+/g, ' ').trim();
 }
 
+// Gives the target an id. Text keeps its nodes, container and label, since locate reads it on its own.
 function idFor(target) {
     let id = state.ids.get(target.key);
     if (id === undefined) {
@@ -45,8 +54,10 @@ function idFor(target) {
     }
 
     // Kept weakly, so the page can release removed elements
-    state.targets.set(id, { key: new WeakRef(target.key), end: target.end && new WeakRef(target.end),
-                            kind: target.kind, offset: target.offset });
+    state.targets.set(id, target.kind === 'text'
+        ? { key: new WeakRef(target.key), nodes: target.nodes.map((node) => new WeakRef(node)),
+            container: new WeakRef(target.container), label: target.label }
+        : { key: new WeakRef(target.key) });
     return id;
 }
 
@@ -82,13 +93,18 @@ function isHiddenSubtree(element) {
         || (element.localName === 'input' && element.type === 'hidden');
 }
 
+// If the element and what it contains can't be seen: not displayed or fully transparent
+function isInvisibleSubtree(style) {
+    return style.display === 'none' || Number(style.opacity) === 0;
+}
+
 function roleOf(element) {
     const explicit = (element.getAttribute('role') ?? '').trim().split(/\s+/)[0];
     if (explicit === 'presentation' || explicit === 'none') {
         return null;
     }
 
-    if (explicit in ROLE_TRAITS) {
+    if (EXPLICIT_ROLES.has(explicit)) {
         return explicit;
     }
 
@@ -126,8 +142,13 @@ function roleOf(element) {
     return null;
 }
 
-// The text a person sees in the node, with image descriptions
-function textOf(node) {
+// The text a person sees in the node, with image descriptions, leaving out `skipped`, such as the field a
+// label names
+function textOf(node, skipped = null) {
+    if (node === skipped) {
+        return '';
+    }
+
     if (node.nodeType === Node.TEXT_NODE) {
         return node.data;
     }
@@ -137,7 +158,7 @@ function textOf(node) {
     }
 
     const style = getComputedStyle(node);
-    if (style.display === 'none') {
+    if (isInvisibleSubtree(style)) {
         return '';
     }
 
@@ -156,7 +177,7 @@ function textOf(node) {
     const isInline = style.display.startsWith('inline') || style.display === 'contents';
     let text = isInline ? '' : ' ';
     for (const child of composedChildren(node)) {
-        text += textOf(child);
+        text += textOf(child, skipped);
     }
 
     return isInline ? text : text + ' ';
@@ -166,7 +187,7 @@ function textOfIds(element, ids) {
     const root = element.getRootNode();
     return ids.trim().split(/\s+/)
         .map((id) => root.getElementById?.(id) ?? element.ownerDocument.getElementById(id))
-        .filter(Boolean).map(textOf).join(' ');
+        .filter(Boolean).map((node) => textOf(node)).join(' ');
 }
 
 function nameOf(element, role) {
@@ -189,7 +210,7 @@ function nameOf(element, role) {
     }
 
     if (name === 'input' || name === 'select' || name === 'textarea') {
-        const labels = Array.from(element.labels ?? []).map(textOf).join(' ');
+        const labels = Array.from(element.labels ?? []).map((label) => textOf(label, element)).join(' ');
         return normalize(labels) || normalize(element.placeholder) || normalize(element.title) || null;
     }
 
@@ -239,7 +260,7 @@ function valueOf(element, role) {
 }
 
 function traitsOf(element, role) {
-    const traits = [...ROLE_TRAITS[role]];
+    const traits = [...(ROLE_TRAITS.get(role) ?? [])];
     const isOn = (name) => element.getAttribute(name) === 'true';
     if ((element.localName === 'input' && element.checked && (role === 'checkbox' || role === 'radio'))
         || isOn('aria-checked') || isOn('aria-selected') || isOn('aria-pressed')) {
@@ -253,36 +274,49 @@ function traitsOf(element, role) {
     return traits;
 }
 
-// The rectangle and the point to touch it at, in the main frame's viewport, or null if not rendered
-function geometry(target, offset, clip) {
-    let rect;
-    let lines;
-    let hitRoot;
-    let owner;
-    if (target.kind === 'text') {
-        const range = target.key.ownerDocument.createRange();
-        range.setStartBefore(target.key);
-        range.setEndAfter(target.end);
-        rect = range.getBoundingClientRect();
-        lines = range.getClientRects();
-        owner = target.key.parentElement ?? target.key.parentNode?.host ?? null;
-        hitRoot = target.key.getRootNode();
-    } else {
-        rect = target.key.getBoundingClientRect();
-        lines = target.key.getClientRects();
-        owner = target.key;
-        hitRoot = owner.getRootNode();
+// If a touch at the node goes to a control inside the container rather than to the container itself,
+// such as a link in a paragraph
+function isInControl(node, container) {
+    for (let current = node; current && current !== container; current = composedParent(current)) {
+        const role = current.nodeType === Node.ELEMENT_NODE ? roleOf(current) : null;
+        if (role && role !== 'heading') {
+            return true;
+        }
     }
 
-    if (!owner || (rect.width <= 0 && rect.height <= 0)) {
+    return false;
+}
+
+// The rectangle and the point to touch it at, in the main frame's viewport, or null if not rendered
+function geometry(target, offset, clip) {
+    let lines;
+    let owner;
+    if (target.kind === 'text') {
+        // Only the run's own text, not the boxes of the links and buttons inside it
+        lines = target.nodes.flatMap((node) => {
+            const range = node.ownerDocument.createRange();
+            range.selectNodeContents(node);
+            return Array.from(range.getClientRects());
+        });
+        owner = target.key.parentElement ?? target.key.parentNode?.host ?? null;
+    } else {
+        lines = Array.from(target.key.getClientRects());
+        owner = target.key;
+    }
+
+    lines = lines.filter((line) => line.width > 0 || line.height > 0);
+    if (!owner || lines.length === 0) {
         return null;
     }
 
+    const left = Math.min(...lines.map((line) => line.left));
+    const top = Math.min(...lines.map((line) => line.top));
+    const right = Math.max(...lines.map((line) => line.right));
+    const bottom = Math.max(...lines.map((line) => line.bottom));
+    const frame = { x: left + offset.x, y: top + offset.y, width: right - left, height: bottom - top };
+
     const style = getComputedStyle(owner);
     const rendered = style.visibility !== 'hidden' && style.visibility !== 'collapse';
-    const frame = {
-        x: rect.left + offset.x, y: rect.top + offset.y, width: rect.width, height: rect.height,
-    };
     const viewport = window.visualViewport;
     const screen = intersect(viewport
         ? { x: viewport.offsetLeft, y: viewport.offsetTop,
@@ -292,7 +326,7 @@ function geometry(target, offset, clip) {
     const visible = rendered && visibleArea !== null;
     // Text that wraps, such as a link in a paragraph, is touched on its first visible line, since the
     // middle of its bounding box can be on other text
-    const visibleLines = screen ? Array.from(lines)
+    const visibleLines = screen ? lines
         .map((line) => intersect({ x: line.left + offset.x, y: line.top + offset.y, width: line.width,
                                    height: line.height }, screen))
         .filter(Boolean) : [];
@@ -300,11 +334,14 @@ function geometry(target, offset, clip) {
     const hit = { x: area.x + area.width / 2, y: area.y + area.height / 2 };
 
     let hittable = false;
-    if (visible) {
-        const finder = hitRoot.elementFromPoint ? hitRoot : owner.ownerDocument;
+    if (visible && style.pointerEvents !== 'none') {
+        const root = target.key.getRootNode();
+        const finder = root.elementFromPoint ? root : owner.ownerDocument;
         const topmost = finder.elementFromPoint(hit.x - offset.x, hit.y - offset.y);
-        hittable = topmost !== null && composedContains(owner, topmost)
-            && getComputedStyle(owner).pointerEvents !== 'none';
+        hittable = target.kind === 'text'
+            ? topmost !== null && composedContains(target.container, topmost)
+                && !isInControl(topmost, target.container)
+            : topmost !== null && composedContains(owner, topmost);
     }
 
     return { frame, hit, visible, hittable };
@@ -322,8 +359,8 @@ function intersect(a, b) {
     return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
 }
 
-function output(target, info, offset, clip) {
-    const shape = geometry(target, offset, clip);
+function output(target, info, frame) {
+    const shape = geometry(target, frame.offset, frame.clip);
     if (!shape) {
         return null;
     }
@@ -346,18 +383,25 @@ function describeElement(element, role) {
     };
 }
 
+function textInfo(label) {
+    return { type: 'text', label, traits: ['staticText'] };
+}
+
 // Reads the elements under the node into `results`. Runs of text in inline elements are joined into
 // one static text, the way VoiceOver reads a paragraph, while elements with a role stand on their own.
 function read(root, frame, results) {
     let run = null;
+    let container = root;
+    // Above zero inside a label of a control, whose text is the control's label rather than its own text
+    let muted = 0;
 
     function flush() {
         if (run) {
             const label = normalize(run.text);
             if (label) {
-                const target = { kind: 'text', key: run.start, end: run.end, offset: frame.offset };
-                const element = output(target, { type: 'text', label, traits: ['staticText'] },
-                                       frame.offset, frame.clip);
+                const target = { kind: 'text', key: run.nodes[0], nodes: run.nodes, container: run.container,
+                                 label };
+                const element = output(target, textInfo(label), frame);
                 element && results.push(element);
             }
         }
@@ -367,10 +411,14 @@ function read(root, frame, results) {
 
     function visit(node) {
         if (node.nodeType === Node.TEXT_NODE) {
+            if (muted) {
+                return;
+            }
+
             if (node.data.trim()) {
-                run ??= { text: '', start: node, end: node };
+                run ??= { text: '', nodes: [], container };
                 run.text += node.data;
-                run.end = node;
+                run.nodes.push(node);
             } else if (run) {
                 run.text += ' ';
             }
@@ -382,8 +430,18 @@ function read(root, frame, results) {
             return;
         }
 
+        // One element the script can't read, such as one with an unexpected attribute, is left out rather
+        // than failing the whole page
+        try {
+            visitElement(node);
+        } catch {
+            flush();
+        }
+    }
+
+    function visitElement(node) {
         const style = getComputedStyle(node);
-        if (style.display === 'none') {
+        if (isInvisibleSubtree(style)) {
             return;
         }
 
@@ -407,23 +465,29 @@ function read(root, frame, results) {
 
         if (role) {
             flush();
-            const element = output({ kind: 'element', key: node, offset: frame.offset },
-                                   describeElement(node, role), frame.offset, frame.clip);
+            const element = output({ kind: 'element', key: node }, describeElement(node, role), frame);
             element && results.push(element);
             return;
         }
 
-        const isInline = style.display.startsWith('inline') || style.display === 'contents';
+        const isLabelOfControl = node.localName === 'label' && node.control;
+        const isInline = (style.display.startsWith('inline') || style.display === 'contents')
+            && !isLabelOfControl;
+        const outer = container;
         if (!isInline) {
             flush();
+            container = node;
         }
 
+        muted += isLabelOfControl ? 1 : 0;
         for (const child of composedChildren(node)) {
             visit(child);
         }
 
+        muted -= isLabelOfControl ? 1 : 0;
         if (!isInline) {
             flush();
+            container = outer;
         }
     }
 
@@ -440,16 +504,34 @@ function readHeading(heading, frame, results) {
     read(heading, frame, inner);
     const label = nameOf(heading, 'heading');
     const actionable = inner.filter((element) => !element.traits.includes('staticText'));
+    // The heading's own text is part of the heading, so its runs don't keep ids
+    for (const element of inner) {
+        if (element.traits.includes('staticText')) {
+            state.targets.delete(element.id);
+        }
+    }
+
     if (actionable.length === 1 && actionable[0].label === label) {
         actionable[0].traits.push('header');
         results.push(actionable[0]);
         return;
     }
 
-    const element = output({ kind: 'element', key: heading, offset: frame.offset },
-                           describeElement(heading, 'heading'), frame.offset, frame.clip);
+    const element = output({ kind: 'element', key: heading }, describeElement(heading, 'heading'), frame);
     element && results.push(element);
     results.push(...actionable);
+}
+
+// Where a frame's content is, in the main frame's viewport, and the part of it that shows
+function frameBox(element, style, frame) {
+    const rect = element.getBoundingClientRect();
+    const offset = {
+        x: frame.offset.x + rect.left + element.clientLeft + parseFloat(style.paddingLeft),
+        y: frame.offset.y + rect.top + element.clientTop + parseFloat(style.paddingTop),
+    };
+    const box = { x: offset.x, y: offset.y, width: element.clientWidth, height: element.clientHeight };
+    const clip = frame.clip ? intersect(frame.clip, box) ?? { x: 0, y: 0, width: 0, height: 0 } : box;
+    return { offset, clip };
 }
 
 function readFrame(element, style, frame, results) {
@@ -464,29 +546,63 @@ function readFrame(element, style, frame, results) {
         return;
     }
 
-    const rect = element.getBoundingClientRect();
-    const offset = {
-        x: frame.offset.x + rect.left + element.clientLeft + parseFloat(style.paddingLeft),
-        y: frame.offset.y + rect.top + element.clientTop + parseFloat(style.paddingTop),
-    };
-    const box = { x: offset.x, y: offset.y, width: element.clientWidth, height: element.clientHeight };
-    const clip = frame.clip ? intersect(frame.clip, box) ?? { x: 0, y: 0, width: 0, height: 0 } : box;
-    read(document.documentElement, { offset, clip }, results);
+    read(document.documentElement, frameBox(element, style, frame), results);
 }
 
+const MAIN_FRAME = { offset: { x: 0, y: 0 }, clip: null };
+
+// The frame of a document of this page, through the frames that contain it
+function frameOf(doc) {
+    if (doc === document) {
+        return MAIN_FRAME;
+    }
+
+    const element = doc.defaultView?.frameElement;
+    const outer = element && frameOf(element.ownerDocument);
+    return outer ? frameBox(element, getComputedStyle(element), outer) : null;
+}
+
+// If the node or an element around it hides it, the way read leaves it out
+function isHiddenInPage(node) {
+    for (let current = node.parentNode ? node : null; current; current = composedParent(current)) {
+        if (current.nodeType !== Node.ELEMENT_NODE) {
+            continue;
+        }
+
+        if (isHiddenSubtree(current) || isInvisibleSubtree(getComputedStyle(current))) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Reads one element again, where it is now, without reading the rest of the page
 function locate(id) {
     const stored = state.targets.get(id);
     const key = stored?.key.deref();
-    const end = stored?.end?.deref();
-    if (!key || !key.isConnected || (stored.end && (!end || !end.isConnected))) {
+    const nodes = stored?.nodes?.map((node) => node.deref());
+    const container = stored?.container?.deref();
+    if (!key || !key.isConnected || (nodes && (!nodes.every((node) => node?.isConnected) || !container))) {
         state.targets.delete(id);
         return null;
     }
 
-    // Reads the frame the element is in again, since it may have moved
-    const results = [];
-    read(document.documentElement, { offset: { x: 0, y: 0 }, clip: null }, results);
-    return results.find((element) => element.id === id) ?? null;
+    const frame = frameOf(key.ownerDocument);
+    if (!frame) {
+        return null;
+    }
+
+    const target = nodes ? { kind: 'text', key, nodes, container, label: stored.label }
+        : { kind: 'element', key };
+    const info = nodes ? textInfo(stored.label) : describeElement(key, roleOf(key));
+    const element = output(target, info, frame);
+    if (element && isHiddenInPage(key)) {
+        element.visible = false;
+        element.hittable = false;
+    }
+
+    return element;
 }
 
 function deepActiveElement() {
@@ -512,28 +628,42 @@ function safeFrameActiveElement(frame) {
     }
 }
 
-switch (operation) {
-case 'read': {
-    for (const [id, stored] of state.targets) {
-        if (!stored.key.deref()) {
-            state.targets.delete(id);
+state.version = version;
+state.run = (operation, page, id) => {
+    switch (operation) {
+    case 'read': {
+        for (const [id, stored] of state.targets) {
+            if (!stored.key.deref()?.isConnected) {
+                state.targets.delete(id);
+            }
         }
+
+        const results = [];
+        read(document.documentElement, MAIN_FRAME, results);
+        return JSON.stringify({ page: state.page, elements: results });
+    }
+    case 'locate': {
+        const element = page === state.page ? locate(id) : null;
+        return JSON.stringify({ page: state.page, elements: element ? [element] : [] });
+    }
+    case 'focused': {
+        const key = page === state.page ? state.targets.get(id)?.key.deref() : null;
+        const active = deepActiveElement();
+        return JSON.stringify(Boolean(key && active && composedContains(key, active)));
+    }
     }
 
-    const results = [];
-    read(document.documentElement, { offset: { x: 0, y: 0 }, clip: null }, results);
-    return JSON.stringify({ page: state.page, elements: results });
-}
-case 'locate': {
-    const element = page === state.page ? locate(id) : null;
-    return JSON.stringify({ page: state.page, elements: element ? [element] : [] });
-}
-case 'focused': {
-    const key = page === state.page ? state.targets.get(id)?.key.deref() : null;
-    const active = deepActiveElement();
-    return JSON.stringify(Boolean(key && active && composedContains(key, active)));
-}
-}
+    return JSON.stringify(null);
+};
 
-return JSON.stringify(null);
+return state.run(operation, page, id);
 """#
+
+/// What the result of `kWebContentCallScript` is when the page doesn't have this version of the script yet.
+let kWebContentScriptNotInstalled = "not_installed"
+
+/// Runs the script installed on the page, so the page doesn't parse the whole script for every call.
+let kWebContentCallScript = """
+    const hammer = globalThis.__hammer;
+    return hammer?.version === version ? hammer.run(operation, page, id) : '\(kWebContentScriptNotInstalled)';
+    """

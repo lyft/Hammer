@@ -7,8 +7,8 @@ import XCTest
 
 @MainActor
 final class AgentWebTests: XCTestCase {
-    private var agent: HammerAgent!
-    private var hostEventGenerator: EventGenerator?
+    var agent: HammerAgent!
+    var hostEventGenerator: EventGenerator?
 
     override func setUp() async throws {
         try await super.setUp()
@@ -45,7 +45,6 @@ final class AgentWebTests: XCTestCase {
             "text Read the terms first [\"staticText\"]",
             "a More [\"link\"]",
             "button Sign In [\"button\"]",
-            "text Email [\"staticText\"]",
             "input Email []",
             "input Remember me [\"button\", \"selected\", \"toggleButton\"]",
             "img Logo [\"image\"]",
@@ -218,7 +217,7 @@ final class AgentWebTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private struct DescribedNode: Decodable {
+    struct DescribedNode: Decodable {
         struct Frame: Decodable {
             let x: Double
             let y: Double
@@ -237,6 +236,7 @@ final class AgentWebTests: XCTestCase {
         let traits: [String]?
         let frame: Frame
         let hittable: Bool
+        let pageError: String?
         let children: [DescribedNode]?
 
         var flattened: [DescribedNode] {
@@ -244,18 +244,18 @@ final class AgentWebTests: XCTestCase {
         }
     }
 
-    private func describe() async throws -> [DescribedNode] {
+    func describe() async throws -> [DescribedNode] {
         let (data, status) = try await self.agent.run("describe")
         XCTAssertEqual(status, 200)
         return try JSONDecoder().decode([DescribedNode].self, from: data)
     }
 
-    private func webElements() async throws -> [DescribedNode] {
+    func webElements() async throws -> [DescribedNode] {
         return try await self.describe().flatMap(\.flattened).filter { $0.ref.hasPrefix("w") }
     }
 
     @discardableResult
-    private func presentPage(_ body: String, viewport: Bool = true) async throws -> WKWebView {
+    func presentPage(_ body: String, viewport: Bool = true) async throws -> WKWebView {
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
         webView.setSize(width: 320, height: 480)
         self.hostEventGenerator = try await EventGenerator(view: webView)
@@ -264,7 +264,7 @@ final class AgentWebTests: XCTestCase {
     }
 
     /// Loads a page with the body, and waits until it is the one shown.
-    private func load(_ webView: WKWebView, _ body: String, viewport: Bool = true) async throws {
+    func load(_ webView: WKWebView, _ body: String, viewport: Bool = true) async throws {
         let marker = UUID().uuidString
         let head = viewport ? #"<meta name="viewport" content="width=device-width, initial-scale=1">"# : ""
         let html = """
@@ -280,8 +280,8 @@ final class AgentWebTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(200))
     }
 
-    private func waitForPage(_ webView: WKWebView, _ script: String, toBe expected: String,
-                             timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line)
+    func waitForPage(_ webView: WKWebView, _ script: String, toBe expected: String,
+                     timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line)
         async throws
     {
         let deadline = Date().addingTimeInterval(timeout)
@@ -295,7 +295,7 @@ final class AgentWebTests: XCTestCase {
     }
 
     /// Evaluates the expression in the page's own world, as the page's scripts see it.
-    private func evaluate(_ webView: WKWebView, _ expression: String) async throws -> String? {
+    func evaluate(_ webView: WKWebView, _ expression: String) async throws -> String? {
         return try await withCheckedThrowingContinuation { continuation in
             webView.callAsyncJavaScript("return String(\(expression))", arguments: [:], in: nil,
                                         in: .page)

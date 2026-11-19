@@ -108,11 +108,16 @@ struct Target: Decodable {
         }
 
         if let query = self.query {
+            // A visible view wins, then a visible web element, so a hidden view with the same label doesn't
+            // hide a web page's button
             let eventGenerator = try await context.eventGenerator()
-            if !eventGenerator.elementExists(query),
-               let element = try await WebContent.element(matching: query, in: eventGenerator.window)
-            {
-                return .webElement(element)
+            if eventGenerator.elementIsVisible(query) {
+                return .location(query)
+            }
+
+            let webElement = try await WebContent.element(matching: query, in: eventGenerator.window)
+            if let webElement, webElement.isVisible || !eventGenerator.elementExists(query) {
+                return .webElement(webElement)
             }
 
             return .location(query)

@@ -25,6 +25,9 @@ struct DescribeCommand: AgentCommand {
         let traits: [String]?
         let frame: Frame
         let hittable: Bool
+        /// Why a web view's page couldn't be read, such as when it doesn't answer, so a page that couldn't
+        /// be read doesn't look empty.
+        var pageError: String?
         let children: [Node]?
     }
 
@@ -39,9 +42,9 @@ struct DescribeCommand: AgentCommand {
                           in: context)
     }
 
-    /// Reads the visible elements of the pages in the snapshot's web views, by web view.
+    /// Reads the pages in the snapshot's web views at the same time, by web view.
     private func webElements(in snapshot: ElementSnapshot, window: UIWindow) async
-        -> [ObjectIdentifier: [WebContent.Element]]
+        -> [ObjectIdentifier: Result<[WebContent.Element], AgentError>]
     {
         func webViews(in snapshot: ElementSnapshot) -> [WKWebView] {
             if let webView = snapshot.element.object as? WKWebView {
@@ -51,24 +54,20 @@ struct DescribeCommand: AgentCommand {
             return snapshot.children.flatMap(webViews)
         }
 
-        var elements = [ObjectIdentifier: [WebContent.Element]]()
-        for webView in webViews(in: snapshot) {
-            // A page that can't be read, such as one still loading, has no elements to show
-            let pageElements = (try? await WebContent.elements(in: webView, window: window)) ?? []
-            elements[ObjectIdentifier(webView)] = pageElements.filter(\.isVisible)
-        }
-
-        return elements
+        let pages = await WebContent.pages(of: webViews(in: snapshot), window: window)
+        return Dictionary(uniqueKeysWithValues: pages.map { page in
+            (ObjectIdentifier(page.webView), page.elements.map { $0.filter(\.isVisible) })
+        })
     }
 
     /// Converts the snapshot to nodes, replacing the ones left out with their children. Web views keep their
     /// node, with their page's elements as its children.
     private func nodes(for snapshot: ElementSnapshot, includeAll: Bool,
-                       webElements: [ObjectIdentifier: [WebContent.Element]],
+                       webElements: [ObjectIdentifier: Result<[WebContent.Element], AgentError>],
                        in context: AgentContext) -> [Node]
     {
         let pageElements = webElements[ObjectIdentifier(snapshot.element.object)]
-        let pageNodes = (pageElements ?? []).map { self.node(for: $0, in: context) }
+        let pageNodes = ((try? pageElements?.get()) ?? []).map { self.node(for: $0, in: context) }
         let children = snapshot.children.flatMap {
             self.nodes(for: $0, includeAll: includeAll, webElements: webElements, in: context)
         } + pageNodes
@@ -79,12 +78,18 @@ struct DescribeCommand: AgentCommand {
             return children
         }
 
+        var pageError: String?
+        if case .failure(let error) = pageElements {
+            pageError = error.description
+        }
+
         let node = Node(ref: context.ref(for: snapshot.element),
                         type: String(describing: type(of: snapshot.element.object)),
                         identifier: snapshot.identifier.nonEmpty,
                         label: snapshot.label.nonEmpty, value: snapshot.value.nonEmpty,
                         traits: traits.isEmpty ? nil : traits, frame: Node.Frame(snapshot.frame),
-                        hittable: snapshot.isHittable, children: children.isEmpty ? nil : children)
+                        hittable: snapshot.isHittable, pageError: pageError,
+                        children: children.isEmpty ? nil : children)
         return [node]
     }
 

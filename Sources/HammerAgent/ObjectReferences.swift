@@ -45,7 +45,20 @@ final class ObjectReferences {
     private var refs = [ObjectIdentifier: String]()
     private var webEntries = [String: WebEntry]()
     private var webRefs = [WebKey: String]()
+    /// The refs of each web view's page, oldest first, and the page they're on.
+    private var webPages = [ObjectIdentifier: (page: String, refs: [String])]()
     private var nextIndex = 1
+
+    /// The most refs a web view keeps for its page. A page that keeps changing without loading another,
+    /// such as a single page app, drops its oldest refs past it.
+    private let maxWebElementRefs: Int
+
+    /// Creates the refs.
+    ///
+    /// - parameter maxWebElementRefs: The most refs a web view keeps for its page.
+    init(maxWebElementRefs: Int = 2000) {
+        self.maxWebElementRefs = maxWebElementRefs
+    }
 
     /// Returns the element's ref, assigning a new one the first time.
     ///
@@ -80,7 +93,31 @@ final class ObjectReferences {
         self.nextIndex += 1
         self.webRefs[key] = ref
         self.webEntries[ref] = WebEntry(webView: element.webView, page: element.page, id: element.id)
+
+        // A new page's refs replace the old page's, which can't resolve anymore
+        var page = self.webPages[key.webView] ?? (page: element.page, refs: [])
+        if page.page != element.page {
+            self.forgetWebRefs(page.refs)
+            page = (page: element.page, refs: [])
+        }
+
+        page.refs.append(ref)
+        if page.refs.count > self.maxWebElementRefs {
+            let dropped = page.refs.count - self.maxWebElementRefs
+            self.forgetWebRefs(Array(page.refs.prefix(dropped)))
+            page.refs.removeFirst(dropped)
+        }
+
+        self.webPages[key.webView] = page
         return ref
+    }
+
+    private func forgetWebRefs(_ refs: [String]) {
+        for ref in refs {
+            if let entry = self.webEntries.removeValue(forKey: ref), let webView = entry.webView {
+                self.webRefs[WebKey(webView: ObjectIdentifier(webView), page: entry.page, id: entry.id)] = nil
+            }
+        }
     }
 
     /// If the ref is one of an element of a web page.
@@ -161,6 +198,7 @@ final class ObjectReferences {
         self.refs = self.refs.filter { self.entries[$0.value] != nil }
         self.webEntries = self.webEntries.filter { $0.value.webView != nil }
         self.webRefs = self.webRefs.filter { self.webEntries[$0.value] != nil }
+        self.webPages = self.webPages.filter { _, page in page.refs.contains { self.webEntries[$0] != nil } }
     }
 
     private func ref(for object: NSObject, containerView: UIView?, kind: Kind) -> String {
