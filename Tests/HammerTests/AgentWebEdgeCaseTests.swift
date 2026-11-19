@@ -36,9 +36,37 @@ extension AgentWebTests {
         let labels = try await self.webElements().map { "\($0.type) \($0.label ?? "-")" }
         XCTAssertEqual(labels, ["input Email", "input Name"], "A field's label isn't listed again as text")
 
+        // What the page got from the taps, to tell a tap that missed from one the page dropped
+        _ = try await self.evaluate(webView, """
+            (() => {
+                window.events = [];
+                for (const type of ['touchstart', 'pointerdown', 'mousedown', 'click', 'focusin']) {
+                    document.addEventListener(type, (event) => {
+                        const point = event.touches?.[0] ?? event;
+                        window.events.push(`${type} ${event.target.localName}#${event.target.id}`
+                            + ` ${Math.round(point.clientX)},${Math.round(point.clientY)}`);
+                    }, true);
+                }
+                const rect = document.getElementById('email').getBoundingClientRect();
+                return `${rect.x},${rect.y} ${rect.width}x${rect.height}`;
+            })()
+            """)
+        let frames = try await self.webElements().map { "\($0.label ?? "-") \($0.frame) \($0.hittable)" }
         let (data, status) = try await self.agent.run("type_text", [
             "label": "Email", "text": "a@b.c",
         ])
+        if status != 200 {
+            let events = try await self.evaluate(webView, "window.events.join('; ')") ?? "-"
+            let rect = try await self.evaluate(webView, """
+                JSON.stringify(document.getElementById('email').getBoundingClientRect())
+                """) ?? "-"
+            let (_, retry) = try await self.agent.run("type_text", ["label": "Email", "text": ""])
+            let retryEvents = try await self.evaluate(webView, "window.events.join('; ')") ?? "-"
+            XCTFail("""
+                Elements: \(frames). Page rect: \(rect). Zoom: \(webView.scrollView.zoomScale). \
+                Events: \(events). Retry status: \(retry), events: \(retryEvents)
+                """)
+        }
         XCTAssertEqual(status, 200, String(bytes: data, encoding: .utf8) ?? "")
         try await self.waitForPage(webView, "document.getElementById('email').value", toBe: "a@b.c")
 
