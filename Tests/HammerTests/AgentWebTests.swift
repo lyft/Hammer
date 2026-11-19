@@ -255,11 +255,28 @@ final class AgentWebTests: XCTestCase {
         let html = """
             <!doctype html><html data-load="\(marker)"><head>\(head)</head><body>\(body)</body></html>
             """
-        webView.loadHTMLString(html, baseURL: URL(string: "https://hammer.test/"))
-        try await self.waitForPage(webView, """
+        let isLoaded = """
             document.readyState === 'complete' && document.documentElement.dataset.load === '\(marker)'
                 ? 'loaded' : 'loading'
-            """, toBe: "loaded", timeout: 30)
+            """
+        // On slow CI runners a load sometimes never lands, so it is started again after a while
+        for attempt in 1...3 {
+            webView.loadHTMLString(html, baseURL: URL(string: "https://hammer.test/"))
+            let deadline = Date().addingTimeInterval(10)
+            var loaded = false
+            while !loaded && Date() < deadline {
+                try await Task.sleep(for: .milliseconds(50))
+                loaded = (try? await self.evaluate(webView, isLoaded)) == "loaded"
+            }
+
+            if loaded {
+                break
+            }
+
+            print("The page didn't load in 10 seconds, on attempt \(attempt) of 3")
+            XCTAssertLessThan(attempt, 3, "The page didn't load")
+        }
+
         // Lets the web view apply the page's zoom before reading frames
         try await self.hostEventGenerator?.waitUntilFrameIsRendered()
         try await Task.sleep(for: .milliseconds(200))
