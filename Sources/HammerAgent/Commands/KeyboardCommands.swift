@@ -42,9 +42,22 @@ struct TypeTextCommand: AgentCommand {
     /// app, so the text doesn't go to the field that had it before.
     private func waitForFocus(on element: WebContent.Element, eventGenerator: EventGenerator) async throws {
         let deadline = Date().addingTimeInterval(kWebFocusTimeout)
-        while await !WebContent.hasFocus(element) {
+        while true {
+            let focus = await WebContent.focus(of: element)
+            if focus == .focused {
+                return
+            }
+
             guard Date() < deadline else {
-                throw AgentError.failed("\(element.summary) didn't take the focus after the tap", hint: """
+                let reason = switch focus {
+                case .notInPage(let active?): "the page gave the focus to \(active) instead"
+                case .notInPage(nil): "the page did not give it the focus"
+                case .focused, .notInApp:
+                    "the page gave it the focus, but the web view isn't the app's first responder"
+                }
+
+                throw AgentError.failed("\(element.summary) didn't take the focus after the tap: \(reason)",
+                                        hint: """
                     Take a screenshot to see if something covers it, or tap it and type without a target
                     """, code: .timedOut)
             }

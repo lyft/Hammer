@@ -47,7 +47,7 @@ Queries find web elements too, so `--label`, `--identifier`, `--value` and `--tr
 
 ## Typing
 
-`type_text` with a target taps the field, then waits up to 3 seconds for the page to give it the focus before it types, since the page takes the focus apart from the app. It fails with `timed_out` if the field never takes it.
+`type_text` with a target taps the field, then waits up to 3 seconds for the page to give it the focus before it types, since the page takes the focus apart from the app. It fails with `timed_out` if the field never takes it, and the error says why: the page gave the focus to another element (such as `input#other`), didn't give it at all, or gave it while the web view isn't the app's first responder.
 
 ## What it can't reach
 

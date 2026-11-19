@@ -6,7 +6,8 @@
 ///
 /// - `read` lists the page's elements, as a screen reader would group them.
 /// - `locate` reads the element with the id again, or returns no element when it is gone.
-/// - `focused` returns if the element with the id has the keyboard focus.
+/// - `focused` returns if the element with the id has the keyboard focus, and a short description of the
+///   element that has it.
 ///
 /// Each element gets an id that it keeps while the page is loaded. `page` names the page, so an id from a
 /// page that has since been replaced, by a navigation or a reload, finds nothing.
@@ -649,7 +650,10 @@ state.run = (operation, page, id) => {
     case 'focused': {
         const key = page === state.page ? state.targets.get(id)?.key.deref() : null;
         const active = deepActiveElement();
-        return JSON.stringify(Boolean(key && active && composedContains(key, active)));
+        const focused = Boolean(key && active && composedContains(key, active));
+        const description = active && active !== document.body
+            ? (active.localName + (active.id ? '#' + active.id : '')).slice(0, 80) : null;
+        return JSON.stringify({ focused, active: description });
     }
     }
 

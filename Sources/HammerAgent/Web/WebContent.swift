@@ -137,9 +137,13 @@ enum WebContent {
     /// touch isn't taken as one that stops the scrolling.
     fileprivate static let scrollSettleTimeout: TimeInterval = 3
 
-    /// The web views with a call that hasn't answered, such as one that timed out. The web content process
-    /// still runs it, so the next call waits for it to finish instead of queueing behind it.
-    fileprivate static var busyWebViews = Set<ObjectIdentifier>()
+    /// The web views with a call that hasn't answered, such as one that timed out, and when it started. The
+    /// web content process still runs it, so the next call waits for it to finish instead of queueing behind
+    /// it. The web views are held weakly, so a new web view never inherits a released one's call.
+    fileprivate static let busyWebViews = NSMapTable<WKWebView, NSDate>.weakToStrongObjects()
+
+    /// How long a call that never answers keeps the web view busy, in case WebKit drops its callback.
+    fileprivate static let busyExpiry: TimeInterval = 30
 
     /// The visible web views in the window, back to front.
     ///
@@ -259,23 +263,37 @@ enum WebContent {
         return targets.first
     }
 
-    /// Returns if the element has the keyboard focus, in the page and in the app.
+    /// Where an element's keyboard focus is.
+    enum Focus: Equatable {
+        /// The element has the focus in the page, and the web view is the app's first responder.
+        case focused
+        /// The page hasn't given the element the focus. `active` describes the element that has it, such
+        /// as `input#name`, if any.
+        case notInPage(active: String?)
+        /// The element has the focus in the page, but no view of the web view is the first responder.
+        case notInApp
+    }
+
+    private struct FocusState: Decodable {
+        let focused: Bool
+        let active: String?
+    }
+
+    /// Returns where the element has the keyboard focus, in the page and in the app.
     ///
     /// - parameter element: The element.
     ///
-    /// - returns: If typed text goes to it.
-    static func hasFocus(_ element: Element) async -> Bool {
+    /// - returns: If typed text goes to it, or which half of the focus it lacks.
+    static func focus(of element: Element) async -> Focus {
         let arguments: [String: Any] = ["operation": "focused", "page": element.page, "id": element.id]
-        guard (try? await self.run(arguments, in: element.webView) as Bool) == true else {
-            return false
+        let state = try? await self.run(arguments, in: element.webView) as FocusState
+        guard let state, state.focused else {
+            return .notInPage(active: state?.active)
         }
 
-        // The page takes the focus first, then the web view becomes the first responder
-        if let contentView = self.contentView(of: element.webView) {
-            return contentView.isFirstResponder
-        }
-
-        return self.containsFirstResponder(element.webView)
+        // The page takes the focus first, then the web view becomes the first responder. The view that
+        // takes it differs between iOS versions, so any view of the web view counts.
+        return self.containsFirstResponder(element.webView) ? .focused : .notInApp
     }
 
     // MARK: - Coordinates
@@ -356,8 +374,13 @@ extension WebContent {
         let deadline = Date().addingTimeInterval(timeout)
         try await self.waitUntilScrollingStops(webView, until: deadline)
 
-        let id = ObjectIdentifier(webView)
-        guard !self.busyWebViews.contains(id) else {
+        if let since = self.busyWebViews.object(forKey: webView),
+           Date().timeIntervalSince(since as Date) > self.busyExpiry
+        {
+            self.busyWebViews.removeObject(forKey: webView)
+        }
+
+        guard self.busyWebViews.object(forKey: webView) == nil else {
             throw AgentError.failed("The web view is still running an earlier read of its page", hint: """
                 The page may be busy or its web content process may have stopped. Wait and try again
                 """, code: .timedOut)
@@ -396,14 +419,14 @@ extension WebContent {
     private static func evaluate(_ script: String, _ arguments: [String: Any], in webView: WKWebView,
                                  until deadline: Date) async throws -> String
     {
-        let id = ObjectIdentifier(webView)
         let timeout = max(deadline.timeIntervalSinceNow, 0.05)
         let once = ResumeOnce()
-        self.busyWebViews.insert(id)
+        self.busyWebViews.setObject(NSDate(), forKey: webView)
         return try await withCheckedThrowingContinuation { continuation in
             once.continuation = continuation
-            webView.callAsyncJavaScript(script, arguments: arguments, in: nil, in: self.world) { result in
-                self.busyWebViews.remove(id)
+            webView.callAsyncJavaScript(script, arguments: arguments, in: nil,
+                                        in: self.world) { [weak webView] result in
+                webView.map { self.busyWebViews.removeObject(forKey: $0) }
                 switch result {
                 case .success(let value as String):
                     once.resume(with: .success(value))

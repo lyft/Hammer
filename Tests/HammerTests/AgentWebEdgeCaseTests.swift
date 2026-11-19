@@ -107,7 +107,22 @@ extension AgentWebTests {
 
         let (data, status) = try await self.agent.run("type_text", ["identifier": "stubborn", "text": "x"])
         XCTAssertEqual(status, 500)
-        XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).code, .timedOut)
+        let error = try JSONDecoder().decode(AgentErrorBody.self, from: data)
+        XCTAssertEqual(error.code, .timedOut)
+        XCTAssertTrue(error.error.hasSuffix("the page did not give it the focus"), error.error)
+    }
+
+    func testTypeTextSaysWhichElementTookTheFocus() async throws {
+        let webView = try await self.presentPage("""
+            <input id="first" onfocus="document.getElementById('other').focus()">
+            <input id="other">
+            """)
+
+        let (data, status) = try await self.agent.run("type_text", ["identifier": "first", "text": "x"])
+        XCTAssertEqual(status, 500)
+        let error = try JSONDecoder().decode(AgentErrorBody.self, from: data).error
+        XCTAssertTrue(error.hasSuffix("the page gave the focus to input#other instead"), error)
+        try await self.waitForPage(webView, "document.getElementById('other').value", toBe: "")
     }
 
     func testSeveralMatchingWebElementsAreAmbiguous() async throws {
