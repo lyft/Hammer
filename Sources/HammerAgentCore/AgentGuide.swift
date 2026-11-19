@@ -26,7 +26,7 @@ public enum AgentGuide {
         case .iOS:
             [
                 self.iOSIntroduction, self.workflow, self.targeting(unit: "window points"), self.iOSSystemUI,
-                self.liveEditing, self.errors,
+                self.iOSWebPages, self.liveEditing, self.errors,
             ]
         case .android:
             [
@@ -101,6 +101,16 @@ public enum AgentGuide {
         inside the app, to reach system UI such as a permission alert: call `describe` with {system} to see \
         its buttons, then tap one by label, such as {systemTap}. Its elements have no refs, and frames and \
         points are in screen points.
+        """
+
+    private static let iOSWebPages = """
+        ## Web pages
+
+        `describe` lists the elements of the pages in the app's web views as children of the `WKWebView`, \
+        with refs starting with `w`: links, buttons, fields, headings, images and runs of text, labeled by \
+        their text and identified by their `id`. A `w` ref finds its element again where it is now, such as \
+        after scrolling, until the page changes. Queries that no view matches look for web elements too. \
+        Pages in other apps or in Safari's sheets are outside the app, see System UI.
         """
 
     private static let androidSystemUI = """

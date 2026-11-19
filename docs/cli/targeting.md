@@ -2,7 +2,7 @@
 
 Commands that act on an element take one of:
 
-- **A ref:** `--ref e12`, from `describe`. It is the most precise target and stays the same while the element exists. If a ref is unknown, run `describe` again.
+- **A ref:** `--ref e12`, from `describe`. It is the most precise target and stays the same while the element exists. If a ref is unknown, run `describe` again. Elements of web pages have refs such as `w3`, see [Web pages](web-pages.md).
 - **Accessibility:** `--identifier`, `--label`, `--value` and `--traits`. Every one you give must match. When several elements match, add more of them or use the ref.
 - **A point:** `--x` and `--y` in window points, the same coordinates as the frames from `describe`.
 

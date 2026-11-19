@@ -1,16 +1,38 @@
 import Hammer
 import UIKit
+import WebKit
 
-/// Gives views, accessibility elements and constraints short refs, such as `e12` or `c4`, that clients pass
-/// back to act on them.
+/// Gives views, accessibility elements, constraints and elements of web pages short refs, such as `e12`, `c4`
+/// or `w7`, that clients pass back to act on them.
 ///
 /// The same object keeps its ref while it is alive. Objects are held weakly so the agent never keeps a view
-/// around, and a ref stops resolving once its object is released.
+/// around, and a ref stops resolving once its object is released. An element of a web page keeps its ref
+/// while its page is loaded, and is found again on the page when the ref is used.
 @MainActor
 final class ObjectReferences {
     private enum Kind: String {
         case element = "e"
         case constraint = "c"
+        case web = "w"
+    }
+
+    /// An element of a web page, which the agent finds again by its id on the page.
+    struct WebElementReference {
+        let webView: WKWebView
+        let page: String
+        let id: Int
+    }
+
+    private struct WebKey: Hashable {
+        let webView: ObjectIdentifier
+        let page: String
+        let id: Int
+    }
+
+    private struct WebEntry {
+        weak var webView: WKWebView?
+        let page: String
+        let id: Int
     }
 
     private struct Entry {
@@ -21,6 +43,8 @@ final class ObjectReferences {
 
     private var entries = [String: Entry]()
     private var refs = [ObjectIdentifier: String]()
+    private var webEntries = [String: WebEntry]()
+    private var webRefs = [WebKey: String]()
     private var nextIndex = 1
 
     /// Returns the element's ref, assigning a new one the first time.
@@ -41,6 +65,50 @@ final class ObjectReferences {
         return self.ref(for: constraint, containerView: nil, kind: .constraint)
     }
 
+    /// Returns the ref of an element of a web page, assigning a new one the first time.
+    ///
+    /// - parameter element: The element.
+    ///
+    /// - returns: The ref.
+    func ref(for element: WebContent.Element) -> String {
+        let key = WebKey(webView: ObjectIdentifier(element.webView), page: element.page, id: element.id)
+        if let ref = self.webRefs[key], self.webEntries[ref]?.webView === element.webView {
+            return ref
+        }
+
+        let ref = "\(Kind.web.rawValue)\(self.nextIndex)"
+        self.nextIndex += 1
+        self.webRefs[key] = ref
+        self.webEntries[ref] = WebEntry(webView: element.webView, page: element.page, id: element.id)
+        return ref
+    }
+
+    /// If the ref is one of an element of a web page.
+    ///
+    /// - parameter ref: The ref.
+    ///
+    /// - returns: If it is.
+    static func isWebElementRef(_ ref: String) -> Bool {
+        return ref.hasPrefix(Kind.web.rawValue)
+    }
+
+    /// Returns the element of a web page for the ref.
+    ///
+    /// - parameter ref: The ref.
+    ///
+    /// - throws: An error if the ref is unknown or its web view was released.
+    ///
+    /// - returns: The web view, page and id of the element.
+    func webElement(for ref: String) throws -> WebElementReference {
+        guard let entry = self.webEntries[ref], let webView = entry.webView else {
+            throw AgentError.invalidArguments(
+                "Unknown web element ref \"\(ref)\", its web view is gone or the ref is not from describe",
+                hint: "Call describe to get the current refs")
+        }
+
+        return WebElementReference(webView: webView, page: entry.page, id: entry.id)
+    }
+
     /// Returns the element for the ref.
     ///
     /// - parameter ref: The ref.
@@ -49,6 +117,12 @@ final class ObjectReferences {
     ///
     /// - returns: The element.
     func element(for ref: String) throws -> AccessibilityElement {
+        if Self.isWebElementRef(ref) {
+            throw AgentError.invalidArguments(
+                "\"\(ref)\" is an element of a web page, not a view or an accessibility element",
+                hint: "Target the WKWebView that shows the page instead, by its ref from describe")
+        }
+
         guard ref.hasPrefix(Kind.element.rawValue), let entry = self.entries[ref], let object = entry.object,
               let containerView = entry.containerView
         else {
@@ -85,6 +159,8 @@ final class ObjectReferences {
             entry.object != nil && (!ref.hasPrefix(Kind.element.rawValue) || entry.containerView != nil)
         }
         self.refs = self.refs.filter { self.entries[$0.value] != nil }
+        self.webEntries = self.webEntries.filter { $0.value.webView != nil }
+        self.webRefs = self.webRefs.filter { self.webEntries[$0.value] != nil }
     }
 
     private func ref(for object: NSObject, containerView: UIView?, kind: Kind) -> String {

@@ -32,11 +32,12 @@ Then use the `hammer` command line tool:
 1. [Getting started](cli/getting-started.md): install `hammer` and run your first commands.
 2. [Targeting elements](cli/targeting.md): refs, identifiers, labels and points.
 3. [Live editing](cli/live-editing.md): try view changes in the running app.
-4. [System UI](cli/system-ui.md): tap permission alerts and the home screen in the simulator.
-5. [MCP server](cli/mcp.md): give AI agents the commands as tools.
-6. [Android](cli/android.md): drive an Android app through adb.
-7. [Errors](cli/errors.md): error codes and exit codes.
-8. [Commands](cli/commands.md): every built-in command.
+4. [Web pages](cli/web-pages.md): read and drive the pages in the app's web views.
+5. [System UI](cli/system-ui.md): tap permission alerts and the home screen in the simulator.
+6. [MCP server](cli/mcp.md): give AI agents the commands as tools.
+7. [Android](cli/android.md): drive an Android app through adb.
+8. [Errors](cli/errors.md): error codes and exit codes.
+9. [Commands](cli/commands.md): every built-in command.
 
 ## Developing Hammer
 

@@ -64,6 +64,31 @@ public final class AgentContext {
         return try self.references.element(for: ref)
     }
 
+    /// Returns the ref clients use to target an element of a web page in later commands.
+    func ref(for element: WebContent.Element) -> String {
+        return self.references.ref(for: element)
+    }
+
+    /// Reads the element of a web page a ref points to again, where it is now.
+    ///
+    /// - parameter ref: The ref.
+    ///
+    /// - throws: An error if the ref is unknown, or its element is gone, such as after the page changed.
+    ///
+    /// - returns: The element.
+    func webElement(for ref: String) async throws -> WebContent.Element {
+        let reference = try self.references.webElement(for: ref)
+        let window = try await self.eventGenerator().window
+        guard let element = try await WebContent.element(page: reference.page, id: reference.id,
+                                                         in: reference.webView, window: window)
+        else {
+            throw AgentError.failed("The web element \(ref) is gone, its page changed or it was removed",
+                                    hint: "Call describe to get the current refs", code: .notFound)
+        }
+
+        return element
+    }
+
     /// Returns the ref clients use to target the constraint in later commands.
     ///
     /// - parameter constraint: The constraint.
