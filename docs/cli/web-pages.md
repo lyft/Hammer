@@ -26,24 +26,29 @@ hammer type-text --identifier email --text person@example.com
 - **Label:** the accessible name: `aria-labelledby`, `aria-label`, a field's `<label>`, then its placeholder, an image's `alt`, or the element's text.
 - **Value:** a field's text, with a password masked, a checkbox's or radio button's `1` or `0`, or a select's chosen option.
 - **Traits:** `button`, `link`, `header`, `image`, `staticText`, `searchField`, `adjustable` and `toggleButton` by role, plus `selected` when checked, selected or pressed, and `notEnabled` when disabled. ARIA roles override the tag's, and roles that aren't ARIA roles are ignored.
-- **Left out:** elements that are hidden, fully transparent (`opacity: 0`), `aria-hidden` or inert, images with an empty `alt`, which marks them as decoration, and elements off screen. Swipe to scroll them into view, as for views.
+- **Left out:** elements that are hidden, fully transparent (`opacity: 0`), `aria-hidden` or inert, images with an empty `alt`, which marks them as decoration, and elements off screen, including the parts of a scrolling or clipping container, such as a carousel with `overflow: hidden`, that it doesn't show. Swipe to scroll them into view, as for views.
 - **Frames:** window points, like views, after the page's zoom and scrolling.
 - **Touch point:** the center of the element's first visible line, so a link that wraps in a paragraph is touched on its text, not on the text around it.
 - **Hittable:** the element is the topmost one at its touch point, both in the page and in the app, so a transparent layer of the page or a native view covering the web view makes it not hittable.
 - **Pages that can't be read:** when a page doesn't answer within 5 seconds, such as one stuck in a script, the `WKWebView` node has a `pageError` that says why, so it doesn't look like an empty page. A web view whose last read still runs reports that too, rather than queueing another read behind it.
+- **Web views:** the pages of the web views that are on screen, not hidden and not transparent are read. `describe`, queries and `wait_for` read the same web views.
 - **Scrolling:** a read waits up to 3 seconds for the web view to stop scrolling, such as after a swipe, since the page reports where it was scrolled to with a delay, and a touch while it decelerates only stops it. Fixed and sticky elements are where the page says once it stops.
 
 ## Refs
 
-Web elements have refs that start with `w`, such as `w3`. A `w` ref keeps working while the page is loaded: the agent finds the element again where it is now, so it still works after the page scrolls or the element's text changes. It fails with `not_found` once the element is removed or the web view loads another page. Then run `describe` again.
+Web elements have refs that start with `w`, such as `w3`. A `w` ref keeps working while the page is loaded: the agent finds the element again where it is now, so it still works after the page scrolls or the element's text changes. It fails with `not_found` once the element is removed or the web view loads another page. Then run `describe` again. A web view keeps the refs of up to 2000 elements of its page, dropping the ones `describe` returned longest ago, but never those of the latest `describe`.
 
 Web refs only work with commands that send touches or keys. `inspect`, `set_property` and the other editing commands take views, so they reject a `w` ref. Target the `WKWebView` instead.
 
 ## Queries
 
-Queries find web elements too, so `--label`, `--identifier`, `--value` and `--traits` work on pages. A visible view or accessibility element that matches comes first, then a visible web element, so a hidden view with the same label doesn't hide a page's button. Among web elements, visible ones come first, then the ones that act, such as buttons, links and fields, then the rest before text. Several matches left fail with `ambiguous_target`.
+Queries find web elements too, so `--label`, `--identifier`, `--value` and `--traits` work on pages. A visible view or accessibility element that matches comes first, then a visible web element, so a hidden view with the same label doesn't hide a page's button. Among web elements, visible ones come first, then the ones that act, such as buttons, links and fields, then the rest before text. Several web elements left fail with `ambiguous_target`. A visible view that matches always wins over web elements, even when a web element matches too, so add more of the query, or use a `w` ref, to target the page's.
 
-`wait_for` checks views every frame and pages every 150 milliseconds, since reading a page takes a call to the web content process. A page that can't be read never counts as `gone`.
+`wait_for` checks views every frame and pages every 150 milliseconds, since reading a page takes a call to the web content process. Each read has 1 second, so a page that doesn't answer doesn't hold up the checks of views. A page that can't be read never counts as `gone`, and the timeout error says so.
+
+## Touches
+
+Before it touches a web element, a command waits up to 3 seconds for the page to finish loading and render, since a web view can drop a touch that comes right after its page loads. If it had to wait, it finds the element again in case it moved.
 
 ## Typing
 

@@ -1,7 +1,7 @@
 import Foundation
 import Hammer
 import HammerAgentCore
-import WebKit
+import UIKit
 
 struct DescribeCommand: AgentCommand {
     struct Arguments: Decodable {
@@ -37,40 +37,35 @@ struct DescribeCommand: AgentCommand {
         let eventGenerator = try await context.eventGenerator()
         let snapshot = eventGenerator.elementSnapshot()
         context.references.removeReleased()
-        let webElements = await self.webElements(in: snapshot, window: eventGenerator.window)
-        return self.nodes(for: snapshot, includeAll: arguments.all ?? false, webElements: webElements,
+        let pageNodes = await self.pageNodes(in: eventGenerator.window, context: context)
+        return self.nodes(for: snapshot, includeAll: arguments.all ?? false, pageNodes: pageNodes,
                           in: context)
     }
 
-    /// Reads the pages in the snapshot's web views at the same time, by web view.
-    private func webElements(in snapshot: ElementSnapshot, window: UIWindow) async
-        -> [ObjectIdentifier: Result<[WebContent.Element], AgentError>]
+    /// Reads the pages of the window's web views at the same time, and returns their visible elements' nodes
+    /// by web view.
+    private func pageNodes(in window: UIWindow, context: AgentContext) async
+        -> [ObjectIdentifier: Result<[Node], AgentError>]
     {
-        func webViews(in snapshot: ElementSnapshot) -> [WKWebView] {
-            if let webView = snapshot.element.object as? WKWebView {
-                return snapshot.isVisible ? [webView] : []
-            }
-
-            return snapshot.children.flatMap(webViews)
-        }
-
-        let pages = await WebContent.pages(of: webViews(in: snapshot), window: window)
+        let pages = await WebContent.pages(of: WebContent.webViews(in: window), window: window)
         return Dictionary(uniqueKeysWithValues: pages.map { page in
-            (ObjectIdentifier(page.webView), page.elements.map { $0.filter(\.isVisible) })
+            (ObjectIdentifier(page.webView), page.elements.map { elements in
+                let visible = elements.filter(\.isVisible)
+                return zip(visible, context.refs(for: visible)).map { self.node(for: $0, ref: $1) }
+            })
         })
     }
 
     /// Converts the snapshot to nodes, replacing the ones left out with their children. Web views keep their
     /// node, with their page's elements as its children.
     private func nodes(for snapshot: ElementSnapshot, includeAll: Bool,
-                       webElements: [ObjectIdentifier: Result<[WebContent.Element], AgentError>],
+                       pageNodes: [ObjectIdentifier: Result<[Node], AgentError>],
                        in context: AgentContext) -> [Node]
     {
-        let pageElements = webElements[ObjectIdentifier(snapshot.element.object)]
-        let pageNodes = ((try? pageElements?.get()) ?? []).map { self.node(for: $0, in: context) }
+        let pageElements = pageNodes[ObjectIdentifier(snapshot.element.object)]
         let children = snapshot.children.flatMap {
-            self.nodes(for: $0, includeAll: includeAll, webElements: webElements, in: context)
-        } + pageNodes
+            self.nodes(for: $0, includeAll: includeAll, pageNodes: pageNodes, in: context)
+        } + ((try? pageElements?.get()) ?? [])
         let traits = snapshot.traits.names
         let hasInformation = snapshot.identifier.nonEmpty != nil || snapshot.label.nonEmpty != nil
             || snapshot.value.nonEmpty != nil || !traits.isEmpty
@@ -93,9 +88,9 @@ struct DescribeCommand: AgentCommand {
         return [node]
     }
 
-    private func node(for element: WebContent.Element, in context: AgentContext) -> Node {
+    private func node(for element: WebContent.Element, ref: String) -> Node {
         let traits = element.traits.names
-        return Node(ref: context.ref(for: element), type: element.type, identifier: element.identifier,
+        return Node(ref: ref, type: element.type, identifier: element.identifier,
                     label: element.label, value: element.value, traits: traits.isEmpty ? nil : traits,
                     frame: Node.Frame(element.frame), hittable: element.isHittable, children: nil)
     }

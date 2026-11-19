@@ -40,26 +40,13 @@ struct TypeTextCommand: AgentCommand {
 
     /// Waits for a web page's field to take the focus after a tap, since the page takes it apart from the
     /// app, so the text doesn't go to the field that had it before.
-    ///
-    /// A web view can drop a tap that comes right after its page loads, so if nothing in the page took the
-    /// focus after a while, the field is tapped once more. It isn't if another element took it, since then
-    /// the tap reached the page.
     private func waitForFocus(on element: WebContent.Element, eventGenerator: EventGenerator) async throws {
-        let start = Date()
-        let deadline = start.addingTimeInterval(kWebFocusTimeout)
-        var tappedAgain = false
+        let deadline = Date().addingTimeInterval(kWebFocusTimeout)
         while true {
-            let focus = await WebContent.focus(of: element)
+            let timeout = max(deadline.timeIntervalSinceNow, 0.1)
+            let focus = try await WebContent.focus(of: element, timeout: timeout)
             if focus == .focused {
                 return
-            }
-
-            if !tappedAgain, focus == .notInPage(active: nil),
-               Date().timeIntervalSince(start) >= kWebFocusRetapDelay
-            {
-                tappedAgain = true
-                try await eventGenerator.fingerTap(at: try element.checkedHitPoint())
-                continue
             }
 
             guard Date() < deadline else {
@@ -82,8 +69,6 @@ struct TypeTextCommand: AgentCommand {
 }
 
 private let kWebFocusTimeout: TimeInterval = 3
-/// Long enough that the second tap isn't a double tap.
-private let kWebFocusRetapDelay: TimeInterval = 1
 
 struct PressKeyCommand: AgentCommand {
     struct Arguments: Decodable {

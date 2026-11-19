@@ -3,7 +3,7 @@
 Commands that act on an element take one of:
 
 - **A ref:** `--ref e12`, from `describe`. It is the most precise target and stays the same while the element exists. If a ref is unknown, run `describe` again. Elements of web pages have refs such as `w3`, see [Web pages](web-pages.md).
-- **Accessibility:** `--identifier`, `--label`, `--value` and `--traits`. Every one you give must match. When several elements match, add more of them or use the ref.
+- **Accessibility:** `--identifier`, `--label`, `--value` and `--traits`. Every one you give must match. When several elements match, add more of them or use the ref. On iOS, a visible view or accessibility element that matches wins over a matching element of a web page, without an error, while several matching web elements fail with `ambiguous_target`. See [Web pages](web-pages.md#queries).
 - **A point:** `--x` and `--y` in window points, the same coordinates as the frames from `describe`.
 
 Without a target, gestures use the center of the window.

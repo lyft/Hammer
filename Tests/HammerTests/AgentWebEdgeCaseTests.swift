@@ -118,6 +118,40 @@ extension AgentWebTests {
         XCTAssertEqual(elements.first?.hittable, false, "The transparent layer is on top of it")
     }
 
+    func testLeavesOutWhatAClippingContainerHides() async throws {
+        let webView = try await self.presentPage("""
+            <div style="width: 200px; overflow: hidden">
+              <div style="display: flex; width: 400px">
+                <button style="width: 200px" onclick="window.bought = 1">Buy</button>
+                <button style="width: 200px" onclick="window.bought = 2">Buy</button>
+              </div>
+            </div>
+            <div style="height: 20px; overflow: hidden">
+              <a href="#" style="position: absolute; top: 200px">Escapes</a>
+            </div>
+            """)
+
+        let elements = try await self.webElements()
+        XCTAssertEqual(elements.map { $0.label ?? "-" }, ["Buy", "Escapes"],
+                       "An absolutely positioned link isn't clipped by a container that doesn't contain it")
+
+        // The clipped button doesn't make the query ambiguous
+        let (data, status) = try await self.agent.run("tap", ["label": "Buy"])
+        XCTAssertEqual(status, 200, String(bytes: data, encoding: .utf8) ?? "")
+        try await self.waitForPage(webView, "String(window.bought)", toBe: "1")
+    }
+
+    func testCommandsSkipATransparentWebView() async throws {
+        let webView = try await self.presentPage("<button>Hidden</button>")
+        webView.alpha = 0
+
+        let elements = try await self.webElements()
+        XCTAssertEqual(elements.count, 0)
+        let (data, status) = try await self.agent.run("tap", ["label": "Hidden"])
+        XCTAssertEqual(status, 500)
+        XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).code, .notFound)
+    }
+
     func testANativeViewOverTheWebViewMakesItNotHittable() async throws {
         let webView = try await self.presentPage(#"<button id="covered">Covered</button>"#)
         let elements = try await self.webElements()
@@ -139,18 +173,6 @@ extension AgentWebTests {
         let error = try JSONDecoder().decode(AgentErrorBody.self, from: data)
         XCTAssertEqual(error.code, .timedOut)
         XCTAssertTrue(error.error.hasSuffix("the page did not give it the focus"), error.error)
-    }
-
-    func testTypeTextTapsAgainWhenTheFirstTapDoesntFocus() async throws {
-        // Drops the first focus, like a web view that drops a tap right after its page loads
-        let webView = try await self.presentPage("""
-            <input id="late" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                   onfocus="if (!window.dropped) { window.dropped = true; this.blur() }">
-            """)
-
-        let (data, status) = try await self.agent.run("type_text", ["identifier": "late", "text": "Hi"])
-        XCTAssertEqual(status, 200, String(bytes: data, encoding: .utf8) ?? "")
-        try await self.waitForPage(webView, "document.getElementById('late').value", toBe: "Hi")
     }
 
     func testTypeTextSaysWhichElementTookTheFocus() async throws {
@@ -225,6 +247,21 @@ extension AgentWebTests {
         XCTAssertNotNil(secondNode.pageError)
 
         // The page answers again once its script finishes, so later tests aren't held up
+        try await self.waitForPage(webView, "'free'", toBe: "free", timeout: 10)
+    }
+
+    func testWaitForGoneSaysWhenAPageCantBeRead() async throws {
+        let webView = try await self.presentPage("<button>Busy</button>")
+        webView.evaluateJavaScript("{ const end = Date.now() + 3000; while (Date.now() < end) {} }",
+                                   completionHandler: nil)
+
+        let (data, status) = try await self.agent.run("wait_for", [
+            "label": "Busy", "condition": "gone", "timeout": 1,
+        ])
+        XCTAssertEqual(status, 500)
+        let error = try JSONDecoder().decode(AgentErrorBody.self, from: data).error
+        XCTAssertTrue(error.contains("couldn't be read"), error)
+
         try await self.waitForPage(webView, "'free'", toBe: "free", timeout: 10)
     }
 

@@ -8,6 +8,8 @@
 /// - `locate` reads the element with the id again, or returns no element when it is gone.
 /// - `focused` returns if the element with the id has the keyboard focus, and a short description of the
 ///   element that has it.
+/// - `ready` returns if the document has loaded, after the page renders two frames, so the web view
+///   shows what the agent reads before it touches the page.
 ///
 /// Each element gets an id that it keeps while the page is loaded. `page` names the page, so an id from a
 /// page that has since been replaced, by a navigation or a reload, finds nothing.
@@ -319,10 +321,13 @@ function geometry(target, offset, clip) {
     const style = getComputedStyle(owner);
     const rendered = style.visibility !== 'hidden' && style.visibility !== 'collapse';
     const viewport = window.visualViewport;
-    const screen = intersect(viewport
+    const viewportArea = intersect(viewport
         ? { x: viewport.offsetLeft, y: viewport.offsetTop,
             width: viewport.width, height: viewport.height }
         : { x: 0, y: 0, width: innerWidth, height: innerHeight }, clip);
+    const clipped = ancestorClip(owner, offset);
+    const screen = clipped === undefined
+        ? viewportArea : viewportArea && clipped && intersect(viewportArea, clipped);
     const visibleArea = screen && intersect(frame, screen);
     const visible = rendered && visibleArea !== null;
     // Text that wraps, such as a link in a paragraph, is touched on its first visible line, since the
@@ -346,6 +351,54 @@ function geometry(target, offset, clip) {
     }
 
     return { frame, hit, visible, hittable };
+}
+
+// Computed styles of the current call, since clipping reads the same ancestors for many elements
+let styles = new Map();
+
+function styleOf(element) {
+    let style = styles.get(element);
+    if (!style) {
+        style = getComputedStyle(element);
+        styles.set(element, style);
+    }
+
+    return style;
+}
+
+// The part of the frame's document that the element's scrolling and clipping ancestors show, such as a
+// carousel with overflow: hidden, in the top document's coordinates, or undefined if none clips it. An
+// absolutely positioned element is only clipped by ancestors that contain it, and a fixed one by none.
+function ancestorClip(element, offset) {
+    let clip;
+    let position = styleOf(element).position;
+    for (let node = composedParent(element); node && position !== 'fixed'; node = composedParent(node)) {
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            continue;
+        }
+
+        // Their overflow is the viewport's, which the caller clips to already
+        if (node === node.ownerDocument.documentElement || node === node.ownerDocument.body) {
+            break;
+        }
+
+        const style = styleOf(node);
+        if (position === 'absolute' && style.position === 'static' && style.transform === 'none') {
+            continue;
+        }
+
+        if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
+            const box = node.getBoundingClientRect();
+            const padding = { x: box.left + node.clientLeft + offset.x,
+                              y: box.top + node.clientTop + offset.y,
+                              width: node.clientWidth, height: node.clientHeight };
+            clip = clip === undefined ? padding : clip && intersect(clip, padding);
+        }
+
+        position = style.position;
+    }
+
+    return clip;
 }
 
 function intersect(a, b) {
@@ -631,6 +684,7 @@ function safeFrameActiveElement(frame) {
 
 state.version = version;
 state.run = (operation, page, id) => {
+    styles = new Map();
     switch (operation) {
     case 'read': {
         for (const [id, stored] of state.targets) {
@@ -655,6 +709,10 @@ state.run = (operation, page, id) => {
             ? (active.localName + (active.id ? '#' + active.id : '')).slice(0, 80) : null;
         return JSON.stringify({ focused, active: description });
     }
+    case 'ready':
+        return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => {
+            resolve(JSON.stringify(document.readyState === 'complete'));
+        })));
     }
 
     return JSON.stringify(null);

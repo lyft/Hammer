@@ -137,6 +137,9 @@ enum WebContent {
     /// touch isn't taken as one that stops the scrolling.
     fileprivate static let scrollSettleTimeout: TimeInterval = 3
 
+    /// How long a touch waits for the page to load and render.
+    fileprivate static let readyTimeout: TimeInterval = 3
+
     /// The web views with a call that hasn't answered, such as one that timed out, and when it started. The
     /// web content process still runs it, so the next call waits for it to finish instead of queueing behind
     /// it. The web views are held weakly, so a new web view never inherits a released one's call.
@@ -145,18 +148,27 @@ enum WebContent {
     /// How long a call that never answers keeps the web view busy, in case WebKit drops its callback.
     fileprivate static let busyExpiry: TimeInterval = 30
 
-    /// The visible web views in the window, back to front.
+    /// The visible web views in the window, back to front. Every command finds web views with it, so
+    /// describe lists the pages that queries and waits search.
+    ///
+    /// A web view is visible when neither it nor a superview is hidden or transparent, and part of it is
+    /// in the window.
     ///
     /// - parameter window: The window.
     ///
     /// - returns: The web views.
     static func webViews(in window: UIWindow) -> [WKWebView] {
         func search(_ view: UIView) -> [WKWebView] {
-            if let webView = view as? WKWebView {
-                return [webView]
+            guard !view.isHidden && view.alpha >= 0.01 else {
+                return []
             }
 
-            return view.subviews.filter { !$0.isHidden && $0.alpha >= 0.01 }.flatMap(search)
+            if let webView = view as? WKWebView {
+                let frame = webView.convert(webView.bounds, to: window)
+                return frame.intersects(window.bounds) ? [webView] : []
+            }
+
+            return view.subviews.flatMap(search)
         }
 
         return search(window)
@@ -209,24 +221,29 @@ enum WebContent {
         return output.elements.first.map { self.element($0, page: output.page, in: webView, window: window) }
     }
 
-    /// Returns the elements of every web view in the window that match the query, leaving out the pages that
-    /// can't be read.
+    /// The elements of the window's web pages that match a query.
+    struct Matches {
+        /// The matching elements of the pages that could be read.
+        let elements: [Element]
+
+        /// If a page couldn't be read, so it may have matching elements too.
+        let hadUnreadablePage: Bool
+    }
+
+    /// Returns the elements of every web view in the window that match the query.
     ///
     /// - parameter query:   The query.
     /// - parameter window:  The window.
     /// - parameter timeout: How long each web view has to answer.
     ///
-    /// - returns: The matching elements.
+    /// - returns: The matching elements, and if a page couldn't be read.
     static func elements(matching query: AccessibilityQuery, in window: UIWindow,
-                         timeout: TimeInterval = WebContent.defaultTimeout) async -> [Element]
+                         timeout: TimeInterval = WebContent.defaultTimeout) async -> Matches
     {
-        let webViews = self.webViews(in: window)
-        guard !webViews.isEmpty else {
-            return []
-        }
-
-        let pages = await self.pages(of: webViews, window: window, timeout: timeout)
-        return pages.flatMap { (try? $0.elements.get()) ?? [] }.filter { $0.matches(query) }
+        let pages = await self.pages(of: self.webViews(in: window), window: window, timeout: timeout)
+        let readPages = pages.compactMap { try? $0.elements.get() }
+        return Matches(elements: readPages.flatMap { $0 }.filter { $0.matches(query) },
+                       hadUnreadablePage: readPages.count < pages.count)
     }
 
     /// Finds the element to interact with for the query, choosing like the agent does for views: visible
@@ -239,7 +256,7 @@ enum WebContent {
     ///
     /// - returns: The element, or nil if none matches.
     static func element(matching query: AccessibilityQuery, in window: UIWindow) async throws -> Element? {
-        return try self.choose(from: await self.elements(matching: query, in: window), for: query)
+        return try self.choose(from: await self.elements(matching: query, in: window).elements, for: query)
     }
 
     /// Chooses the element to interact with from the ones that match the query.
@@ -263,6 +280,47 @@ enum WebContent {
         return targets.first
     }
 
+    /// Waits for the element's page to load and render, since a web view can drop a touch that comes right
+    /// after its page loads. It gives up after `readyTimeout`, so a page that never settles is touched
+    /// anyway.
+    ///
+    /// - parameter element: The element to touch.
+    /// - parameter window:  The window to give frames in.
+    ///
+    /// - throws: An error if the element is gone after the wait.
+    ///
+    /// - returns: The element, read again if the page wasn't ready, since it may have moved.
+    static func whenReady(_ element: Element, in window: UIWindow) async throws -> Element {
+        let deadline = Date().addingTimeInterval(self.readyTimeout)
+        var waited = false
+        while Date() < deadline {
+            if !element.webView.isLoading {
+                let timeout = max(deadline.timeIntervalSinceNow, 0.1)
+                let ready = try? await self.run(["operation": "ready"], in: element.webView,
+                                                timeout: timeout) as Bool
+                if ready == true {
+                    break
+                }
+            }
+
+            waited = true
+            try await Task.sleep(for: .milliseconds(50))
+        }
+
+        guard waited else {
+            return element
+        }
+
+        guard let moved = try await self.element(page: element.page, id: element.id, in: element.webView,
+                                                 window: window)
+        else {
+            throw AgentError.failed("\(element.summary) is gone, its page changed or it was removed",
+                                    hint: "Call describe to see the page now", code: .notFound)
+        }
+
+        return moved
+    }
+
     /// Where an element's keyboard focus is.
     enum Focus: Equatable {
         /// The element has the focus in the page, and the web view is the app's first responder.
@@ -282,13 +340,16 @@ enum WebContent {
     /// Returns where the element has the keyboard focus, in the page and in the app.
     ///
     /// - parameter element: The element.
+    /// - parameter timeout: How long the web view has to answer.
+    ///
+    /// - throws: An error if the page doesn't answer.
     ///
     /// - returns: If typed text goes to it, or which half of the focus it lacks.
-    static func focus(of element: Element) async -> Focus {
+    static func focus(of element: Element, timeout: TimeInterval) async throws -> Focus {
         let arguments: [String: Any] = ["operation": "focused", "page": element.page, "id": element.id]
-        let state = try? await self.run(arguments, in: element.webView) as FocusState
-        guard let state, state.focused else {
-            return .notInPage(active: state?.active)
+        let state = try await self.run(arguments, in: element.webView, timeout: timeout) as FocusState
+        guard state.focused else {
+            return .notInPage(active: state.active)
         }
 
         // The page takes the focus first, then the web view becomes the first responder. The view that

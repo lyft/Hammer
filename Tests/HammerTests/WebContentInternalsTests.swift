@@ -21,24 +21,37 @@ final class WebContentInternalsTests: XCTestCase {
     func testWebRefsOfAReplacedPageAreDropped() throws {
         let references = ObjectReferences()
         let webView = WKWebView()
-        let first = references.ref(for: self.element(in: webView, page: "a", id: 1))
-        XCTAssertEqual(references.ref(for: self.element(in: webView, page: "a", id: 1)), first)
+        let first = try XCTUnwrap(references.refs(for: [self.element(in: webView, page: "a", id: 1)]).first)
+        XCTAssertEqual(references.refs(for: [self.element(in: webView, page: "a", id: 1)]), [first])
         XCTAssertNoThrow(try references.webElement(for: first))
 
-        let second = references.ref(for: self.element(in: webView, page: "b", id: 1))
+        let second = try XCTUnwrap(references.refs(for: [self.element(in: webView, page: "b", id: 1)]).first)
         XCTAssertNotEqual(second, first)
         XCTAssertThrowsError(try references.webElement(for: first))
         XCTAssertNoThrow(try references.webElement(for: second))
     }
 
-    func testAPageKeepsAtMostItsLatestWebRefs() throws {
+    func testAPageDropsTheRefsReadLongestAgo() throws {
         let references = ObjectReferences(maxWebElementRefs: 3)
         let webView = WKWebView()
-        let refs = (1...5).map { references.ref(for: self.element(in: webView, page: "a", id: $0)) }
+        let refs = (1...3).map { references.refs(for: [self.element(in: webView, page: "a", id: $0)])[0] }
+        // Reading the first again keeps it over the second, which is now the one read longest ago
+        _ = references.refs(for: [self.element(in: webView, page: "a", id: 1)])
+        _ = references.refs(for: [self.element(in: webView, page: "a", id: 4)])
 
-        XCTAssertThrowsError(try references.webElement(for: refs[0]))
+        XCTAssertNoThrow(try references.webElement(for: refs[0]))
         XCTAssertThrowsError(try references.webElement(for: refs[1]))
-        for ref in refs[2...] {
+        XCTAssertNoThrow(try references.webElement(for: refs[2]))
+    }
+
+    func testAReadKeepsAllItsRefsPastTheLimit() throws {
+        let references = ObjectReferences(maxWebElementRefs: 3)
+        let webView = WKWebView()
+        let old = references.refs(for: [self.element(in: webView, page: "a", id: 100)])[0]
+        let refs = references.refs(for: (1...5).map { self.element(in: webView, page: "a", id: $0) })
+
+        XCTAssertThrowsError(try references.webElement(for: old))
+        for ref in refs {
             XCTAssertNoThrow(try references.webElement(for: ref))
         }
     }
@@ -49,7 +62,7 @@ final class WebContentInternalsTests: XCTestCase {
         let ref = autoreleasepool {
             let webView = WKWebView()
             released = webView
-            return references.ref(for: self.element(in: webView, page: "a", id: 1))
+            return references.refs(for: [self.element(in: webView, page: "a", id: 1)])[0]
         }
 
         // WebKit can hold the web view until the run loop turns
@@ -75,8 +88,11 @@ final class WebContentInternalsTests: XCTestCase {
         window.isHidden = false
         defer { window.isHidden = true }
         webView.loadHTMLString("<div style='width: 980px; height: 4000px'></div>", baseURL: nil)
-        let deadline = Date().addingTimeInterval(10)
-        while (webView.isLoading || webView.scrollView.contentSize.height < 1000) && Date() < deadline {
+        // Slow CI runners take a while to lay the page out and zoom it out
+        let deadline = Date().addingTimeInterval(30)
+        while (webView.isLoading || webView.scrollView.contentSize.height < 1000
+            || webView.scrollView.zoomScale >= 1) && Date() < deadline
+        {
             try await Task.sleep(for: .milliseconds(50))
         }
 

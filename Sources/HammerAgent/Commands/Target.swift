@@ -101,7 +101,9 @@ struct Target: Decodable {
     func resolve(in context: AgentContext) async throws -> Resolution {
         if let ref = self.ref {
             if ObjectReferences.isWebElementRef(ref) {
-                return .webElement(try await context.webElement(for: ref))
+                let window = try await context.eventGenerator().window
+                return .webElement(try await WebContent.whenReady(try await context.webElement(for: ref),
+                                                                  in: window))
             }
 
             return .location(try context.element(for: ref))
@@ -117,7 +119,7 @@ struct Target: Decodable {
 
             let webElement = try await WebContent.element(matching: query, in: eventGenerator.window)
             if let webElement, webElement.isVisible || !eventGenerator.elementExists(query) {
-                return .webElement(webElement)
+                return .webElement(try await WebContent.whenReady(webElement, in: eventGenerator.window))
             }
 
             return .location(query)

@@ -103,6 +103,11 @@ final class AgentWebTests: XCTestCase {
 
         _ = try await self.evaluate(webView,
                                     "document.getElementById('far').scrollIntoView({block: 'start'})")
+        // The web view's scroll view follows the page's scrolling a moment later
+        let (_, visibleStatus) = try await self.agent.run("wait_for", [
+            "identifier": "far", "condition": "visible",
+        ])
+        XCTAssertEqual(visibleStatus, 200)
         let refElements = try await self.webElements()
         let ref = try XCTUnwrap(refElements.first { $0.identifier == "far" }?.ref)
 

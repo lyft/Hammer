@@ -45,12 +45,14 @@ final class ObjectReferences {
     private var refs = [ObjectIdentifier: String]()
     private var webEntries = [String: WebEntry]()
     private var webRefs = [WebKey: String]()
-    /// The refs of each web view's page, oldest first, and the page they're on.
-    private var webPages = [ObjectIdentifier: (page: String, refs: [String])]()
+    /// The page each web view's refs are on, and when each ref was last handed out.
+    private var webPages = [ObjectIdentifier: (page: String, lastRead: [String: Int])]()
     private var nextIndex = 1
+    private var webReadCount = 0
 
     /// The most refs a web view keeps for its page. A page that keeps changing without loading another,
-    /// such as a single page app, drops its oldest refs past it.
+    /// such as a single page app, drops the refs it handed out longest ago past it, but never the ones of
+    /// the latest read.
     private let maxWebElementRefs: Int
 
     /// Creates the refs.
@@ -78,12 +80,49 @@ final class ObjectReferences {
         return self.ref(for: constraint, containerView: nil, kind: .constraint)
     }
 
-    /// Returns the ref of an element of a web page, assigning a new one the first time.
+    /// Returns the refs of elements of a web page read at once, assigning new ones the first time.
     ///
-    /// - parameter element: The element.
+    /// The refs count as just read, so they're the last of their page to be dropped past the most refs a web
+    /// view keeps, and none of them is dropped for the others.
     ///
-    /// - returns: The ref.
-    func ref(for element: WebContent.Element) -> String {
+    /// - parameter elements: The elements, all from the same read of one web view.
+    ///
+    /// - returns: The refs, in the order of the elements.
+    func refs(for elements: [WebContent.Element]) -> [String] {
+        guard let first = elements.first else {
+            return []
+        }
+
+        self.webReadCount += 1
+        let webView = ObjectIdentifier(first.webView)
+        // A new page's refs replace the old page's, which can't resolve anymore
+        var page = self.webPages[webView] ?? (page: first.page, lastRead: [:])
+        if page.page != first.page {
+            self.forgetWebRefs(Array(page.lastRead.keys))
+            page = (page: first.page, lastRead: [:])
+        }
+
+        let refs = elements.map { element in
+            let ref = self.webRef(for: element)
+            page.lastRead[ref] = self.webReadCount
+            return ref
+        }
+
+        let excess = page.lastRead.count - self.maxWebElementRefs
+        if excess > 0 {
+            let dropped = page.lastRead.filter { $0.value < self.webReadCount }
+                .sorted { $0.value < $1.value }
+                .prefix(excess)
+                .map(\.key)
+            self.forgetWebRefs(dropped)
+            dropped.forEach { page.lastRead[$0] = nil }
+        }
+
+        self.webPages[webView] = page
+        return refs
+    }
+
+    private func webRef(for element: WebContent.Element) -> String {
         let key = WebKey(webView: ObjectIdentifier(element.webView), page: element.page, id: element.id)
         if let ref = self.webRefs[key], self.webEntries[ref]?.webView === element.webView {
             return ref
@@ -93,22 +132,6 @@ final class ObjectReferences {
         self.nextIndex += 1
         self.webRefs[key] = ref
         self.webEntries[ref] = WebEntry(webView: element.webView, page: element.page, id: element.id)
-
-        // A new page's refs replace the old page's, which can't resolve anymore
-        var page = self.webPages[key.webView] ?? (page: element.page, refs: [])
-        if page.page != element.page {
-            self.forgetWebRefs(page.refs)
-            page = (page: element.page, refs: [])
-        }
-
-        page.refs.append(ref)
-        if page.refs.count > self.maxWebElementRefs {
-            let dropped = page.refs.count - self.maxWebElementRefs
-            self.forgetWebRefs(Array(page.refs.prefix(dropped)))
-            page.refs.removeFirst(dropped)
-        }
-
-        self.webPages[key.webView] = page
         return ref
     }
 
@@ -198,7 +221,9 @@ final class ObjectReferences {
         self.refs = self.refs.filter { self.entries[$0.value] != nil }
         self.webEntries = self.webEntries.filter { $0.value.webView != nil }
         self.webRefs = self.webRefs.filter { self.webEntries[$0.value] != nil }
-        self.webPages = self.webPages.filter { _, page in page.refs.contains { self.webEntries[$0] != nil } }
+        self.webPages = self.webPages.filter { _, page in
+            page.lastRead.keys.contains { self.webEntries[$0] != nil }
+        }
     }
 
     private func ref(for object: NSObject, containerView: UIView?, kind: Kind) -> String {

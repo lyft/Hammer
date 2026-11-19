@@ -64,9 +64,11 @@ public final class AgentContext {
         return try self.references.element(for: ref)
     }
 
-    /// Returns the ref clients use to target an element of a web page in later commands.
-    func ref(for element: WebContent.Element) -> String {
-        return self.references.ref(for: element)
+    /// Returns the refs clients use to target elements of a web page in later commands.
+    ///
+    /// - parameter elements: The elements, all from the same read of one web view.
+    func refs(for elements: [WebContent.Element]) -> [String] {
+        return self.references.refs(for: elements)
     }
 
     /// Reads the element of a web page a ref points to again, where it is now.

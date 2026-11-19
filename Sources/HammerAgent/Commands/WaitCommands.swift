@@ -61,10 +61,17 @@ struct WaitForCommand: AgentCommand {
             }
         }
 
-        let exists = eventGenerator.elementExists(query) || !web.elements.isEmpty
+        let state = if eventGenerator.elementExists(query) || !web.elements.isEmpty {
+            "it exists"
+        } else if web.hadUnreadablePage {
+            "a web page couldn't be read, so it may still exist there"
+        } else {
+            "it does not exist"
+        }
+
         throw AgentError.failed("""
             The element with \(query) was not \(arguments.condition.expectedState) after \
-            \(arguments.timeout) seconds, and it \(exists ? "exists" : "does not exist")
+            \(arguments.timeout) seconds, and \(state)
             """, hint: """
             Take a screenshot or call describe to see the current state, then wait for a different \
             element or pass a longer timeout
@@ -112,18 +119,11 @@ private struct WebMatches {
 
     mutating func read(_ query: AccessibilityQuery, in window: UIWindow, until deadline: Date) async {
         self.lastRead = Date()
-        let webViews = WebContent.webViews(in: window)
-        guard !webViews.isEmpty else {
-            self.elements = []
-            self.hadUnreadablePage = false
-            self.isRead = true
-            return
-        }
-
-        let timeout = min(WebContent.defaultTimeout, max(deadline.timeIntervalSinceNow, 0.1))
-        let pages = await WebContent.pages(of: webViews, window: window, timeout: timeout)
-        self.elements = pages.flatMap { (try? $0.elements.get()) ?? [] }.filter { $0.matches(query) }
-        self.hadUnreadablePage = pages.contains { (try? $0.elements.get()) == nil }
+        // A short timeout, so a page that doesn't answer holds up the checks of the views only briefly
+        let timeout = min(kWebReadTimeout, max(deadline.timeIntervalSinceNow, 0.1))
+        let matches = await WebContent.elements(matching: query, in: window, timeout: timeout)
+        self.elements = matches.elements
+        self.hadUnreadablePage = matches.hadUnreadablePage
         self.isRead = true
     }
 }
@@ -148,3 +148,6 @@ struct WaitForIdleCommand: AgentCommand {
         return NoOutput()
     }
 }
+
+/// How long a wait gives a web view to answer each read.
+private let kWebReadTimeout: TimeInterval = 1
