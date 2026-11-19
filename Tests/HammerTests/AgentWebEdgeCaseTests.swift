@@ -142,7 +142,13 @@ extension AgentWebTests {
     }
 
     func testCommandsSkipATransparentWebView() async throws {
-        let webView = try await self.presentPage("<button>Hidden</button>")
+        // In a container, since the event generator waits for its own view to be visible
+        let container = UIView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        container.setSize(width: 320, height: 480)
+        let webView = WKWebView(frame: container.bounds)
+        container.addSubview(webView)
+        self.hostEventGenerator = try await EventGenerator(view: container)
+        try await self.load(webView, "<button>Hidden</button>")
         webView.alpha = 0
 
         let elements = try await self.webElements()
