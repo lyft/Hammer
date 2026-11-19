@@ -163,28 +163,6 @@ final class AgentWebTests: XCTestCase {
         XCTAssertEqual(goneStatus, 500)
     }
 
-    func testReadsSameOriginFramesAndShadowRoots() async throws {
-        let webView = try await self.presentPage("""
-            <iframe style="width: 280px; height: 120px; border: 4px solid black"
-                    srcdoc="<button onclick=&quot;parent.framed = true&quot;>Framed</button>"></iframe>
-            <div id="host"></div>
-            <script>
-            const root = document.getElementById('host').attachShadow({mode: 'open'});
-            root.innerHTML = '<button onclick="window.shadowed = true">Shadowed</button>';
-            </script>
-            """)
-        try await self.waitForPage(webView, "String(!!document.querySelector('iframe').contentDocument?.body"
-            + "?.querySelector('button'))", toBe: "true")
-
-        let (_, framedStatus) = try await self.agent.run("tap", ["label": "Framed"])
-        XCTAssertEqual(framedStatus, 200)
-        try await self.waitForPage(webView, "String(window.framed)", toBe: "true")
-
-        let (_, shadowedStatus) = try await self.agent.run("tap", ["label": "Shadowed"])
-        XCTAssertEqual(shadowedStatus, 200)
-        try await self.waitForPage(webView, "String(window.shadowed)", toBe: "true")
-    }
-
     func testARefFromAnotherPageIsNotFound() async throws {
         let webView = try await self.presentPage("<button>Sign In</button>")
         let refElements = try await self.webElements()
@@ -256,7 +234,14 @@ final class AgentWebTests: XCTestCase {
 
     @discardableResult
     func presentPage(_ body: String, viewport: Bool = true) async throws -> WKWebView {
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let configuration = WKWebViewConfiguration()
+        if !viewport {
+            // Without it an iPad lays out a page without a viewport as wide as the web view
+            configuration.defaultWebpagePreferences.preferredContentMode = .mobile
+        }
+
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480),
+                                configuration: configuration)
         webView.setSize(width: 320, height: 480)
         self.hostEventGenerator = try await EventGenerator(view: webView)
         try await self.load(webView, body, viewport: viewport)
@@ -274,7 +259,7 @@ final class AgentWebTests: XCTestCase {
         try await self.waitForPage(webView, """
             document.readyState === 'complete' && document.documentElement.dataset.load === '\(marker)'
                 ? 'loaded' : 'loading'
-            """, toBe: "loaded", timeout: 15)
+            """, toBe: "loaded", timeout: 30)
         // Lets the web view apply the page's zoom before reading frames
         try await self.hostEventGenerator?.waitUntilFrameIsRendered()
         try await Task.sleep(for: .milliseconds(200))

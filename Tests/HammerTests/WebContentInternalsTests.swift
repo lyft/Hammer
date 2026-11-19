@@ -65,7 +65,11 @@ final class WebContentInternalsTests: XCTestCase {
 
     func testConvertsWithoutTheContentViewLikeWithIt() async throws {
         // Zoomed out and scrolled, so the two ways must agree on the zoom and the offset
-        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        // In mobile mode, so an iPad lays the page out wider than the web view and zooms it out too
+        let configuration = WKWebViewConfiguration()
+        configuration.defaultWebpagePreferences.preferredContentMode = .mobile
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480),
+                                configuration: configuration)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
         window.addSubview(webView)
         window.isHidden = false
