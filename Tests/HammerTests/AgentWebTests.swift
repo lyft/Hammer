@@ -12,12 +12,14 @@ final class AgentWebTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try XCTSkipIf(ProcessInfo.processInfo.environment["HAMMER_SKIP_WEB_TESTS"] == "1",
+                      "Web tests are skipped on this CI job, whose runners WebKit is unreliable on")
         self.agent = HammerAgent(port: 0)
         try await self.agent.start()
     }
 
     override func tearDown() async throws {
-        self.agent.stop()
+        self.agent?.stop()
         // So a web field doesn't keep the keyboard focus into later tests
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil,
                                         for: nil)

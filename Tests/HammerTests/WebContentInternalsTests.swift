@@ -7,6 +7,12 @@ import XCTest
 /// Tests the parts of reading web pages that commands don't show directly.
 @MainActor
 final class WebContentInternalsTests: XCTestCase {
+    override func setUp() async throws {
+        try await super.setUp()
+        try XCTSkipIf(ProcessInfo.processInfo.environment["HAMMER_SKIP_WEB_TESTS"] == "1",
+                      "Web tests are skipped on this CI job, whose runners WebKit is unreliable on")
+    }
+
     func testScriptsAreValidJavaScript() throws {
         for script in [kWebContentScript, kWebContentCallScript] {
             let context = try XCTUnwrap(JSContext())
