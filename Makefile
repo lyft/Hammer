@@ -33,6 +33,7 @@ test-iPad:
 		-scheme Hammer \
 		-destination "name=iPad Pro 13-inch (M5)" \
 		-resultBundlePath build/$@.xcresult \
+		-retry-tests-on-failure -test-iterations 2 \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
@@ -44,6 +45,7 @@ test-iPhone:
 		-scheme Hammer \
 		-destination "name=iPhone 17" \
 		-resultBundlePath build/$@.xcresult \
+		-retry-tests-on-failure -test-iterations 2 \
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 

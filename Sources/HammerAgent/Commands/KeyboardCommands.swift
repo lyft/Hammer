@@ -43,7 +43,9 @@ struct TypeTextCommand: AgentCommand {
     private func waitForFocus(on element: WebContent.Element, eventGenerator: EventGenerator) async throws {
         let deadline = Date().addingTimeInterval(kWebFocusTimeout)
         while true {
-            let timeout = max(deadline.timeIntervalSinceNow, 0.1)
+            // At least long enough for a slow page to answer, so the last check near the deadline gives
+            // the focus state rather than a timeout
+            let timeout = max(deadline.timeIntervalSinceNow, kWebFocusCheckTimeout)
             let focus = try await WebContent.focus(of: element, timeout: timeout)
             if focus == .focused {
                 return
@@ -69,6 +71,7 @@ struct TypeTextCommand: AgentCommand {
 }
 
 private let kWebFocusTimeout: TimeInterval = 3
+private let kWebFocusCheckTimeout: TimeInterval = 1
 
 struct PressKeyCommand: AgentCommand {
     struct Arguments: Decodable {

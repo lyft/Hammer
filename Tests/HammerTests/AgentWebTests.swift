@@ -18,6 +18,9 @@ final class AgentWebTests: XCTestCase {
 
     override func tearDown() async throws {
         self.agent.stop()
+        // So a web field doesn't keep the keyboard focus into later tests
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil,
+                                        for: nil)
         try await self.hostEventGenerator?.finish()
         self.hostEventGenerator = nil
         try await super.tearDown()
@@ -199,7 +202,11 @@ final class AgentWebTests: XCTestCase {
     }
 
     // MARK: - Helpers
+}
 
+// MARK: - Helpers
+
+extension AgentWebTests {
     struct DescribedNode: Decodable {
         struct Frame: Decodable {
             let x: Double
