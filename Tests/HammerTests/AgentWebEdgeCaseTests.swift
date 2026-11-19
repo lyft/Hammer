@@ -147,9 +147,11 @@ extension AgentWebTests {
 
         let elements = try await self.webElements()
         XCTAssertEqual(elements.count, 0)
-        let (data, status) = try await self.agent.run("tap", ["label": "Hidden"])
+        let (data, status) = try await self.agent.run("wait_for", [
+            "label": "Hidden", "condition": "exists", "timeout": 1,
+        ])
         XCTAssertEqual(status, 500)
-        XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).code, .notFound)
+        XCTAssertEqual(try JSONDecoder().decode(AgentErrorBody.self, from: data).code, .timedOut)
     }
 
     func testANativeViewOverTheWebViewMakesItNotHittable() async throws {
