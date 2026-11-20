@@ -81,22 +81,23 @@ struct AgentClient: Driver {
             request.setValue(challenge, forHTTPHeaderField: Self.challengeHeader)
         }
 
-        let data: Data
-        let response: URLResponse
+        let response: LoopbackHTTP.Response
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch let error as URLError {
+            response = try await LoopbackHTTP.send(request, port: self.port)
+        } catch let error as LoopbackHTTP.Failure {
             throw ClientError(error, port: self.port, timeout: request.timeoutInterval)
         }
 
+        let data = response.body
         if let key = self.proofKey, let challenge {
-            let proof = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: Self.proofHeader)
+            let proof = response.header(Self.proofHeader)
             guard proof == SHA256.hmacHex(key: key, message: Data(challenge.utf8)) else {
                 throw UnprovenServer(port: self.port)
             }
         }
 
-        guard let status = (response as? HTTPURLResponse)?.statusCode, status != 200 else {
+        let status = response.status
+        guard status != 200 else {
             return data
         }
 
@@ -122,16 +123,16 @@ enum ClientError: Error, CustomStringConvertible {
     /// The app rejected or failed the command, or the call itself was invalid.
     case failed(AgentErrorBody, isInvalidCall: Bool = false)
 
-    init(_ error: URLError, port: UInt16, timeout: TimeInterval) {
-        switch error.code {
-        case .cannotConnectToHost, .cannotFindHost:
+    init(_ error: LoopbackHTTP.Failure, port: UInt16, timeout: TimeInterval) {
+        switch error {
+        case .unreachable:
             self = .unreachable(port: port)
-        case .networkConnectionLost:
+        case .disconnected:
             self = .disconnected
         case .timedOut:
             self = .timedOut(timeout)
-        default:
-            self = .failed(AgentErrorBody(error: error.localizedDescription))
+        case .invalidResponse:
+            self = .failed(AgentErrorBody(error: "The agent sent a response that isn't HTTP"))
         }
     }
 

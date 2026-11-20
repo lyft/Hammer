@@ -36,6 +36,7 @@ public struct NoOutput: Encodable, Sendable {
 @MainActor
 public final class AgentContext {
     private var generator: EventGenerator?
+    private static var hasActivatedAccessibility = false
     let references: ObjectReferences
     let changes: ChangeLog
 
@@ -119,7 +120,15 @@ public final class AgentContext {
             return generator
         }
 
-        let generator = try await EventGenerator(window: try Self.keyWindow())
+        // Each command gets a new generator, so it skips the waits meant for a test's newly shown window. The
+        // accessibility engine stays active for the life of the app, so only the first command warms it up,
+        // and the app's window has already rendered, so waiting for another frame would only add latency.
+        var settings = EventGenerator.settings
+        settings.forceActivateAccessibilityEngine = settings.forceActivateAccessibilityEngine
+            && !Self.hasActivatedAccessibility
+        settings.waitForFrameRender = false
+        let generator = try await EventGenerator(window: try Self.keyWindow(), settings: settings)
+        Self.hasActivatedAccessibility = true
         self.generator = generator
         return generator
     }
