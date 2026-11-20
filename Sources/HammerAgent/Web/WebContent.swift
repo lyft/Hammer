@@ -289,10 +289,10 @@ enum WebContent {
     ///
     /// - throws: An error if the element is gone after the wait.
     ///
-    /// - returns: The element, read again if the page wasn't ready, since it may have moved.
+    /// - returns: The element, read again once the page has rendered, since right after the page scrolls
+    ///            itself its frames can still be where they were before.
     static func whenReady(_ element: Element, in window: UIWindow) async throws -> Element {
         let deadline = Date().addingTimeInterval(self.readyTimeout)
-        var waited = false
         while Date() < deadline {
             if !element.webView.isLoading {
                 let timeout = max(deadline.timeIntervalSinceNow, 0.1)
@@ -303,12 +303,7 @@ enum WebContent {
                 }
             }
 
-            waited = true
             try await Task.sleep(for: .milliseconds(50))
-        }
-
-        guard waited else {
-            return element
         }
 
         guard let moved = try await self.element(page: element.page, id: element.id, in: element.webView,

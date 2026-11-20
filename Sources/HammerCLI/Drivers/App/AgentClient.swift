@@ -17,6 +17,10 @@ struct AgentClient: Driver {
     static let challengeHeader = "X-Hammer-Challenge"
     static let proofHeader = "X-Hammer-Proof"
 
+    /// An ephemeral session, whose first request in a process is quicker to set up than the shared session's,
+    /// since every CLI command is a new process.
+    private static let session = URLSession(configuration: .ephemeral)
+
     private var baseURL: URL {
         return URL(string: "http://127.0.0.1:\(self.port)")!
     }
@@ -81,23 +85,22 @@ struct AgentClient: Driver {
             request.setValue(challenge, forHTTPHeaderField: Self.challengeHeader)
         }
 
-        let response: LoopbackHTTP.Response
+        let data: Data
+        let response: URLResponse
         do {
-            response = try await LoopbackHTTP.send(request, port: self.port)
-        } catch let error as LoopbackHTTP.Failure {
+            (data, response) = try await Self.session.data(for: request)
+        } catch let error as URLError {
             throw ClientError(error, port: self.port, timeout: request.timeoutInterval)
         }
 
-        let data = response.body
         if let key = self.proofKey, let challenge {
-            let proof = response.header(Self.proofHeader)
+            let proof = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: Self.proofHeader)
             guard proof == SHA256.hmacHex(key: key, message: Data(challenge.utf8)) else {
                 throw UnprovenServer(port: self.port)
             }
         }
 
-        let status = response.status
-        guard status != 200 else {
+        guard let status = (response as? HTTPURLResponse)?.statusCode, status != 200 else {
             return data
         }
 
@@ -123,16 +126,16 @@ enum ClientError: Error, CustomStringConvertible {
     /// The app rejected or failed the command, or the call itself was invalid.
     case failed(AgentErrorBody, isInvalidCall: Bool = false)
 
-    init(_ error: LoopbackHTTP.Failure, port: UInt16, timeout: TimeInterval) {
-        switch error {
-        case .unreachable:
+    init(_ error: URLError, port: UInt16, timeout: TimeInterval) {
+        switch error.code {
+        case .cannotConnectToHost, .cannotFindHost:
             self = .unreachable(port: port)
-        case .disconnected:
+        case .networkConnectionLost:
             self = .disconnected
         case .timedOut:
             self = .timedOut(timeout)
-        case .invalidResponse:
-            self = .failed(AgentErrorBody(error: "The agent sent a response that isn't HTTP"))
+        default:
+            self = .failed(AgentErrorBody(error: error.localizedDescription))
         }
     }
 
