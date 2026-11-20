@@ -44,6 +44,9 @@ struct SystemElement {
 
 /// Reads the frontmost accessibility tree of the simulator, which includes SpringBoard's alerts.
 enum SimulatorAccessibility {
+    /// The apps that host simulators: Simulator.app, and Device Hub, which replaces it from Xcode 27.
+    private static let simulatorHosts = ["com.apple.iphonesimulator", "com.apple.dt.Devices"]
+
     /// Takes a snapshot of the frontmost application's elements.
     ///
     /// - parameter device: The booted device.
@@ -52,12 +55,14 @@ enum SimulatorAccessibility {
     ///
     /// - returns: The root element.
     static func snapshot(of device: SimDevice) async throws -> SystemElement {
-        // The translator gets no elements unless Simulator.app is running, even for a booted device
-        guard !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.iphonesimulator")
-            .isEmpty
-        else {
-            throw ClientError.noSimulator("Simulator.app isn't running, which reading the screen needs",
-                                          hint: "Open it with `open -a Simulator` and try again")
+        // The translator gets no elements unless a simulator host is running, even for a booted device
+        guard self.simulatorHosts.contains(where: {
+            !NSRunningApplication.runningApplications(withBundleIdentifier: $0).isEmpty
+        }) else {
+            throw ClientError.noSimulator(
+                "Neither Simulator.app nor Device Hub is running, which reading the screen needs",
+                hint: "Open Simulator.app with `open -a Simulator`, or Device Hub from Xcode 27 with "
+                    + "`open -b com.apple.dt.Devices`, and try again")
         }
 
         try CoreSimulator.load("/System/Library/PrivateFrameworks/AccessibilityPlatformTranslation.framework/"
