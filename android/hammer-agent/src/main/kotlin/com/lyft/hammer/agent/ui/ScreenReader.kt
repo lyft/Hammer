@@ -79,6 +79,12 @@ internal class ScreenReader(private val activities: ForegroundActivities) {
             )
         }
 
+        /** Whether each window can take the focus, so key presses, from its `WindowManager.LayoutParams` flags. */
+        fun focusable(roots: List<View>): List<Boolean> = roots.map { root ->
+            val flags = (root.layoutParams as? WindowManager.LayoutParams)?.flags ?: 0
+            flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE == 0
+        }
+
         fun screenBounds(view: View): Rect {
             val location = IntArray(2).also(view::getLocationOnScreen)
             return Rect(location[0], location[1], location[0] + view.width, location[1] + view.height)

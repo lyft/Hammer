@@ -1,7 +1,6 @@
 package com.example.hammer.compose
 
 import android.app.Dialog
-import android.os.SystemClock
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -11,7 +10,6 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.IdlingRegistry
 import androidx.test.espresso.IdlingResource
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import com.lyft.hammer.agent.testing.AgentClient
 import com.lyft.hammer.agent.testing.arguments
 import org.assertj.core.api.Assertions.assertThat
@@ -72,7 +70,7 @@ class WindowsTest {
     @Test
     fun deviceBack_componentDialog_runsItsBackCallback() {
         val backs = AtomicInteger()
-        val dialog = show { activity ->
+        show { activity ->
             ComponentDialog(activity).apply {
                 setContentView(Button(activity).apply { text = "Inside" })
                 onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
@@ -83,9 +81,6 @@ class WindowsTest {
             }
         }
         agent.runOk("wait_for", arguments("label" to "Inside", "timeout" to 5))
-        // Back goes to the focused window, and a dialog can be on screen a moment before it takes the focus
-        // from the activity, which would then get the back instead.
-        waitForFocus(dialog)
 
         agent.runOk("press_key", arguments("key" to "deviceBack"))
 
@@ -127,22 +122,8 @@ class WindowsTest {
         }
     }
 
-    private fun show(dialog: (MainActivity) -> Dialog): Dialog {
-        var shown: Dialog? = null
-        scenario.onActivity { shown = dialog(it).apply { show() } }
-        return shown!!
-    }
-
-    private fun waitForFocus(dialog: Dialog) {
-        val deadline = SystemClock.uptimeMillis() + 5_000
-        var focused = false
-        while (!focused && SystemClock.uptimeMillis() < deadline) {
-            InstrumentationRegistry.getInstrumentation().runOnMainSync {
-                focused = dialog.window!!.decorView.hasWindowFocus()
-            }
-            if (!focused) Thread.sleep(50)
-        }
-        assertThat(focused).describedAs("the dialog has the window focus").isTrue()
+    private fun show(dialog: (MainActivity) -> Dialog) {
+        scenario.onActivity { dialog(it).show() }
     }
 
     private fun greeting(): String {
