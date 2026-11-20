@@ -129,12 +129,15 @@ public final class AgentContext {
     }
 
     private static func keyWindow() throws -> UIWindow {
-        let window = UIApplication.shared.connectedScenes
+        let scene = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }?
-            .keyWindow
-        guard let window else {
+            .first { $0.activationState == .foregroundActive }
+        guard let scene, let window = scene.keyWindow else {
             throw AgentError.noKeyWindow
+        }
+
+        if SystemAlerts.isShowing(over: scene) {
+            throw AgentError.systemAlertIsShowing
         }
 
         return window
@@ -152,12 +155,17 @@ public enum AgentError: Error, CustomStringConvertible {
     /// The app has no foreground key window to send events to.
     case noKeyWindow
 
+    /// A system alert, such as a permission prompt, is over the app and takes the touches.
+    case systemAlertIsShowing
+
     public var description: String {
         switch self {
         case .invalidArguments(let message, _, _), .failed(let message, _, _):
             return message
         case .noKeyWindow:
             return "The app has no key window in the foreground"
+        case .systemAlertIsShowing:
+            return "A system alert is over the app"
         }
     }
 
@@ -168,6 +176,8 @@ public enum AgentError: Error, CustomStringConvertible {
             return hint
         case .noKeyWindow:
             return "Bring the app to the foreground, it may be in the background or still launching"
+        case .systemAlertIsShowing:
+            return "Read and tap the alert with `--system`, such as `hammer tap --system --label Allow`"
         }
     }
 
@@ -176,7 +186,7 @@ public enum AgentError: Error, CustomStringConvertible {
         switch self {
         case .invalidArguments(_, _, let code), .failed(_, _, let code):
             return code
-        case .noKeyWindow:
+        case .noKeyWindow, .systemAlertIsShowing:
             return .notReady
         }
     }

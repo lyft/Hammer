@@ -2,6 +2,8 @@
 
 The agent runs inside the app, so it can't see or touch system UI such as permission alerts, the home screen or other apps. `--system` runs a command on the whole screen from the Mac instead: in the simulator the way you would click in Simulator.app, and on Android through adb, the way a person holding the device would. The app doesn't need to change, and it doesn't need to be running.
 
+While a system alert is over the app, the agent's own commands fail with `not_ready`, so a client knows to switch to `--system`.
+
 ```bash
 hammer describe --system
 hammer tap --system --label Allow --traits button
