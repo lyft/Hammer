@@ -17,6 +17,10 @@ struct AgentClient: Driver {
     static let challengeHeader = "X-Hammer-Challenge"
     static let proofHeader = "X-Hammer-Proof"
 
+    /// An ephemeral session, whose first request in a process is quicker to set up than the shared session's,
+    /// since every CLI command is a new process.
+    private static let session = URLSession(configuration: .ephemeral)
+
     private var baseURL: URL {
         return URL(string: "http://127.0.0.1:\(self.port)")!
     }
@@ -84,7 +88,7 @@ struct AgentClient: Driver {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await Self.session.data(for: request)
         } catch let error as URLError {
             throw ClientError(error, port: self.port, timeout: request.timeoutInterval)
         }

@@ -97,7 +97,16 @@ public final class EventGenerator {
     ///
     /// - parameter window: The window to receive events.
     public convenience init(window: UIWindow) async throws {
+        try await self.init(window: window, settings: EventGenerator.settings)
+    }
+
+    /// Initialize an event generator for a specified UIWindow, with its own settings.
+    ///
+    /// - parameter window:   The window to receive events.
+    /// - parameter settings: The settings to use, including while waiting for the window to be ready.
+    public convenience init(window: UIWindow, settings: Settings) async throws {
         self.init(host: .existing(window), mainView: window)
+        self.settings = settings
         try await self.waitUntilWindowIsReady()
     }
 
