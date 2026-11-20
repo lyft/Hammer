@@ -80,18 +80,67 @@ struct Target: Decodable {
         return self.ref == nil && self.query == nil && self.point == nil
     }
 
+    /// What a target points to.
+    enum Resolution {
+        /// A view, an accessibility element or a point, or nil for the center of the window.
+        case location(HammerLocatable?)
+
+        /// An element of a web page.
+        case webElement(WebContent.Element)
+    }
+
+    /// Finds what the target points to. A query matches the views and accessibility elements first, and
+    /// the elements of the window's web pages when none of those match.
+    ///
+    /// - parameter context: The context that resolves refs.
+    ///
+    /// - throws: An error if the ref is unknown or several web elements match.
+    ///
+    /// - returns: What the target points to.
+    @MainActor
+    func resolve(in context: AgentContext) async throws -> Resolution {
+        if let ref = self.ref {
+            if ObjectReferences.isWebElementRef(ref) {
+                let window = try await context.eventGenerator().window
+                return .webElement(try await WebContent.whenReady(try await context.webElement(for: ref),
+                                                                  in: window))
+            }
+
+            return .location(try context.element(for: ref))
+        }
+
+        if let query = self.query {
+            // A visible view wins, then a visible web element, so a hidden view with the same label doesn't
+            // hide a web page's button
+            let eventGenerator = try await context.eventGenerator()
+            if eventGenerator.elementIsVisible(query) {
+                return .location(query)
+            }
+
+            let webElement = try await WebContent.element(matching: query, in: eventGenerator.window)
+            if let webElement, webElement.isVisible || !eventGenerator.elementExists(query) {
+                return .webElement(try await WebContent.whenReady(webElement, in: eventGenerator.window))
+            }
+
+            return .location(query)
+        }
+
+        return .location(self.point)
+    }
+
     /// The location to send touches to, or nil for the center of the window.
     ///
     /// - parameter context: The context that resolves refs.
     ///
-    /// - throws: An error if the ref is unknown.
+    /// - throws: An error if the ref is unknown, or a web element is off screen or covered.
     @MainActor
-    func location(in context: AgentContext) throws -> HammerLocatable? {
-        if let ref = self.ref {
-            return try context.element(for: ref)
+    func location(in context: AgentContext) async throws -> HammerLocatable? {
+        switch try await self.resolve(in: context) {
+        case .location(let location):
+            return location
+        case .webElement(let element):
+            return try element.checkedHitPoint()
         }
-
-        return self.query ?? self.point
     }
 
     /// The view to inspect or change, the topmost view at the point for a point.

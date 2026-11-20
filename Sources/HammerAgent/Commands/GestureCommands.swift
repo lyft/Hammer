@@ -26,7 +26,7 @@ struct TapCommand: AgentCommand {
                                               hint: "Use 1 for a tap and 2 for a double tap")
         }
 
-        let location = try arguments.target.location(in: context)
+        let location = try await arguments.target.location(in: context)
         try await context.eventGenerator().fingerTap(at: location, numberOfTimes: arguments.count)
         return NoOutput()
     }
@@ -52,7 +52,7 @@ struct LongPressCommand: AgentCommand {
     let descriptor = BuiltinCommands.longPress
 
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
-        let location = try arguments.target.location(in: context)
+        let location = try await arguments.target.location(in: context)
         try await context.eventGenerator().fingerLongPress(at: location, duration: arguments.duration)
         return NoOutput()
     }
@@ -101,7 +101,7 @@ struct SwipeCommand: AgentCommand {
     let descriptor = BuiltinCommands.swipe
 
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
-        let location = try arguments.target.location(in: context)
+        let location = try await arguments.target.location(in: context)
         let swipe = arguments.swipe
         try await context.eventGenerator().fingerSwipe(at: location, direction: swipe.direction,
                                                        distance: swipe.distance, duration: swipe.duration)
@@ -141,8 +141,8 @@ struct DragCommand: AgentCommand {
     let descriptor = BuiltinCommands.drag
 
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
-        guard let start = try arguments.start.location(in: context),
-              let end = try arguments.end.location(in: context)
+        guard let start = try await arguments.start.location(in: context),
+              let end = try await arguments.end.location(in: context)
         else {
             throw AgentError.invalidArguments("The drag needs where it starts and where it ends", hint: """
                 Pass the start as ref, identifier, label, value, traits or x and y, and the end with the \
@@ -185,7 +185,7 @@ struct PinchCommand: AgentCommand {
         }
 
         let (start, end) = PinchDistances.of(scale: arguments.scale, distance: arguments.distance)
-        let location = try arguments.target.location(in: context)
+        let location = try await arguments.target.location(in: context)
         try await context.eventGenerator().fingerPinch(at: location, fromDistance: CGFloat(start),
                                                        toDistance: CGFloat(end), duration: arguments.duration)
         return NoOutput()

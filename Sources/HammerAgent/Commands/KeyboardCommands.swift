@@ -22,14 +22,56 @@ struct TypeTextCommand: AgentCommand {
 
     func run(_ arguments: Arguments, in context: AgentContext) async throws -> NoOutput {
         let eventGenerator = try await context.eventGenerator()
-        if let location = try arguments.target.location(in: context) {
+        switch try await arguments.target.resolve(in: context) {
+        case .location(let location?):
             try await eventGenerator.fingerTap(at: location)
+        case .location(nil):
+            break
+        case .webElement(let element):
+            try await eventGenerator.fingerTap(at: try element.checkedHitPoint())
+            if element.isEditable {
+                try await self.waitForFocus(on: element, eventGenerator: eventGenerator)
+            }
         }
 
         try await eventGenerator.keyType(arguments.text)
         return NoOutput()
     }
+
+    /// Waits for a web page's field to take the focus after a tap, since the page takes it apart from the
+    /// app, so the text doesn't go to the field that had it before.
+    private func waitForFocus(on element: WebContent.Element, eventGenerator: EventGenerator) async throws {
+        let deadline = Date().addingTimeInterval(kWebFocusTimeout)
+        while true {
+            // At least long enough for a slow page to answer, so the last check near the deadline gives
+            // the focus state rather than a timeout
+            let timeout = max(deadline.timeIntervalSinceNow, kWebFocusCheckTimeout)
+            let focus = try await WebContent.focus(of: element, timeout: timeout)
+            if focus == .focused {
+                return
+            }
+
+            guard Date() < deadline else {
+                let reason = switch focus {
+                case .notInPage(let active?): "the page gave the focus to \(active) instead"
+                case .notInPage(nil): "the page did not give it the focus"
+                case .focused, .notInApp:
+                    "the page gave it the focus, but the web view isn't the app's first responder"
+                }
+
+                throw AgentError.failed("\(element.summary) didn't take the focus after the tap: \(reason)",
+                                        hint: """
+                    Take a screenshot to see if something covers it, or tap it and type without a target
+                    """, code: .timedOut)
+            }
+
+            try await eventGenerator.wait(0.05)
+        }
+    }
 }
+
+private let kWebFocusTimeout: TimeInterval = 3
+private let kWebFocusCheckTimeout: TimeInterval = 1
 
 struct PressKeyCommand: AgentCommand {
     struct Arguments: Decodable {
