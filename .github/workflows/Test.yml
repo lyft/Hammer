@@ -30,6 +30,19 @@ jobs:
       - name: Test hammer
         # On Linux the tests' runner is its own product, which `--target HammerCLITests` doesn't build
         run: swift build --product HammerPackageTests && swift test --skip-build
+  build_swift5:
+    name: Build-Swift5
+    runs-on: xcode-27
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Force Xcode 27.0
+        run: sudo xcode-select -switch /Applications/Xcode_27.0.app
+      - name: Make project
+        run: make generate
+      - name: Build in the Swift 5 mode
+        # Lyft-iOS builds Hammer in the Swift 5 language mode with warnings as errors
+        run: make build-swift5
   test_ipad:
     name: Test-iPad
     runs-on: xcode-27
