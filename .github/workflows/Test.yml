@@ -14,7 +14,8 @@ jobs:
       - name: Force Xcode 27.0
         run: sudo xcode-select -switch /Applications/Xcode_27.0.app
       - name: Build hammer
-        run: swift build --product hammer
+        # Apps can build the CLI with warnings as errors
+        run: swift build --product hammer -Xswiftc -warnings-as-errors
       - name: Test hammer
         # Builds only the CLI's tests, since the library targets need UIKit
         run: swift build --target HammerCLITests && swift test --skip-build
@@ -41,7 +42,7 @@ jobs:
       - name: Make project
         run: make generate
       - name: Build in the Swift 5 mode
-        # Lyft-iOS builds Hammer in the Swift 5 language mode with warnings as errors
+        # Apps can build Hammer in the Swift 5 language mode with warnings as errors
         run: make build-swift5
   test_ipad:
     name: Test-iPad

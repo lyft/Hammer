@@ -339,7 +339,7 @@ struct AndroidSystemHelper: Sendable {
         } while ContinuousClock.now < deadline
 
         let kill = "kill \(pid); am force-stop \(Self.packageName)"
-        try? await self.adb.run(["-s", self.serial, "shell", kill])
+        _ = try? await self.adb.run(["-s", self.serial, "shell", kill])
         throw Unavailable(description: try await self.startFailure(since: time))
     }
 
