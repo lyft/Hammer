@@ -60,6 +60,22 @@ test-iPhone-iOS17:
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
+# Builds the library targets the way Lyft-iOS builds them as external modules: in the Swift 5 language
+# mode, with warnings as errors (see bazel/swift_upcoming_flags.bzl and .bazelrc there), so code that
+# only compiles in the Swift 6 mode fails here rather than in the app
+build-swift5:
+	set -o pipefail && \
+		xcodebuild \
+		-project Hammer.xcodeproj \
+		-target HammerAgent \
+		-sdk iphonesimulator \
+		SYMROOT=build/swift5 \
+		SWIFT_VERSION=5 \
+		SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+		OTHER_SWIFT_FLAGS="-enable-experimental-feature AccessLevelOnImport" \
+		build \
+		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
+
 # Builds the Android sample, installs it on the running emulator or ANDROID_SERIAL, and drives it with hammer
 android-e2e:
 	bash android/e2e.sh

@@ -131,7 +131,7 @@ enum WebContent {
     fileprivate static let version = UUID().uuidString
 
     /// How long a web view has to answer by default, so a stuck web content process can't hold up a command.
-    static let defaultTimeout: TimeInterval = 5
+    nonisolated static let defaultTimeout: TimeInterval = 5
 
     /// How long a read waits for the web view to stop scrolling, so frames don't lag behind the screen and a
     /// touch isn't taken as one that stops the scrolling.
