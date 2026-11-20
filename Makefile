@@ -60,9 +60,9 @@ test-iPhone-iOS17:
 		test \
 		$(NO_CODE_SIGN_SETTINGS) | xcbeautify
 
-# Builds the library targets the way Lyft-iOS builds them as external modules: in the Swift 5 language
-# mode, with warnings as errors (see bazel/swift_upcoming_flags.bzl and .bazelrc there), so code that
-# only compiles in the Swift 6 mode fails here rather than in the app
+# Builds the library targets in the Swift 5 language mode with warnings as errors, as apps that don't use
+# the Swift 6 mode yet build them, so code that only compiles in the Swift 6 mode fails here rather than in
+# an app
 build-swift5:
 	set -o pipefail && \
 		xcodebuild \
