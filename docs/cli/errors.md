@@ -25,7 +25,7 @@ A failed command prints one JSON object to standard error:
 | `ambiguous_target` | Several elements match the target. |
 | `not_visible` | The element is hidden, off screen or no longer on screen. |
 | `not_hittable` | Something covers the element, or it ignores touches. |
-| `not_ready` | The app is busy, still presenting, or another window has the keyboard focus. |
+| `not_ready` | The app is busy, still presenting, another window has the keyboard focus, or a system alert is over it. |
 | `timed_out` | A wait ran out of time, or the app did not respond in time. |
 | `unreachable` | No agent listens on the port. The app is not running or hasn't started the agent. |
 | `disconnected` | The app closed the connection before responding. |
