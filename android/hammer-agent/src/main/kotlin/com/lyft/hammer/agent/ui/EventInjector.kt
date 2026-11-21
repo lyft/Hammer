@@ -94,7 +94,7 @@ internal class EventInjector(
      * @throws AgentError if no text field has focus, since the text would go nowhere.
      */
     suspend fun type(text: String) = withContext(main) {
-        val window = focusedWindow()
+        val window = keyWindow()
         val field = window.findFocus()?.takeIf { it.onCheckIsTextEditor() } ?: throw AgentError(
             "No text field has focus",
             AgentErrorCode.NOT_FOUND,
@@ -126,8 +126,8 @@ internal class EventInjector(
 
     suspend fun press(key: Key) {
         when (key) {
-            is Key.Character -> withContext(main) { dispatchKeys(focusedWindow(), keyEvents(key.character.toString())) }
-            is Key.Code -> withContext(main) { dispatchKeys(focusedWindow(), KEY_ACTIONS.map { action -> KeyEvent(action, key.keyCode) }) }
+            is Key.Character -> withContext(main) { dispatchKeys(keyWindow(), keyEvents(key.character.toString())) }
+            is Key.Code -> withContext(main) { dispatchKeys(keyWindow(), KEY_ACTIONS.map { action -> KeyEvent(action, key.keyCode) }) }
             Key.Back -> back()
         }
     }
@@ -142,7 +142,7 @@ internal class EventInjector(
      */
     @Suppress("DEPRECATION") // onBackPressed is the one call that reaches both an override and the dispatcher
     private suspend fun back() = withContext(main) {
-        val window = focusedWindow()
+        val window = keyWindow()
         val activity = activities.activity(window)
         when {
             activity != null -> activity.onBackPressed()
@@ -163,9 +163,9 @@ internal class EventInjector(
         events.forEach { target.dispatchKeyEvent(KeyEvent.changeTimeRepeat(it, SystemClock.uptimeMillis(), 0)) }
     }
 
-    private fun focusedWindow(): View {
+    private fun keyWindow(): View {
         val roots = reader.windowRoots()
-        return roots.lastOrNull { it.hasWindowFocus() } ?: roots.lastOrNull() ?: throw notReady()
+        return keyWindow(ScreenReader.focusable(roots))?.let(roots::get) ?: throw notReady()
     }
 
     /** Puts a finger down in the frontmost window at [start]. */
