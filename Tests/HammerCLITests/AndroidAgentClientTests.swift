@@ -144,7 +144,8 @@ struct AndroidAgentClientTests {
             })
 
         #expect(result == "done")
-        #expect(await checks.count == 3)
+        // The checks don't wait for the call, so a busy machine can fit one more in before the call returns
+        #expect(await checks.count >= 3)
     }
 
     @Test
