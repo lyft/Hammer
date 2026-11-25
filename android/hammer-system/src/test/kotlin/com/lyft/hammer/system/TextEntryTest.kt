@@ -6,6 +6,41 @@ import org.junit.Test
 class TextEntryTest {
 
     @Test
+    fun cachedFocusThatLostTheFocusIsReplacedByTheFocusedField() {
+        val field = TextEntry.stillFocused(cached = "email", isFocused = { false }, search = { "phone" })
+
+        assertThat(field).isEqualTo("phone")
+    }
+
+    @Test
+    fun cachedFocusThatStillHasTheFocusIsUsedWithoutASearch() {
+        var searched = false
+
+        val field = TextEntry.stillFocused(cached = "phone", isFocused = { true }, search = { searched = true; "other" })
+
+        assertThat(field).isEqualTo("phone")
+        assertThat(searched).isFalse()
+    }
+
+    @Test
+    fun noCachedFocusSearchesForTheFocusedField() {
+        assertThat(TextEntry.stillFocused<String>(cached = null, isFocused = { true }, search = { "phone" })).isEqualTo("phone")
+        assertThat(TextEntry.stillFocused<String>(cached = null, isFocused = { true }, search = { null })).isNull()
+    }
+
+    @Test
+    fun textTypedAtTheEndLeavesTheCursorWhereSettingTheTextPutsIt() {
+        assertThat(TextEntry.insert("5145550001", into = "", -1, -1).movesCursor).isFalse()
+        assertThat(TextEntry.insert("X", into = "hello", 5, 5).movesCursor).isFalse()
+    }
+
+    @Test
+    fun textTypedInTheMiddleMovesTheCursorAfterIt() {
+        assertThat(TextEntry.insert("X", into = "hello", 2, 2).movesCursor).isTrue()
+        assertThat(TextEntry.insert("X", into = "hello", 1, 4).movesCursor).isTrue()
+    }
+
+    @Test
     fun textGoesAtTheCursor() {
         assertThat(TextEntry.insert("X", into = "hello", 2, 2)).isEqualTo(TextEntry.Insertion("heXllo", 3))
     }

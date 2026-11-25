@@ -1,6 +1,7 @@
 package com.lyft.hammer.system
 
 import android.app.UiAutomation
+import android.os.Build
 import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import com.lyft.hammer.agent.AgentError
@@ -15,14 +16,11 @@ internal class TextEntry(private val automation: UiAutomation, private val input
 
     /** @return how the text was typed: `set_text` or `keys`. */
     fun type(text: String): String {
-        val field = automation.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-            ?: throw AgentError(
-                "No text field has focus",
-                AgentErrorCode.NOT_READY,
-                "Tap the field first, or pass it as the target",
-            )
-        // The node can be from the cache, with the text and cursor of an earlier read
-        field.refresh()
+        val field = focusedField() ?: throw AgentError(
+            "No text field has focus",
+            AgentErrorCode.NOT_READY,
+            "Tap the field first, or pass it as the target",
+        )
         val current = ownText(field)
         // A password field reports its text masked, which setting the text would write back
         if (field.isEditable && field.isPassword && current.isNotEmpty()) {
@@ -32,6 +30,35 @@ internal class TextEntry(private val automation: UiAutomation, private val input
         if (field.isEditable && setText(field, current, text)) return SET_TEXT
         input.typeKeys(text)
         return KEYS
+    }
+
+    // A read fills UiAutomation's cache with the field focused then, and a tap that moves the focus doesn't
+    // always update it, so the cached focus can be a field the user has left
+    private fun focusedField(): AccessibilityNodeInfo? {
+        clearCache()
+        return stillFocused(
+            cached = automation.findFocus(AccessibilityNodeInfo.FOCUS_INPUT),
+            isFocused = { it.refresh() && it.isFocused },
+            search = ::searchWindows,
+        )
+    }
+
+    // Compose doesn't always report its focused text field to findFocus, so look for it in the windows
+    private fun searchWindows(): AccessibilityNodeInfo? =
+        automation.windows.asSequence().mapNotNull { it.root }.mapNotNull(::focusedIn).firstOrNull()
+
+    private fun focusedIn(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (node.isFocused && node.isEditable) return node
+        return (0 until node.childCount).asSequence().mapNotNull { node.getChild(it) }.mapNotNull(::focusedIn).firstOrNull()
+    }
+
+    // Before Android 14 UiAutomation has no clearCache, but setting its service info clears the cache too
+    private fun clearCache() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            automation.clearCache()
+        } else {
+            automation.serviceInfo = automation.serviceInfo
+        }
     }
 
     private fun ownText(field: AccessibilityNodeInfo): String {
@@ -57,6 +84,9 @@ internal class TextEntry(private val automation: UiAutomation, private val input
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, insertion.text)
         }
         if (!field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) return false
+        // Setting the text leaves the cursor at its end, and a field with a visual transformation, such as a
+        // formatted phone number, can map a cursor sent before it redraws with the new text out of range
+        if (!insertion.movesCursor) return true
 
         val cursor = Bundle().apply {
             putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, insertion.cursor)
@@ -67,11 +97,18 @@ internal class TextEntry(private val automation: UiAutomation, private val input
     }
 
     /** A field's text after typing, and where its cursor goes. */
-    data class Insertion(val text: String, val cursor: Int)
+    data class Insertion(val text: String, val cursor: Int) {
+        /** Whether the cursor goes anywhere but the end, where setting the text already leaves it. */
+        val movesCursor: Boolean get() = cursor != text.length
+    }
 
     companion object {
         private const val SET_TEXT = "set_text"
         private const val KEYS = "keys"
+
+        /** The cached focus while it still has the focus, or else the focused field a search finds. */
+        fun <Field : Any> stillFocused(cached: Field?, isFocused: (Field) -> Boolean, search: () -> Field?): Field? =
+            cached?.takeIf(isFocused) ?: search()
 
         /**
          * The text typed into a field's text, replacing its selection, or at its end when the field reports
