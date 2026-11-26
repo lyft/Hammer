@@ -29,40 +29,18 @@ class TextEntryTest {
     }
 
     @Test
-    fun textTypedAtTheEndLeavesTheCursorWhereSettingTheTextPutsIt() {
-        assertThat(TextEntry.insert("5145550001", into = "", -1, -1).movesCursor).isFalse()
-        assertThat(TextEntry.insert("X", into = "hello", 5, 5).movesCursor).isFalse()
+    fun textWithKeysIsTypedWithKeysEvenIntoAFieldThatTakesSetText() {
+        assertThat(TextEntry.method(hasKeys = true, settable = true)).isEqualTo("keys")
+        assertThat(TextEntry.method(hasKeys = true, settable = false)).isEqualTo("keys")
     }
 
     @Test
-    fun textTypedInTheMiddleMovesTheCursorAfterIt() {
-        assertThat(TextEntry.insert("X", into = "hello", 2, 2).movesCursor).isTrue()
-        assertThat(TextEntry.insert("X", into = "hello", 1, 4).movesCursor).isTrue()
+    fun textWithoutKeysIsSetIntoAFieldThatTakesIt() {
+        assertThat(TextEntry.method(hasKeys = false, settable = true)).isEqualTo("set_text")
     }
 
     @Test
-    fun textGoesAtTheCursor() {
-        assertThat(TextEntry.insert("X", into = "hello", 2, 2)).isEqualTo(TextEntry.Insertion("heXllo", 3))
-    }
-
-    @Test
-    fun textReplacesTheSelection() {
-        assertThat(TextEntry.insert("X", into = "hello", 1, 4)).isEqualTo(TextEntry.Insertion("hXo", 2))
-        assertThat(TextEntry.insert("X", into = "hello", 4, 1)).isEqualTo(TextEntry.Insertion("hXo", 2))
-    }
-
-    @Test
-    fun fieldWithoutASelectionGetsTheTextAtItsEnd() {
-        assertThat(TextEntry.insert("X", into = "hello", -1, -1)).isEqualTo(TextEntry.Insertion("helloX", 6))
-    }
-
-    @Test
-    fun selectionPastTheTextIsIgnored() {
-        assertThat(TextEntry.insert("X", into = "hi", 0, 5)).isEqualTo(TextEntry.Insertion("hiX", 3))
-    }
-
-    @Test
-    fun emptyFieldGetsTheText() {
-        assertThat(TextEntry.insert("abc", into = "", 0, 0)).isEqualTo(TextEntry.Insertion("abc", 3))
+    fun textWithoutKeysCantBeTypedIntoAFieldThatDoesntTakeSetText() {
+        assertThat(TextEntry.method(hasKeys = false, settable = false)).isNull()
     }
 }
