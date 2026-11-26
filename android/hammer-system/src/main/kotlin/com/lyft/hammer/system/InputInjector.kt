@@ -62,16 +62,21 @@ internal class InputInjector(
         keys(KeyEvent(time, SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, code, 0))
     }
 
+    /** Whether [typeKeys] can type [text]: every character is in a keyboard's key map. */
+    fun hasKeys(text: String): Boolean = keyEvents(text) != null
+
     /** Types [text] as key presses, which only covers the characters of a keyboard's key map. */
     fun typeKeys(text: String) {
-        val keyMap = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD)
-        val events = keyMap.getEvents(text.toCharArray()) ?: throw AgentError(
+        val events = keyEvents(text) ?: throw AgentError(
             "No keys type \"$text\"",
             AgentErrorCode.INVALID_ARGUMENTS,
             "Focus a text field first, which takes any text",
         )
         events.forEach { keys(KeyEvent.changeTimeRepeat(it, SystemClock.uptimeMillis(), 0)) }
     }
+
+    private fun keyEvents(text: String): Array<KeyEvent>? =
+        KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD).getEvents(text.toCharArray())
 
     /**
      * Puts a finger down at each of [start], runs [body], then lifts them. A gesture cut short by an error or

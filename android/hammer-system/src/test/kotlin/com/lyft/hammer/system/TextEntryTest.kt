@@ -6,28 +6,41 @@ import org.junit.Test
 class TextEntryTest {
 
     @Test
-    fun textGoesAtTheCursor() {
-        assertThat(TextEntry.insert("X", into = "hello", 2, 2)).isEqualTo(TextEntry.Insertion("heXllo", 3))
+    fun cachedFocusThatLostTheFocusIsReplacedByTheFocusedField() {
+        val field = TextEntry.stillFocused(cached = "email", isFocused = { false }, search = { "phone" })
+
+        assertThat(field).isEqualTo("phone")
     }
 
     @Test
-    fun textReplacesTheSelection() {
-        assertThat(TextEntry.insert("X", into = "hello", 1, 4)).isEqualTo(TextEntry.Insertion("hXo", 2))
-        assertThat(TextEntry.insert("X", into = "hello", 4, 1)).isEqualTo(TextEntry.Insertion("hXo", 2))
+    fun cachedFocusThatStillHasTheFocusIsUsedWithoutASearch() {
+        var searched = false
+
+        val field = TextEntry.stillFocused(cached = "phone", isFocused = { true }, search = { searched = true; "other" })
+
+        assertThat(field).isEqualTo("phone")
+        assertThat(searched).isFalse()
     }
 
     @Test
-    fun fieldWithoutASelectionGetsTheTextAtItsEnd() {
-        assertThat(TextEntry.insert("X", into = "hello", -1, -1)).isEqualTo(TextEntry.Insertion("helloX", 6))
+    fun noCachedFocusSearchesForTheFocusedField() {
+        assertThat(TextEntry.stillFocused<String>(cached = null, isFocused = { true }, search = { "phone" })).isEqualTo("phone")
+        assertThat(TextEntry.stillFocused<String>(cached = null, isFocused = { true }, search = { null })).isNull()
     }
 
     @Test
-    fun selectionPastTheTextIsIgnored() {
-        assertThat(TextEntry.insert("X", into = "hi", 0, 5)).isEqualTo(TextEntry.Insertion("hiX", 3))
+    fun textWithKeysIsTypedWithKeysEvenIntoAFieldThatTakesSetText() {
+        assertThat(TextEntry.method(hasKeys = true, settable = true)).isEqualTo("keys")
+        assertThat(TextEntry.method(hasKeys = true, settable = false)).isEqualTo("keys")
     }
 
     @Test
-    fun emptyFieldGetsTheText() {
-        assertThat(TextEntry.insert("abc", into = "", 0, 0)).isEqualTo(TextEntry.Insertion("abc", 3))
+    fun textWithoutKeysIsSetIntoAFieldThatTakesIt() {
+        assertThat(TextEntry.method(hasKeys = false, settable = true)).isEqualTo("set_text")
+    }
+
+    @Test
+    fun textWithoutKeysCantBeTypedIntoAFieldThatDoesntTakeSetText() {
+        assertThat(TextEntry.method(hasKeys = false, settable = false)).isNull()
     }
 }
